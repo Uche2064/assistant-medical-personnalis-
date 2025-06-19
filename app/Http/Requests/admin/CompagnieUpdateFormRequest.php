@@ -7,7 +7,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class CompagnieFormRequest extends FormRequest
+class CompagnieUpdateFormRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -24,22 +24,22 @@ class CompagnieFormRequest extends FormRequest
      */
     public function rules(): array
     {
+        $compagnieId = $this->route('id');
         return [
-            'nom' => ['required','string','max:255','unique:compagnies,nom'],
-            'adresse' => ['required','string','max:255'],
-            'email' => ['nullable','email','max:255','unique:compagnies,email'],
-            'telephone' => ['nullable','string','max:50','unique:compagnies,telephone'],
-            'site_web' => ['nullable','url','max:255','unique:compagnies,site_web'],
-            'logo' => ['nullable','string','max:255'],
-            'description' => ['nullable','string','max:255'],
-            'est_actif' => ['nullable','boolean'],
+            'nom' => 'required|string|max:255|unique:compagnies,nom,' . $compagnieId,
+            'adresse' => 'nullable|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'telephone' => 'nullable|string|max:50',
+            'site_web' => 'nullable|url|max:255',
+            'logo' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+            'est_actif' => 'nullable|boolean',
         ];
     }
 
     public function failedValidation(Validator $validator)
     {
         $response = ApiResponse::error('Erreur de validation', 422 ,$validator->errors());
-    
         throw new HttpResponseException($response);
     }
 }
