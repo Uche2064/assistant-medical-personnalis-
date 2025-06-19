@@ -4,23 +4,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Carbon\Carbon;
 
 class Otp extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
-        'utilisateur_id',
         'code_otp',
         'verifier_a',
+        'phone',
+        'expires_a'
     ];
 
     protected function casts(): array
     {
         return [
             'verifier_a' => 'datetime',
+            'expires_a' => 'datetime',
         ];
     }
 
@@ -33,11 +34,11 @@ class Otp extends Model
     }
 
     /**
-     * Check if OTP is expired.
+     * Checker si l'otp est expiré
      */
     public function isExpired(): bool
     {
-        return $this->verifier_a < now();
+        return $this->expires_a < Carbon::now();
     }
 
 
@@ -52,13 +53,12 @@ class Otp extends Model
     /**
      * Create a new OTP for a user.
      */
-    public static function createForUser(User $user, string $type = 'login', int $expiryMinutes = 10): self
+    public static function updateOrCreateOtp($phone, $otp)
     {
-        return self::create([
-            'utilisateur_id' => $user->id,
-            'code_otp' => self::generateCode(),
-            'verifier_a' => now()->addMinutes($expiryMinutes),
-        ]);
+        return self::updateOrCreate(
+            ['phone' => $phone],
+            ['code_otp' => $otp, 'expires_a' => Carbon::now()->addMinutes((int) env('OTP_EXPIRE_TIME', 5)), 'verifier_a' => null]
+        );
     }
 
     /**
@@ -66,7 +66,7 @@ class Otp extends Model
      */
     public function scopeValid($query)
     {
-        return $query->where('verifier_a', '>', now());
+        return $query->where('verifier_a', '>', Carbon::now());
     }
 
 }

@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('clients', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('utilisateur_id')->constrained('utilisateurs')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('gestionnaire_id')->constrained('gestionnaires')->onDelete('cascade');
             $table->string('profession')->unique();
             $table->enum('type_client', TypeClientEnum::values())->nullable();

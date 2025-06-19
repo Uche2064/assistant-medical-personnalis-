@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('assures', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('utilisateur_id')->constrained()->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('client_id')->constrained('clients')->onDelete('cascade');
             $table->boolean('est_principal')->nullable();
             $table->enum('lien_parente', LienEnum::values())->default('principal');

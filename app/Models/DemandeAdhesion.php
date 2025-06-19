@@ -36,57 +36,42 @@ class DemandeAdhesion extends Model
         ];
     }
 
-    /**
-     * Get the personnel who validated this demande.
-     */
+  
     public function validePar()
     {
         return $this->belongsTo(Personnel::class, 'valide_par_id');
     }
 
-    /**
-     * Get the personnel who created this demande.
-     */
+    
     public function faitPar()
     {
         return $this->belongsTo(Personnel::class, 'fait_par');
     }
 
-    /**
-     * Get the reponses questionnaire for this demande.
-     */
+   
     public function reponsesQuestionnaire()
     {
         return $this->hasMany(ReponseQuestionnaire::class);
     }
 
-    /**
-     * Check if demande is pending.
-     */
+   
     public function isPending(): bool
     {
         return $this->statut === StatutValidationEnum::EN_ATTENTE;
     }
 
-    /**
-     * Check if demande is validated.
-     */
+ 
     public function isValidated(): bool
     {
         return $this->statut === StatutValidationEnum::VALIDE;
     }
 
-    /**
-     * Check if demande is rejected.
-     */
     public function isRejected(): bool
     {
         return $this->statut === StatutValidationEnum::REJETE;
     }
 
-    /**
-     * Validate the demande.
-     */
+
     public function validate(Personnel $personnel): void
     {
         $this->update([
@@ -96,9 +81,7 @@ class DemandeAdhesion extends Model
         ]);
     }
 
-    /**
-     * Reject the demande.
-     */
+
     public function reject(Personnel $personnel): void
     {
         $this->update([
@@ -108,25 +91,19 @@ class DemandeAdhesion extends Model
         ]);
     }
 
-    /**
-     * Scope to get pending demandes.
-     */
+
     public function scopePending($query)
     {
         return $query->where('statut', StatutValidationEnum::EN_ATTENTE);
     }
 
-    /**
-     * Scope to get validated demandes.
-     */
+
     public function scopeValidated($query)
     {
         return $query->where('statut', StatutValidationEnum::VALIDE);
     }
 
-    /**
-     * Scope to get rejected demandes.
-     */
+   
     public function scopeRejected($query)
     {
         return $query->where('statut', StatutValidationEnum::REJETE);

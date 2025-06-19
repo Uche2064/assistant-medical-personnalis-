@@ -11,14 +11,14 @@ class Gestionnaire extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'utilisateur_id',
+        'user_id',
         'compagnie_id',
     ];
 
     // Relation vers l'utilisateur
     public function utilisateur()
     {
-        return $this->belongsTo(User::class, 'utilisateur_id');
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     // Relation vers la compagnie

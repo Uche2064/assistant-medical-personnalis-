@@ -14,7 +14,7 @@ return new class extends Migration
     {
         Schema::create('prestataires', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('utilisateur_id')->constrained('utilisateurs')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->enum('type_prestataire', TypePrestataireEnum::values());
             $table->foreignId('medecin_controleur_id')->nullable()->constrained('personnels')->onDelete('cascade');
             $table->timestamps();

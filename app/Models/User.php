@@ -8,16 +8,20 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasApiTokens, SoftDeletes;
+    use HasFactory, Notifiable, HasApiTokens, SoftDeletes, HasRoles;
 
     /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
      */
+
+    protected $table="users";
     protected $fillable = [
         'nom',
         'prenoms',
@@ -28,7 +32,6 @@ class User extends Authenticatable
         'date_naissance',
         'est_actif',
         'password',
-        'role_id',
         'photo'
     ];
 

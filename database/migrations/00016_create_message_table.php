@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->text('contenu');
             $table->foreignId('conversation_id')->constrained('conversations')->onDelete('cascade');
-            $table->foreignId('expediteur_id')->nullable()->constrained('utilisateurs')->onDelete('cascade');
+            $table->foreignId('expediteur_id')->nullable()->constrained('users')->onDelete('cascade');
             $table->timestamps();
             $table->softDeletes();
             $table->index(['conversation_id', 'expediteur_id'], 'message_conversation_envoye_recu_index');
