@@ -21,7 +21,7 @@ class User extends Authenticatable
      * @var array<int, string>
      */
 
-    protected $table="users";
+    protected $table = "users";
     protected $fillable = [
         'nom',
         'prenoms',
@@ -32,7 +32,8 @@ class User extends Authenticatable
         'date_naissance',
         'est_actif',
         'password',
-        'photo'
+        'photo',
+        'must_change_password'
     ];
 
     /**
@@ -59,6 +60,7 @@ class User extends Authenticatable
             'adresse' => 'array',
             'sexe' => SexeEnum::class,
             'est_actif' => 'boolean',
+            'must_change_password' => 'boolean'
         ];
     }
 
@@ -108,5 +110,25 @@ class User extends Authenticatable
     public function scopeActive($query)
     {
         return $query->where('est_actif', true);
+    }
+
+    public function client()
+    {
+        return $this->hasOne(Client::class, 'user_id');
+    }
+
+     public function assure()
+    {
+        return $this->hasOne(Assure::class, 'user_id');
+    }
+
+    public function personnel()
+    {
+        return $this->hasOne(Personnel::class, 'user_id');
+    }
+
+    public function prestataire()
+    {
+        return $this->hasOne(Prestataire::class, 'user_id');
     }
 }
