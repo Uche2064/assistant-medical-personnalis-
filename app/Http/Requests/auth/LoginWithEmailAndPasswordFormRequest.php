@@ -25,7 +25,7 @@ class LoginWithEmailAndPasswordFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'username' => ['required', 'string', 'exists:users,username'],
+            'email' => ['required', 'email', 'string', 'exists:users,email'],
             'password' => ['required', 'string', 'min:8'],
         ];
     }

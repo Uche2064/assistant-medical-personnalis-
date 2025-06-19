@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\v1\Api\admin;
 
+use App\Enums\RoleEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\admin\GestionnaireFormRequest;
@@ -9,6 +10,7 @@ use App\Http\Requests\admin\GestionnaireUpdateFormRequest;
 use App\Models\Compagnie;
 use App\Models\Gestionnaire;
 use App\Models\User;
+use Illuminate\Http\Request;
 
 class GestionnaireController extends Controller
 {
@@ -42,11 +44,12 @@ class GestionnaireController extends Controller
             'date_naissance' => $data['date_naissance'] ?? null,
             'sexe' => $data['sexe'] ?? null,
             'photo' => $data['photo'] ?? null,
-            'username' => $data['username'],
+            'username' => $data['username'] ?? null,
             'must_change_password' => true,
             'password' => bcrypt($password),
         ]);
 
+        $user->assignRole(RoleEnum::GESTIONNAIRE);
         $user->save();
 
         // get le id
@@ -81,6 +84,7 @@ class GestionnaireController extends Controller
                 'date_naissance' => $user->date_naissance,
                 'photo' => $user->photo,
                 'est_actif' => $user->est_actif,
+                'role' => $gestionnaire->user->getRoleNames()->first(),
                 'must_change_password' => $user->must_change_password,
             ],
             'password' => $password
@@ -94,7 +98,7 @@ class GestionnaireController extends Controller
      */
     public function show(int $id)
     {
-        $gestionnaire = Gestionnaire::with('compagnie')->find($id);
+        $gestionnaire = Gestionnaire::with('compagnie', 'user')->find($id);
         if (!$gestionnaire) {
             return ApiResponse::error('Gestionnaire non trouvé', 404);
         }
@@ -138,6 +142,7 @@ class GestionnaireController extends Controller
             'est_actif' => $gestionnaire->user->est_actif ?? null,
             'must_change_password' => $gestionnaire->user->must_change_password ?? null,
             'compagnie' => $gestionnaire->compagnie,
+            'role' => $gestionnaire->user->getRoleNames()->first(),
         ];
         return ApiResponse::success($data, 'Gestionnaire mis à jour avec succès');
     }
@@ -153,5 +158,33 @@ class GestionnaireController extends Controller
         }
         $gestionnaire->delete();
         return ApiResponse::success(null, 'Gestionnaire supprimé avec succès', 204);
+    }
+
+    public function gestionnaireByCompagnieId(Request $request) {
+        $compagnie_id = $request->compagnie_id;
+        $gestionnaires = Gestionnaire::with('user')->where('compagnie_id', $compagnie_id)->get();
+        if ($gestionnaires->isEmpty()) {
+            return ApiResponse::success($gestionnaires, 'Aucun gestionnaire trouvé');
+        }
+        $data = [];
+        foreach ($gestionnaires as $gestionnaire) {
+            $data[] = [
+                'id' => $gestionnaire->id,
+                'nom' => $gestionnaire->user->nom ?? null,
+                'prenoms' => $gestionnaire->user->prenoms ?? null,
+                'email' => $gestionnaire->user->email ?? null,
+                'contact' => $gestionnaire->user->contact ?? null,
+                'username' => $gestionnaire->user->username ?? null,
+                'adresse' => $gestionnaire->user->adresse ?? null,
+                'sexe' => $gestionnaire->user->sexe ?? null,
+                'date_naissance' => $gestionnaire->user->date_naissance ?? null,
+                'photo' => $gestionnaire->user->photo ?? null,
+                'est_actif' => $gestionnaire->user->est_actif ?? null,
+                'must_change_password' => $gestionnaire->user->must_change_password ?? null,
+                'compagnie' => $gestionnaire->compagnie,
+                'role' => $gestionnaire->user->getRoleNames()->first(),
+            ];
+        }
+        return ApiResponse::success($data, 'Liste des gestionnaires récupérée avec succès');
     }
 }

@@ -134,6 +134,10 @@ class User extends Authenticatable
         return $this->hasOne(Personnel::class, 'user_id');
     }
 
+    public function gestionnaire() {
+        return $this->hasOne(Gestionnaire::class, 'user_id');
+    }
+
     public function prestataire()
     {
         return $this->hasOne(Prestataire::class, 'user_id');

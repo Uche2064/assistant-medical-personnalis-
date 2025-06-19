@@ -25,15 +25,14 @@ class CompagnieFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nom' => 'required|string|max:255|unique:compagnies,nom',
-            'adresse' => 'nullable|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'telephone' => 'nullable|string|max:50',
-            'site_web' => 'nullable|url|max:255',
-            'logo' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'est_actif' => 'nullable|boolean',
-            'compagnie_id' => 'required|exists:compagnies,id',
+            'nom' => ['required','string','max:255','unique:compagnies,nom'],
+            'adresse' => ['required','string','max:255'],
+            'email' => ['required','email','max:255','unique:compagnies,email'],
+            'telephone' => ['nullable','string','max:50','unique:compagnies,telephone'],
+            'site_web' => ['nullable','url','max:255','unique:compagnies,site_web'],
+            'logo' => ['nullable','string','max:255'],
+            'description' => ['nullable','string','max:255'],
+            'est_actif' => ['nullable','boolean'],
         ];
     }
 
