@@ -6,13 +6,10 @@ use App\Enums\TypePersonnelEnum;
 use App\Enums\TypePrestataireEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
-<<<<<<< HEAD:app/Http/Controllers/v1/Api/admin/AuthController.php
-=======
 use App\Http\Requests\auth\ChangePasswordFormRequest;
 use App\Http\Requests\auth\LoginWithEmailAndPasswordFormRequest;
-use App\Models\Assure;
->>>>>>> 2036bd44f8c485abcfeba26d64c23fbd4eb6ca84:app/Http/Controllers/v1/Api/AuthController.php
 use App\Models\Otp;
+use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,16 +30,9 @@ class AuthController extends Controller
 
         $validatedData = $validator->validated();
 
-<<<<<<< HEAD:app/Http/Controllers/v1/Api/admin/AuthController.php
-        // // Vérifier que le numéro appartient à un assuré existant
-        // $assureExists = Assure::whereHas('user', function ($query) use ($validatedData) {
-        //     $query->where('contact', $validatedData['phone']);
-        // })->exists();
-=======
         $user = User::where('contact', $validatedData['phone'])->where('est_actif', true)
             ->with(['personnel', 'prestataire', 'assure'])
             ->first();
->>>>>>> 2036bd44f8c485abcfeba26d64c23fbd4eb6ca84:app/Http/Controllers/v1/Api/AuthController.php
 
         dd($user);
         if (!$user) {
