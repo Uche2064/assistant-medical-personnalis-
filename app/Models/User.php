@@ -33,7 +33,7 @@ class User extends Authenticatable
         'est_actif',
         'password',
         'photo',
-        'must_change_password'
+        'must_change_password',
     ];
 
     /**
@@ -79,6 +79,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(Otp::class);
     }
+
+    static function genererMotDePasse($longueur = 8)
+    {
+        return substr(bin2hex(random_bytes($longueur)), 0, $longueur);
+    }
+
 
     /**
      * Get the conversations for the user.

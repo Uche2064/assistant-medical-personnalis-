@@ -7,7 +7,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class CompagnieFormRequest extends FormRequest
+class AuthFormRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -25,15 +25,8 @@ class CompagnieFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nom' => 'required|string|max:255|unique:compagnies,nom',
-            'adresse' => 'nullable|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'telephone' => 'nullable|string|max:50',
-            'site_web' => 'nullable|url|max:255',
-            'logo' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'est_actif' => 'nullable|boolean',
-            'compagnie_id' => 'required|exists:compagnies,id',
+            'username' => 'required|string',
+            'password' => 'required|string',
         ];
     }
 
