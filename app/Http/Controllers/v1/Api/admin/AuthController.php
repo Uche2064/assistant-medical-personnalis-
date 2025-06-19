@@ -8,7 +8,6 @@ use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\auth\ChangePasswordFormRequest;
 use App\Http\Requests\auth\LoginWithEmailAndPasswordFormRequest;
-use App\Models\Assure;
 use App\Models\Otp;
 use App\Models\User;
 use Exception;
