@@ -25,7 +25,7 @@ class Personnel extends Model
         ];
     }
 
-    public function utilisateur()
+    public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }

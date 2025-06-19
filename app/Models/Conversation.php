@@ -16,13 +16,13 @@ class Conversation extends Model
         'dernier_message',
     ];
 
-    // Relation vers le premier utilisateur
+    // Relation vers le premier user
     public function utilisateur1()
     {
         return $this->belongsTo(User::class, 'user_id_1');
     }
 
-    // Relation vers le second utilisateur
+    // Relation vers le second user
     public function utilisateur2()
     {
         return $this->belongsTo(User::class, 'user_id_2');

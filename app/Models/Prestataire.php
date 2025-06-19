@@ -27,7 +27,7 @@ class Prestataire extends Model
     /**
      * Get the user that owns the prestataire.
      */
-    public function utilisateur()
+    public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
