@@ -20,10 +20,11 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     Route::prefix('admin')->group(function () {
         Route::post('/login', [AdminController::class, 'login']);
         Route::middleware(['auth:sanctum', 'admin'])->group(function () {
-            // gestionnaire
+            // gestionnaires
             Route::get('/gestionnaires', [GestionnaireController::class, 'index']);
             Route::post('/gestionnaires', [GestionnaireController::class, 'store']);
 
+            // compagnie
             Route::post('/compagnies', [AdminController::class, 'storeCompagnie']);
 
         });
