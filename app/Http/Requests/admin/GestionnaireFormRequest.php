@@ -4,6 +4,7 @@ namespace App\Http\Requests\admin;
 
 use App\Enums\SexeEnum;
 use App\Helpers\ApiResponse;
+use App\Models\User;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -29,9 +30,19 @@ class GestionnaireFormRequest extends FormRequest
         return [
             'nom' => ['required', 'string', 'max:255'],
             'prenoms' => ['nullable', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'contact' => ['nullable', 'string', 'max:50'],
-            'username' => ['required', 'string', 'unique:users,username'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'contact' => ['nullable', 'string', 'max:50', 'unique:users,contact'],
+            'username' => ['nullable', 'string', function($attribute, $value, $fail) {
+                $compagnieId = $this->input('compagnie_id');
+                $exists = User::where('username', $value)
+                    ->whereHas('gestionnaire', function($q) use ($compagnieId) {
+                        $q->where('compagnie_id', $compagnieId);
+                    })->exists();
+                if ($exists) {
+                    $fail('Ce nom d\'utilisateur existe déjà dans cette compagnie.');
+                }
+            }
+],
             'adresse' => ['required', 'json', 'max:255'],
             'sexe' => ['nullable', Rule::in(SexeEnum::values())],
             'date_naissance' => ['nullable', 'date'],

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\v1\Api\admin;
+namespace App\Http\Controllers\v1\Api;
 
 use App\Enums\TypePersonnelEnum;
 use App\Enums\TypePrestataireEnum;
@@ -34,7 +34,6 @@ class AuthController extends Controller
             ->with(['personnel', 'prestataire', 'assure'])
             ->first();
 
-        dd($user);
         if (!$user) {
             return ApiResponse::error("Ce numéro n'est pas encore enregistré dans le système.", 403);
         }
@@ -114,7 +113,7 @@ class AuthController extends Controller
         $validatedData = $request->validated();
 
         // rechercher l'utilisateur
-        $user = User::where('username', $validatedData['username'])
+        $user = User::where('email', $validatedData['email'])
             ->where('est_actif', true)
             ->first();
 
@@ -125,9 +124,7 @@ class AuthController extends Controller
 
         // Vérifier si le mot de passe doit être changé
         if ($user->must_change_password) {
-            $token = $user->createToken('auth-token')->plainTextToken;
             return ApiResponse::success([
-                'token' => $token,
                 'must_change_password' => true,
             ], 'Changement de mot de passe obligatoire', 200);
         }
@@ -157,10 +154,16 @@ class AuthController extends Controller
     public function changePassword(ChangePasswordFormRequest $request)
     {
         $validated = $request->validated();
-        $user = Auth::user();
+        $user = User::where('email', $validated['email'])->first();
+
+        // vérifier si le mot de passe courant dans la base de données est idem que celui que l'utilisateur nous envoie
+        if(!Hash::check($validated['current_password'], $user->password)) {
+            return ApiResponse::error('Mot de passe actuel incorrect', 401);
+        }
+
         $user->update([
             'password' => Hash::make($validated['new_password']),
-            'must_change_password' => false,
+            'must_change_password' => false
         ]);
 
         return ApiResponse::success(null, 'Mot de passe changé avec succès.', 200);

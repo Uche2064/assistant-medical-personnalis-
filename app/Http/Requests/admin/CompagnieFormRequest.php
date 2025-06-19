@@ -27,7 +27,7 @@ class CompagnieFormRequest extends FormRequest
         return [
             'nom' => ['required','string','max:255','unique:compagnies,nom'],
             'adresse' => ['required','string','max:255'],
-            'email' => ['nullable','email','max:255','unique:compagnies,email'],
+            'email' => ['required','email','max:255','unique:compagnies,email'],
             'telephone' => ['nullable','string','max:50','unique:compagnies,telephone'],
             'site_web' => ['nullable','url','max:255','unique:compagnies,site_web'],
             'logo' => ['nullable','string','max:255'],
