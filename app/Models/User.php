@@ -21,7 +21,7 @@ class User extends Authenticatable
      * @var array<int, string>
      */
 
-    protected $table="users";
+    protected $table = "users";
     protected $fillable = [
         'nom',
         'prenoms',
@@ -32,7 +32,8 @@ class User extends Authenticatable
         'date_naissance',
         'est_actif',
         'password',
-        'photo'
+        'photo',
+        'must_change_password',
     ];
 
     /**
@@ -59,6 +60,7 @@ class User extends Authenticatable
             'adresse' => 'array',
             'sexe' => SexeEnum::class,
             'est_actif' => 'boolean',
+            'must_change_password' => 'boolean'
         ];
     }
 
@@ -77,6 +79,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(Otp::class);
     }
+
+    static function genererMotDePasse($longueur = 8)
+    {
+        return substr(bin2hex(random_bytes($longueur)), 0, $longueur);
+    }
+
 
     /**
      * Get the conversations for the user.

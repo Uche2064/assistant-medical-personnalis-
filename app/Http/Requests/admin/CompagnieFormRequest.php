@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\admin;
 
+use App\Helpers\ApiResponse;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class CompagnieFormRequest extends FormRequest
 {
@@ -32,5 +35,12 @@ class CompagnieFormRequest extends FormRequest
             'est_actif' => 'nullable|boolean',
             'compagnie_id' => 'required|exists:compagnies,id',
         ];
+    }
+
+    public function failedValidation(Validator $validator)
+    {
+        $response = ApiResponse::error('Erreur de validation', 422 ,$validator->errors());
+    
+        throw new HttpResponseException($response);
     }
 }

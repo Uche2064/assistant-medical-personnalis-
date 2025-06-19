@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\admin;
 
+use App\Helpers\ApiResponse;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class AuthFormRequest extends FormRequest
 {
@@ -25,5 +28,12 @@ class AuthFormRequest extends FormRequest
             'username' => 'required|string',
             'password' => 'required|string',
         ];
+    }
+
+    public function failedValidation(Validator $validator)
+    {
+        $response = ApiResponse::error('Erreur de validation', 422 ,$validator->errors());
+    
+        throw new HttpResponseException($response);
     }
 }
