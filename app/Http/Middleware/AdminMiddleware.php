@@ -2,12 +2,14 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\RoleEnum;
 use App\Helpers\ApiResponse;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
-class VerifyApiKey
+class AdminMiddleware
 {
     /**
      * Handle an incoming request.
@@ -16,11 +18,10 @@ class VerifyApiKey
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $apiKey = $request->header('X-API-KEY');
-        $validApiKey = env('API_KEY');
-        if (!$apiKey || $apiKey !== $validApiKey) {
-            return ApiResponse::error('Clef API invalide', 401);
+        if (!Auth::check() || !Auth::user()->hasRole(RoleEnum::ADMIN_GLOBAL->value)) {
+            return ApiResponse::error('Accès non autorisé.', 403, 'unauthorized');
         }
+
         return $next($request);
     }
 }

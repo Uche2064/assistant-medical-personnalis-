@@ -14,7 +14,7 @@ return new class extends Migration
     {
         Schema::create('personnels', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('utilisateur_id')->constrained('utilisateurs')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('gestionnaire_id')->nullable()->constrained('gestionnaires')->onDelete('set null');
             $table->foreignId('compagnie_id')->constrained('compagnies')->onDelete('cascade');
             $table->enum('type_personnel', TypePersonnelEnum::values());

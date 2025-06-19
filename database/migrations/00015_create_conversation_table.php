@@ -13,12 +13,12 @@ return new class extends Migration
     {
         Schema::create('conversations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('utilisateur_id_1')->constrained('utilisateurs')->onDelete('cascade');
-            $table->foreignId('utilisateur_id_2')->constrained('utilisateurs')->onDelete('cascade');
+            $table->foreignId('user_id_1')->constrained('users')->onDelete('cascade');
+            $table->foreignId('user_id_2')->constrained('users')->onDelete('cascade');
             $table->text('dernier_message')->nullable();
             $table->timestamps();
             $table->softDeletes();
-            $table->index(['utilisateur_id_1', 'utilisateur_id_2'], 'conversation_utilisateur_index');
+            $table->index(['user_id_1', 'user_id_2'], 'conversation_utilisateur_index');
         });
     }
 

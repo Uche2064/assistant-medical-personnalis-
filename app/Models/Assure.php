@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\LienParenteEnum;
+use App\Enums\LienEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,7 +12,7 @@ class Assure extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'utilisateur_id',
+        'user_id',
         'client_id',
         'lien_parente',
         'assure_parent_id'
@@ -21,7 +21,7 @@ class Assure extends Model
     protected function casts(): array
     {
         return [
-            'lien_parente' => LienParenteEnum::class,
+            'lien_parente' => LienEnum::class,
         ];
     }
 
@@ -30,7 +30,7 @@ class Assure extends Model
      */
     public function utilisateur()
     {
-        return $this->belongsTo(User::class, 'utilisateur_id');
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     /**
@@ -88,7 +88,7 @@ class Assure extends Model
      */
     public function isPrincipal(): bool
     {
-        return $this->lien_parente === LienParenteEnum::PRINCIPAL;
+        return $this->lien_parente === LienEnum::PRINCIPAL;
     }
 
     /**
@@ -156,7 +156,7 @@ class Assure extends Model
      */
     public function scopePrincipal($query)
     {
-        return $query->where('lien_parente', LienParenteEnum::PRINCIPAL);
+        return $query->where('lien_parente', LienEnum::PRINCIPAL);
     }
 
     /**
@@ -164,14 +164,14 @@ class Assure extends Model
      */
     public function scopeDependents($query)
     {
-        return $query->where('lien_parente', '!=', LienParenteEnum::PRINCIPAL)
+        return $query->where('lien_parente', '!=', LienEnum::PRINCIPAL)
                     ->whereNotNull('assure_parent_id');
     }
 
     /**
      * Scope to get assures by family relationship.
      */
-    public function scopeByLienParente($query, LienParenteEnum $lienParente)
+    public function scopeByLienParente($query, LienEnum $lienParente)
     {
         return $query->where('lien_parente', $lienParente);
     }

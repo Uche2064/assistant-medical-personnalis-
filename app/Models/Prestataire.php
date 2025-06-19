@@ -12,7 +12,7 @@ class Prestataire extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'utilisateur_id',
+        'user_id',
         'type_prestataire',
         'medecin_controleur_id'
     ];
@@ -29,7 +29,7 @@ class Prestataire extends Model
      */
     public function utilisateur()
     {
-        return $this->belongsTo(User::class, 'utilisateur_id');
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     /**
