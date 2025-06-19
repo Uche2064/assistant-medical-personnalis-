@@ -2,11 +2,21 @@
 
 namespace App\Http\Controllers\v1\Api\admin;
 
+use App\Enums\TypePersonnelEnum;
+use App\Enums\TypePrestataireEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+<<<<<<< HEAD:app/Http/Controllers/v1/Api/admin/AuthController.php
+=======
+use App\Http\Requests\auth\ChangePasswordFormRequest;
+use App\Http\Requests\auth\LoginWithEmailAndPasswordFormRequest;
+use App\Models\Assure;
+>>>>>>> 2036bd44f8c485abcfeba26d64c23fbd4eb6ca84:app/Http/Controllers/v1/Api/AuthController.php
 use App\Models\Otp;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
@@ -23,17 +33,31 @@ class AuthController extends Controller
 
         $validatedData = $validator->validated();
 
+<<<<<<< HEAD:app/Http/Controllers/v1/Api/admin/AuthController.php
         // // Vérifier que le numéro appartient à un assuré existant
         // $assureExists = Assure::whereHas('user', function ($query) use ($validatedData) {
         //     $query->where('contact', $validatedData['phone']);
         // })->exists();
+=======
+        $user = User::where('contact', $validatedData['phone'])->where('est_actif', true)
+            ->with(['personnel', 'prestataire', 'assure'])
+            ->first();
+>>>>>>> 2036bd44f8c485abcfeba26d64c23fbd4eb6ca84:app/Http/Controllers/v1/Api/AuthController.php
 
-        // if (!$assureExists) {
-        //     return ApiResponse::error(
-        //         "Ce numéro n'est pas encore enregistré comme assuré.",
-        //         403
-        //     );
-        // }
+        dd($user);
+        if (!$user) {
+            return ApiResponse::error("Ce numéro n'est pas encore enregistré dans le système.", 403);
+        }
+
+        if ($user->assure) {
+            $role = 'assure';
+        } elseif ($user->personnel && $user->personnel->type_personnel === TypePersonnelEnum::COMMERCIAL->value) {
+            $role = 'commercial';
+        } elseif ($user->prestataire && $user->prestataire->type_prestataire === TypePrestataireEnum::PARTICULIER->value) {
+            $role = 'particulier';
+        } else {
+            return ApiResponse::error("Ce numéro n'est pas autorisé à recevoir un OTP.", 403);
+        }
 
         // Générer un OTP de 6 chiffres
         $otp = Otp::generateCode();
@@ -47,7 +71,8 @@ class AuthController extends Controller
 
 
         return ApiResponse::success([
-            'otp' => $otp // À supprimer en production, c'est juste pour le test
+            'otp' => $otp, // À supprimer en production, c'est juste pour le test
+            'role' => $role
         ], 'OTP envoyé avec succès', 200);
     }
 
@@ -93,27 +118,61 @@ class AuthController extends Controller
         );
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function loginWithEmailAndPassword(LoginWithEmailAndPasswordFormRequest $request)
     {
-        //
+        // valider le formulaire
+        $validatedData = $request->validated();
+
+        // rechercher l'utilisateur
+        $user = User::where('username', $validatedData['username'])
+            ->where('est_actif', true)
+            ->first();
+
+        // vérifier le mot de passe
+        if (!$user || !Hash::check($validatedData['password'], $user->password)) {
+            return ApiResponse::error('Identifiants incorrects', 401);
+        }
+
+        // Vérifier si le mot de passe doit être changé
+        if ($user->must_change_password) {
+            $token = $user->createToken('auth-token')->plainTextToken;
+            return ApiResponse::success([
+                'token' => $token,
+                'must_change_password' => true,
+            ], 'Changement de mot de passe obligatoire', 200);
+        }
+
+        // créer le token de connexion
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        return ApiResponse::success([
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'nom' => $user->nom,
+                'prenoms' => $user->prenoms,
+                'username' => $user->username,
+                'email' => $user->email,
+                'sexe' => $user->sexe,
+                'contact' => $user->contact,
+                'adresse' => $user->adresse,
+                'must_change_password' => $user->must_change_password,
+                'creer_a' => $user->created_at,
+                'modifier_a' => $user->updated_at,
+                'role' => $user->getRoleNames()->first(),
+            ],
+        ], 'Connexion utilisateur réussie', 200);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    public function changePassword(ChangePasswordFormRequest $request)
     {
-        //
-    }
+        $validated = $request->validated();
+        $user = Auth::user();
+        $user->update([
+            'password' => Hash::make($validated['new_password']),
+            'must_change_password' => false,
+        ]);
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        return ApiResponse::success(null, 'Mot de passe changé avec succès.', 200);
     }
 }

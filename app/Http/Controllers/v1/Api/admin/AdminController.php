@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
+<<<<<<< HEAD:app/Http/Controllers/v1/Api/admin/AdminController.php
     /**
      * Authentifie uniquement l'admin global par nom d'user et mot de passe.
      */
@@ -60,6 +61,8 @@ class AdminController extends Controller
         ], 'Connexion admin réussie', 200);
     }
 
+=======
+>>>>>>> 2036bd44f8c485abcfeba26d64c23fbd4eb6ca84:app/Http/Controllers/v1/Api/AdminController.php
 
     
 }

@@ -118,4 +118,24 @@ class User extends Authenticatable
     {
         return $query->where('est_actif', true);
     }
+
+    public function client()
+    {
+        return $this->hasOne(Client::class, 'user_id');
+    }
+
+     public function assure()
+    {
+        return $this->hasOne(Assure::class, 'user_id');
+    }
+
+    public function personnel()
+    {
+        return $this->hasOne(Personnel::class, 'user_id');
+    }
+
+    public function prestataire()
+    {
+        return $this->hasOne(Prestataire::class, 'user_id');
+    }
 }
