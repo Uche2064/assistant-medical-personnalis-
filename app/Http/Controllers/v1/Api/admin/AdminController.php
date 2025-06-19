@@ -1,29 +1,24 @@
 <?php
 
-namespace App\Http\Controllers\v1\Api;
+namespace App\Http\Controllers\v1\Api\admin;
 
-use App\Enums\RoleEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\admin\AuthFormRequest;
-use App\Http\Requests\admin\CompagnieFormRequest;
-use App\Http\Requests\admin\GestionnaireFormRequest;
-use App\Models\Compagnie;
 use App\Models\Gestionnaire;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
     /**
-     * Authentifie uniquement l'admin global par nom d'utilisateur et mot de passe.
+     * Authentifie uniquement l'admin global par nom d'user et mot de passe.
      */
     public function login(AuthFormRequest $request)
     {
         $credentials = $request->validated();
 
-        // Recherche de l'utilisateur admin actif par username
+        // Recherche de l'user admin actif par username
         $admin = User::where('username', $credentials['username'])
             ->where('est_actif', true)
             ->first();
@@ -42,10 +37,10 @@ class AdminController extends Controller
             ->map(function($g) {
                 return [
                     'id' => $g->id,
-                    'nom' => $g->utilisateur->nom ?? null,
-                    'prenoms' => $g->utilisateur->prenoms ?? null,
-                    'email' => $g->utilisateur->email ?? null,
-                    'contact' => $g->utilisateur->contact ?? null,
+                    'nom' => $g->user->nom ?? null,
+                    'prenoms' => $g->user->prenoms ?? null,
+                    'email' => $g->user->email ?? null,
+                    'contact' => $g->user->contact ?? null,
                     'compagnie_id' => $g->compagnie_id,
                     'compagnie' => $g->compagnie ? $g->compagnie->nom : null,
                 ];

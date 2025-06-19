@@ -1,12 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\v1\Api;
+namespace App\Http\Controllers\v1\Api\admin;
 
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
-use App\Models\Assure;
 use App\Models\Otp;
-use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -26,7 +24,7 @@ class AuthController extends Controller
         $validatedData = $validator->validated();
 
         // // Vérifier que le numéro appartient à un assuré existant
-        // $assureExists = Assure::whereHas('utilisateur', function ($query) use ($validatedData) {
+        // $assureExists = Assure::whereHas('user', function ($query) use ($validatedData) {
         //     $query->where('contact', $validatedData['phone']);
         // })->exists();
 

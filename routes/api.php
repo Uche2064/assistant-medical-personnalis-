@@ -1,10 +1,9 @@
 <?php
 
-use App\Http\Controllers\v1\Api\AdminController;
-use Illuminate\Http\Request;
+use App\Http\Controllers\v1\Api\admin\AdminController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\v1\Api\AuthController;
-use App\Http\Controllers\v1\Api\GestionnaireController;
+use App\Http\Controllers\v1\Api\admin\AuthController;
+use App\Http\Controllers\v1\Api\admin\GestionnaireController;
 
 Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
@@ -23,6 +22,9 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
             // gestionnaires
             Route::get('/gestionnaires', [GestionnaireController::class, 'index']);
             Route::post('/gestionnaires', [GestionnaireController::class, 'store']);
+            Route::get('/gestionnaires/{id}', [GestionnaireController::class, 'show']);
+            Route::put('/gestionnaires/{id}', [GestionnaireController::class, 'update']);
+            Route::delete('/gestionnaires/{id}', [GestionnaireController::class, 'destroy']);
 
             // compagnie
             Route::post('/compagnies', [AdminController::class, 'storeCompagnie']);

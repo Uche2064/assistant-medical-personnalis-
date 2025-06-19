@@ -15,8 +15,8 @@ class Gestionnaire extends Model
         'compagnie_id',
     ];
 
-    // Relation vers l'utilisateur
-    public function utilisateur()
+    // Relation vers l'user
+    public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
