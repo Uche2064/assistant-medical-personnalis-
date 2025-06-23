@@ -4,7 +4,7 @@ namespace App\Models;
 
 use App\Enums\TypeDonneesEnum;
 use App\Enums\DestinataireEnum;
-use App\Enums\DestinataireQuestionEnum;
+use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -28,7 +28,7 @@ class Question extends Model
     {
         return [
             'type_donnees' => TypeDonneeEnum::class,
-            'destinataire' => DestinataireQuestionEnum::class,
+            'destinataire' => TypeDemandeurEnum::class,
             'obligatoire' => 'boolean',
             'est_actif' => 'boolean',
         ];
@@ -47,7 +47,7 @@ class Question extends Model
      */
     public function reponses()
     {
-        return $this->hasMany(ReponseQuestionnaire::class);
+        return $this->hasMany(ReponsesQuestionnaire::class);
     }
 
     /**
@@ -77,7 +77,7 @@ class Question extends Model
     /**
      * Scope to get questions for a specific destinataire.
      */
-    public function scopeForDestinataire($query, DestinataireQuestionEnum $destinataire)
+    public function scopeForDestinataire($query, TypeDemandeurEnum $destinataire)
     {
         return $query->where('destinataire', $destinataire);
     }

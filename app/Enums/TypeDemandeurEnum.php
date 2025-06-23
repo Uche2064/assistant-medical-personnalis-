@@ -4,12 +4,13 @@ namespace App\Enums;
 
 enum TypeDemandeurEnum: String
 {
-    case PROSPECT = 'Prospect';
-    case CENTRE_DE_SOINS = 'Centre de soins';
-    case MEDECIN_LIBERAL = "Médecin libéral";
-    case PHARMACIE = 'Pharmacie';
-    case LABORATOIRE = 'Laboratoire';
-    case OPTIQUE = 'Optique';
+    case PROSPECT_PHYSIQUE = 'prospect_physique';
+    case PROSPECT_MORAL = 'prospect_moral';
+    case CENTRE_DE_SOINS = 'centre_de_soins';
+    case MEDECIN_LIBERAL = "medecin_liberal";
+    case PHARMACIE = 'pharmacie';
+    case LABORATOIRE = 'laboratoire';
+    case OPTIQUE = 'optique';
 
     public static function values(): array
     {

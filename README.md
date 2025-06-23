@@ -59,4 +59,18 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-# assistant-medical-personnalis-
+
+# Assistant Médical Personnalisé - SUNU Santé
+
+## Objectif du Projet
+
+Dans le cadre de l'obtention du diplôme de licence professionnelle en génie logiciel et système d'informations de l'IAI TOGO, nous avons réalisé un stage à SUNU Santé où, il a été porté à notre égard le thème suivant « Mise en place d'une solution digitale multi-plateforme d'assistance médical personnalisé ». L'objectif de ce projet est de concevoir et réaliser une solution permettant de simplifier et d'accélérer le traitement des demandes de prise en charge ou entente préalable et la procédure de remboursement sinistre, tout en limitant les erreurs liées à la saisie des informations, de garantir une traçabilité efficace des réclamations des clients. Ce projet sera particulièrement bénéfique pour le département médical, département comptable et département technique en servant d'outil de gestion, de contrôle médical et de suivi des activités. Pour mener à bien ce projet, nous avons réalisé la modélisation avec le langage de modélisation UML, la méthode agile SCRUM pour la bonne gestion du projet, ce qui nous a permis de maitriser la complexité du système. En terme technique pour la réalisation du projet, nous avons utilisé le langage de programmation PHP avec le Framework LARAVEL pour le backend, associé au Framework Angular basé sur le langage TypeScript afin de concevoir l'interface web. Ainsi que le Framework Flutter pour les applications mobiles avec le système de gestion de bases de données PostgreSQL.
+
+## Technologies Utilisées
+
+- Backend: Laravel (PHP)
+- Frontend Web: Angular (TypeScript)
+- Application Mobile: Flutter
+- Base de Données: PostgreSQL
+- Gestion de Projet: Méthodologie Agile SCRUM
+- Modélisation: UML

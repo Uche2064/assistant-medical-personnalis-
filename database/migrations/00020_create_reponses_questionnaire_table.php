@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('reponses_questionnaire', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('question_id')->constrained('questions')->onDelete('cascade');
-            $table->json('reponse');
-            $table->boolean('est_valide')->default(true);
+            $table->foreignId('demande_adhesion_id')->constrained('questions')->onDelete('cascade');
+            $table->json('reponses');
+            $table->boolean('est_validee')->default(false);
             $table->timestamps();
         });
     }

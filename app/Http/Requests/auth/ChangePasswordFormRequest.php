@@ -33,9 +33,7 @@ class ChangePasswordFormRequest extends FormRequest
     }
 
     public function failedValidation(Validator $validator) {
-        $response = ApiResponse::error('Error de validation', 422, $validator->errors());
-    
-        throw new HttpResponseException($response);
+        throw new HttpResponseException(ApiResponse::error('Erreur de validation', 422, $validator->errors()));
     }
 
     public function messages(): array

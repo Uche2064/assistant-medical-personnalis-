@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SexeEnum;
 use App\Enums\StatutValidationEnum;
 use App\Enums\TypeDemandeurEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,11 +21,16 @@ class DemandeAdhesion extends Model
         'prenoms',
         'email',
         'contact',
+        'adresse',
         'type_demande',
+        'profession',
         'statut',
         'valide_par_id',
         'fait_par',
-        'valider_a'
+        'sexe',
+        'valider_a',
+        'motif_rejet',
+        'infos_complementaires'
     ];
 
     protected function casts(): array
@@ -32,34 +38,32 @@ class DemandeAdhesion extends Model
         return [
             'type_demande' => TypeDemandeurEnum::class,
             'statut' => StatutValidationEnum::class,
+            'sexe' => SexeEnum::class,
             'valider_a' => 'datetime',
+            'adresse' => 'json',
+            'infos_complementaires' => 'array',
         ];
     }
-
   
     public function validePar()
     {
         return $this->belongsTo(Personnel::class, 'valide_par_id');
     }
-
     
     public function faitPar()
     {
         return $this->belongsTo(Personnel::class, 'fait_par');
     }
-
    
     public function reponsesQuestionnaire()
     {
-        return $this->hasMany(ReponseQuestionnaire::class);
+        return $this->hasMany(ReponsesQuestionnaire::class);
     }
 
-   
     public function isPending(): bool
     {
         return $this->statut === StatutValidationEnum::EN_ATTENTE;
     }
-
  
     public function isValidated(): bool
     {
@@ -71,7 +75,6 @@ class DemandeAdhesion extends Model
         return $this->statut === StatutValidationEnum::REJETE;
     }
 
-
     public function validate(Personnel $personnel): void
     {
         $this->update([
@@ -81,28 +84,25 @@ class DemandeAdhesion extends Model
         ]);
     }
 
-
-    public function reject(Personnel $personnel): void
+    public function reject(Personnel $personnel, String $motif_rejet): void
     {
         $this->update([
             'statut' => StatutValidationEnum::REJETE,
             'valide_par_id' => $personnel->id,
-            'valider_a' => now()
+            'valider_a' => now(),
+            'motif_rejet' => $motif_rejet
         ]);
     }
-
 
     public function scopePending($query)
     {
         return $query->where('statut', StatutValidationEnum::EN_ATTENTE);
     }
 
-
     public function scopeValidated($query)
     {
         return $query->where('statut', StatutValidationEnum::VALIDE);
     }
-
    
     public function scopeRejected($query)
     {

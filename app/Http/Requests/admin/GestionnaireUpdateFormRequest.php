@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests\admin;
 
+use App\Helpers\ApiResponse;
 use App\Models\Gestionnaire;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class GestionnaireUpdateFormRequest extends FormRequest
 {
@@ -37,5 +40,9 @@ class GestionnaireUpdateFormRequest extends FormRequest
             'compagnie_id' => ['sometimes', 'exists:compagnies,id'],
             'est_actif' => ['sometimes', 'boolean'],
         ];
+    }
+    public function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(ApiResponse::error('Erreur de validation', 422, $validator->errors()));
     }
 }

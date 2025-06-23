@@ -4,10 +4,10 @@ namespace App\Enums;
 
 enum TypePersonnelEnum: string
 {
-    case TECHNICIEN = 'Technicien';
-    case COMMERCIAL = 'Commercial';
-    case MEDECIN_CONTROLEUR = 'Médecin Contrôleur';
-    case COMPTABLE = 'Comptable';
+    case TECHNICIEN = 'technicien';
+    case COMMERCIAL = 'commercial';
+    case MEDECIN_CONTROLEUR = 'medecin_controleur';
+    case COMPTABLE = 'comptable';
 
     public static function values() : array
     {

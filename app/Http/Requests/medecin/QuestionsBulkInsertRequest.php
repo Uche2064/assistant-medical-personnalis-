@@ -1,13 +1,15 @@
 <?php
 
-namespace App\Http\Requests\auth;
+namespace App\Http\Requests\medecin;
 
+use App\Enums\TypeDemandeurEnum;
+use App\Enums\TypeDonneeEnum;
 use App\Helpers\ApiResponse;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class LoginWithEmailAndPasswordFormRequest extends FormRequest
+class QuestionsBulkInsertRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -25,13 +27,17 @@ class LoginWithEmailAndPasswordFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email', 'string', 'exists:users,email'],
-            'password' => ['required', 'string', 'min:8'],
+            '*.libelle' => 'required|string|max:255',
+            '*.type_donnees' => 'required|string|in:' . implode(',', TypeDonneeEnum::values()),
+            '*.destinataire' => 'required|string|in:' . implode(',', TypeDemandeurEnum::values()),
+            '*.obligatoire' => 'boolean',
+            '*.est_actif' => 'boolean',
+            '*.options' => 'nullable|json',
         ];
     }
 
     public function failedValidation(Validator $validator)
-    {    
-        throw new HttpResponseException(ApiResponse::error('Error de validation', 422, $validator->errors()));
+    {
+        throw new HttpResponseException(ApiResponse::error('Erreur de validation', 422, $validator->errors()));
     }
 }

@@ -4,9 +4,9 @@ namespace App\Enums;
 
 enum StatutValidationEnum: String
 {
-    case EN_ATTENTE = 'En attente';
-    case VALIDE = 'Validé';
-    case REJETE = 'Rejeté';
+    case EN_ATTENTE = 'en_attente';
+    case VALIDE = 'valide';
+    case REJETE = 'rejeté';
 
     public static function values(): array
     {

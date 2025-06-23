@@ -4,11 +4,11 @@ namespace App\Enums;
 
 enum LienEnum: String
 {
-    case PRINCIPAL = 'Principal';
-    case CONJOINT = 'Conjoint';
-    case ENFANT = 'Enfant';
-    case PARENT = 'Parent';
-    case AUTRE = 'Autre';  
+    case PRINCIPAL = 'principal';
+    case CONJOINT = 'conjoint';
+    case ENFANT = 'enfant';
+    case PARENT = 'parent';
+    case AUTRE = 'autre';  
     case SOCIETE = 'societe';
 
 

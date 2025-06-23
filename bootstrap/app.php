@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\GestionnaireMiddleware;
+use App\Http\Middleware\MedecinControleurMiddleware;
 use App\Http\Middleware\VerifyApiKey;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -18,7 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'verifyApiKey' => VerifyApiKey::class,
             'admin' => AdminMiddleware::class,
-            'gestionnaire' => GestionnaireMiddleware::class
+            'gestionnaire' => GestionnaireMiddleware::class,
+            'medecin_controleur' => MedecinControleurMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

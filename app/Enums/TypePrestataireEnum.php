@@ -4,11 +4,11 @@ namespace App\Enums;
 
 enum TypePrestataireEnum: String
 {
-    case CENTE_DE_SOIN = "Centre de soins";
-    case PHARMACIE = "Pharmacie";
-    case OPTIQUE = "Optique";
-    case LABORATOIRE = "Laboratoire";
-    case PARTICULIER = "Particulier";
+    case CENTE_DE_SOIN = "centre_de_soins";
+    case PHARMACIE = "pharmacie";
+    case OPTIQUE = "optique";
+    case LABORATOIRE = "laboratoire";
+    case PARTICULIER = "particulier";
 
     public static function values() : array
     {

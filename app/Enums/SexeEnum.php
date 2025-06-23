@@ -4,8 +4,8 @@ namespace App\Enums;
 
 enum SexeEnum: string
 {
-    case MASCULIN = 'M';
-    case FEMININ = 'F';
+    case MASCULIN = 'm';
+    case FEMININ = 'f';
 
     public static function values() : array
     {

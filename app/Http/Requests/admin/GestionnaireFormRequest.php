@@ -32,17 +32,20 @@ class GestionnaireFormRequest extends FormRequest
             'prenoms' => ['nullable', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'contact' => ['nullable', 'string', 'max:50', 'unique:users,contact'],
-            'username' => ['nullable', 'string', function($attribute, $value, $fail) {
-                $compagnieId = $this->input('compagnie_id');
-                $exists = User::where('username', $value)
-                    ->whereHas('gestionnaire', function($q) use ($compagnieId) {
-                        $q->where('compagnie_id', $compagnieId);
-                    })->exists();
-                if ($exists) {
-                    $fail('Ce nom d\'utilisateur existe déjà dans cette compagnie.');
+            'username' => [
+                'nullable',
+                'string',
+                function ($attribute, $value, $fail) {
+                    $compagnieId = $this->input('compagnie_id');
+                    $exists = User::where('username', $value)
+                        ->whereHas('gestionnaire', function ($q) use ($compagnieId) {
+                            $q->where('compagnie_id', $compagnieId);
+                        })->exists();
+                    if ($exists) {
+                        $fail('Ce nom d\'utilisateur existe déjà dans cette compagnie.');
+                    }
                 }
-            }
-],
+            ],
             'adresse' => ['required', 'json', 'max:255'],
             'sexe' => ['nullable', Rule::in(SexeEnum::values())],
             'date_naissance' => ['nullable', 'date'],
@@ -52,11 +55,9 @@ class GestionnaireFormRequest extends FormRequest
         ];
     }
 
-    
+
     public function failedValidation(Validator $validator)
     {
-        $response = ApiResponse::error('Erreur de validation', 422 ,$validator->errors());
-    
-        throw new HttpResponseException($response);
+        throw new HttpResponseException(ApiResponse::error('Erreur de validation', 422, $validator->errors()));
     }
 }
