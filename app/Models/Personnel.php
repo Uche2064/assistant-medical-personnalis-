@@ -14,7 +14,6 @@ class Personnel extends Model
     protected $fillable = [
         'user_id',
         'type_personnel',
-        'compagnie_id',
         'gestionnaire_id'
     ];
 
@@ -28,11 +27,6 @@ class Personnel extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
-    }
-
-    public function compagnie()
-    {
-        return $this->belongsTo(Compagnie::class);
     }
 
     public function demandesAdhesionValidees()

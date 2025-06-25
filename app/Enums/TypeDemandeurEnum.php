@@ -9,7 +9,7 @@ enum TypeDemandeurEnum: String
     case CENTRE_DE_SOINS = 'centre_de_soins';
     case MEDECIN_LIBERAL = "medecin_liberal";
     case PHARMACIE = 'pharmacie';
-    case LABORATOIRE = 'laboratoire';
+    case LABORATOIRE_CENTRE_DIAGNOSTIC = 'laboratoire_centre_diagnostic';
     case OPTIQUE = 'optique';
 
     public static function values(): array

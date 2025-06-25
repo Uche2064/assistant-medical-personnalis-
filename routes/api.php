@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\v1\Api\AuthController;
 use App\Http\Controllers\v1\Api\admin\CompagnieController;
 use App\Http\Controllers\v1\Api\admin\GestionnaireController;
+use App\Http\Controllers\v1\Api\ContratController;
 use App\Http\Controllers\v1\Api\gestionnaire\PersonnelController;
 use App\Http\Controllers\v1\Api\DemandeAdhesionController;
 use App\Http\Controllers\v1\Api\medecin\QuestionController;
@@ -16,13 +17,15 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::post('/send-otp', [AuthController::class, 'sendOtp']);
         Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
         Route::post('/login', [AuthController::class, 'loginWithEmailAndPassword']);
-        Route::post('/change-password', [AuthController::class, 'changePassword']);
-    });
+        Route::post('/refresh-token', [AuthController::class, 'refreshToken'])->middleware('auth:api');
+        Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:api');
+        Route::post('/change-password', [AuthController::class, 'changePassword'])->middleware('auth:api');
+    }); 
 
    
 
     Route::prefix('admin')->group(function () {
-        Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+        Route::middleware(['auth:api', 'admin'])->group(function () {
             // gestionnaires
             Route::get('/gestionnaires', [GestionnaireController::class, 'index']);
             Route::get('/gestionnaires/{id}', [GestionnaireController::class, 'show']);
@@ -42,7 +45,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
     Route::prefix('gestionnaire')->group(function () {
-        Route::middleware(['auth:sanctum', 'gestionnaire'])->group(function () {
+        Route::middleware(['auth:api', 'gestionnaire'])->group(function () {
             // Routes pour la gestion des personnels
             Route::get('/personnels', [PersonnelController::class, 'index']);
             Route::post('/personnels', [PersonnelController::class, 'store']);
@@ -64,7 +67,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/entreprises/formulaire', [DemandeAdhesionController::class, 'getEntrepriseFormulaire']);
         
         // Routes protégées pour gestion des demandes
-        Route::middleware(['auth:sanctum', 'medecin_controleur'])->group(function () {
+        Route::middleware(['auth:api', 'medecin_controleur'])->group(function () {
             Route::get('/', [DemandeAdhesionController::class, 'index']);
             Route::get('/{id}', [DemandeAdhesionController::class, 'show']);
             Route::post('/{demande_id}/validate', [DemandeAdhesionController::class, 'validate']);
@@ -79,7 +82,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/questions/prospects-moral', [QuestionController::class, 'getProspectMoralQuestions']);
         
         // Routes protégées pour la gestion des questions
-        Route::middleware(['auth:sanctum', 'medecin_controleur'])->group(function () {
+        Route::middleware(['auth:api', 'medecin_controleur'])->group(function () {
             Route::get('/questions', [QuestionController::class, 'index']);
             Route::get('/questions/{id}', [QuestionController::class, 'show']);
             // Route::post('/questions', [QuestionController::class, 'store']);
@@ -88,6 +91,17 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
             Route::put('/bulk/questions', [QuestionController::class, 'bulkUpdate']);
             // Route::delete('/questions/{id}', [QuestionController::class, 'destroy']);
             Route::delete('/bulk/questions', [QuestionController::class, 'bulkDestroy']);
+        });
+    });
+    
+    // Routes pour les contrats
+    Route::prefix('contrats')->group(function () {
+        Route::middleware('auth:api')->group(function () {
+            Route::get('/', [ContratController::class, 'index']);
+            Route::post('/', [ContratController::class, 'store']);
+            Route::get('/{uuid}', [ContratController::class, 'show']);
+            Route::put('/{uuid}', [ContratController::class, 'update']);
+            Route::patch('/{uuid}/status', [ContratController::class, 'changeStatus']);
         });
     });
 

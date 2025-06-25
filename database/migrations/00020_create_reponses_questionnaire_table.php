@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::create('reponses_questionnaire', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('demande_adhesion_id')->constrained('questions')->onDelete('cascade');
+            $table->foreignId('demande_adhesion_id')->constrained('questions')->onDelete('set null');
             $table->json('reponses');
-            $table->boolean('est_validee')->default(false);
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

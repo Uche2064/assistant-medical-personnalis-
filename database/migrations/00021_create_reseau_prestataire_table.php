@@ -11,14 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('prestataire_assure', function (Blueprint $table) {
+        Schema::create('reseau_prestataire', function (Blueprint $table) {
             $table->id();
             $table->foreignId('prestataire_id')
                 ->constrained('prestataires')
-                ->onDelete('cascade');
+                ->onDelete('set null');
             $table->foreignId('client_id')
                 ->constrained('clients')
-                ->onDelete('cascade');
+                ->onDelete('set null');
             $table->timestamp('date_creation');
             $table->timestamps();
             $table->softDeletes();
@@ -30,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('prestataire_assure');
+        Schema::dropIfExists('reseau_prestataire');
     }
 };

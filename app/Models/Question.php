@@ -21,7 +21,7 @@ class Question extends Model
         'obligatoire',
         'est_actif',
         'cree_par_id',
-        'option'
+        'options'
     ];
 
     protected function casts(): array
@@ -31,60 +31,46 @@ class Question extends Model
             'destinataire' => TypeDemandeurEnum::class,
             'obligatoire' => 'boolean',
             'est_actif' => 'boolean',
+            'options' => 'json'
         ];
     }
 
-    /**
-     * Get the personnel who created this question.
-     */
+
     public function creePar()
     {
         return $this->belongsTo(Personnel::class, 'cree_par_id');
     }
 
-    /**
-     * Get the reponses for this question.
-     */
+
     public function reponses()
     {
         return $this->hasMany(ReponsesQuestionnaire::class);
     }
 
-    /**
-     * Check if question is active.
-     */
+    
     public function isActive(): bool
     {
         return $this->est_actif;
     }
 
-    /**
-     * Check if question is required.
-     */
+   
     public function isRequired(): bool
     {
         return $this->obligatoire;
     }
 
-    /**
-     * Scope to get only active questions.
-     */
+   
     public function scopeActive($query)
     {
         return $query->where('est_actif', true);
     }
 
-    /**
-     * Scope to get questions for a specific destinataire.
-     */
+
     public function scopeForDestinataire($query, TypeDemandeurEnum $destinataire)
     {
         return $query->where('destinataire', $destinataire);
     }
 
-    /**
-     * Scope to get required questions.
-     */
     public function scopeRequired($query)
     {
         return $query->where('obligatoire', true);

@@ -10,34 +10,23 @@ class ReponsesQuestionnaire extends Model
 {
     use HasFactory, SoftDeletes;
 
-    // Définir explicitement le nom de la table
-    protected $table = 'reponses_questionnaire';
-
     protected $fillable = [
         'demande_adhesion_id',
         'reponses',
-        'est_validee'
     ];
 
     protected function casts(): array
     {
         return [
             'reponses' => 'json',
-            'est_validee' => 'boolean'
         ];
     }
-
-    /**
-     * Get the demande adhesion that owns the reponse.
-     */
+    
     public function demandeAdhesion()
     {
         return $this->belongsTo(DemandeAdhesion::class);
     }
 
-    /**
-     * Check if response is empty.
-     */
     public function isEmpty(): bool
     {
         return empty($this->reponses) || 

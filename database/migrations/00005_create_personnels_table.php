@@ -16,7 +16,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('gestionnaire_id')->nullable()->constrained('gestionnaires')->onDelete('set null');
-            $table->foreignId('compagnie_id')->constrained('compagnies')->onDelete('cascade');
             $table->enum('type_personnel', TypePersonnelEnum::values());
             $table->softDeletes();
             $table->timestamps();

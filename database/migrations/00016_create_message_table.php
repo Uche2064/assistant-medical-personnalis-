@@ -14,8 +14,10 @@ return new class extends Migration
         Schema::create('messages', function (Blueprint $table) {
             $table->id();
             $table->text('contenu');
-            $table->foreignId('conversation_id')->constrained('conversations')->onDelete('cascade');
-            $table->foreignId('expediteur_id')->nullable()->constrained('users')->onDelete('cascade');
+            $table->foreignId('conversation_id')->constrained('conversations')->onDelete('set null');
+            $table->foreignId('expediteur_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->date('envoyer_a')->nullable();
+            $table->date('lu_a')->nullable();
             $table->timestamps();
             $table->softDeletes();
             $table->index(['conversation_id', 'expediteur_id'], 'message_conversation_envoye_recu_index');

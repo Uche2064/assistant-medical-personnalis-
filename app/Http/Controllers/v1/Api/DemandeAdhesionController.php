@@ -190,7 +190,6 @@ class DemandeAdhesionController extends Controller
                 'date_naissance' => $data['date_naissance'],
                 'sexe' => $data['sexe'] ?? null,
 
-                // Stockage des informations supplémentaires en JSON
                 'infos_complementaires' => json_encode([
                     'photo_url' => $data['photo_url'] ?? null,
                 ])

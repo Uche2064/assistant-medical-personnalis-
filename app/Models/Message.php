@@ -14,25 +14,21 @@ class Message extends Model
         'conversation_id',
         'expediteur_id',
         'contenu',
-        'lu',
         'lu_a',
     ];
 
     protected function casts(): array
     {
         return [
-            'lu' => 'boolean',
             'lu_a' => 'datetime',
         ];
     }
 
-    // Relation vers la conversation
     public function conversation()
     {
         return $this->belongsTo(Conversation::class);
     }
 
-    // Relation vers l'expéditeur (User)
     public function expediteur()
     {
         return $this->belongsTo(User::class, 'expediteur_id');

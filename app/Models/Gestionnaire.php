@@ -12,22 +12,13 @@ class Gestionnaire extends Model
 
     protected $fillable = [
         'user_id',
-        'compagnie_id',
     ];
 
-    // Relation vers l'user
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    // Relation vers la compagnie
-    public function compagnie()
-    {
-        return $this->belongsTo(Compagnie::class);
-    }
-
-    // Relation vers les clients gérés
     public function clients()
     {
         return $this->hasMany(Client::class);

@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('conversations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id_1')->constrained('users')->onDelete('cascade');
-            $table->foreignId('user_id_2')->constrained('users')->onDelete('cascade');
+            $table->foreignId('user_id_1')->constrained('users')->onDelete('set null');
+            $table->foreignId('user_id_2')->constrained('users')->onDelete('set null');
             $table->text('dernier_message')->nullable();
             $table->timestamps();
             $table->softDeletes();

@@ -16,9 +16,9 @@ class DemandeAdhesion extends Model
     protected $table = 'demandes_adhesions';
 
     protected $fillable = [
-        'nom',
+        'nom_demandeur',
         'raison_sociale',
-        'prenoms',
+        'prenoms_demandeur',
         'email',
         'contact',
         'adresse',
@@ -30,7 +30,6 @@ class DemandeAdhesion extends Model
         'sexe',
         'valider_a',
         'motif_rejet',
-        'infos_complementaires'
     ];
 
     protected function casts(): array
@@ -41,7 +40,6 @@ class DemandeAdhesion extends Model
             'sexe' => SexeEnum::class,
             'valider_a' => 'datetime',
             'adresse' => 'json',
-            'infos_complementaires' => 'array',
         ];
     }
   

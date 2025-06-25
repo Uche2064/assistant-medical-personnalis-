@@ -15,12 +15,11 @@ return new class extends Migration
     {
         Schema::create('clients', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('gestionnaire_id')->constrained('gestionnaires')->onDelete('cascade');
-            $table->string('profession')->unique();
+            $table->foreignId('user_id')->constrained('users')->onDelete('set null');
+            $table->string('profession');
             $table->enum('type_client', TypeClientEnum::values())->nullable();
             $table->enum('statut_validation', StatutValidationEnum::values());
-            $table->decimal('prime', 10, 2)->nullable();
+            $table->decimal('prime', 12, 2)->nullable();
             $table->date('date_paiement_prime')->nullable();
             $table->softDeletes();
             $table->timestamps();

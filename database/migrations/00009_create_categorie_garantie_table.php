@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('categories_garanties', function (Blueprint $table) {
             $table->id();
-            $table->string('libelle_categories')->unique();
+            $table->string('libelle')->unique();
             $table->text('description')->nullable();
             $table->timestamps();
             $table->softDeletes();

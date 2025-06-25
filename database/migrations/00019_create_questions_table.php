@@ -19,10 +19,11 @@ return new class extends Migration
             $table->enum('type_donnees', TypeDonneeEnum::values());
             $table->json('options')->nullable();
             $table->enum('destinataire', TypeDemandeurEnum::values());
-            $table->boolean('obligatoire')->default(true);
+            $table->boolean('obligatoire')->default(false);
             $table->boolean('est_actif')->default(true);
             $table->foreignId('cree_par_id')->nullable()->constrained('personnels');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

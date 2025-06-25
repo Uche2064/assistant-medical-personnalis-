@@ -7,7 +7,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class LoginWithEmailAndPasswordFormRequest extends FormRequest
+class SendOtpFormRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -25,13 +25,17 @@ class LoginWithEmailAndPasswordFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email', 'string'],
-            'password' => ['required', 'string', 'min:8'],
+            'phone' => ['string', 'required']
         ];
     }
 
-    public function failedValidation(Validator $validator)
-    {    
-        throw new HttpResponseException(ApiResponse::error('Error de validation', 422, $validator->errors()));
+    public function failedValidation(Validator $validator){
+        return new HttpResponseException(ApiResponse::error('Erreur de validation', 422, $validator->errors()));
+    }
+
+    public function messages(): array {
+        return [
+            'phone' => 'Le numéro est requis'
+        ];
     }
 }

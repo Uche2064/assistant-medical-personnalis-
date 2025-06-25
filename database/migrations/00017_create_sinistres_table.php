@@ -13,9 +13,7 @@ return new class extends Migration
     {
         Schema::create('sinistres', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('client_id')->constrained('clients')->onDelete('cascade');
-            $table->foreignId('prestataire_id')->constrained('prestataires')->onDelete('cascade');
-            $table->date('date_sinistre');
+            $table->foreignId('assure_id')->constrained('assures')->onDelete('set null');
             $table->text('description');
             $table->timestamps();
 
