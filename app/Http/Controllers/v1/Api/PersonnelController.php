@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\v1\Api\gestionnaire;
+namespace App\Http\Controllers\v1\Api;
 
 use App\Enums\RoleEnum;
 use App\Helpers\ApiResponse;
@@ -8,23 +8,26 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\gestionnaire\PersonnelFormRequest;
 use App\Models\Personnel;
 use App\Models\User;
-use Illuminate\Http\Request;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class PersonnelController extends Controller
 {
+
+    protected $notificationService;
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        // Récupérer l'ID de la compagnie du gestionnaire connecté
-        $compagnieId = Auth::user()->gestionnaire->compagnie_id;
-        
-        // Récupérer tous les personnels de la compagnie
+        // Récupérer tous les personnels ajouter par ce gestionnaire
         $personnels = Personnel::with('user')
-            ->where('compagnie_id', $compagnieId)
+            ->where('gestionnaire_id', Auth::user()->gestionnaire->id)
             ->get();
             
         if ($personnels->isEmpty()) {
@@ -73,11 +76,12 @@ class PersonnelController extends Controller
             $personnel = Personnel::create([
                 'user_id' => $user->id,
                 'type_personnel' => $data['type_personnel'],
-                'compagnie_id' => $gestionnaire->compagnie_id,
                 'gestionnaire_id' => $gestionnaire->id
             ]);
             
             DB::commit();
+
+            $this->notificationService->sendCredentials($user, $password);
             
             // On retourne le mot de passe généré pour que le gestionnaire puisse le communiquer
             return ApiResponse::success([

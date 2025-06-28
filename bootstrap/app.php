@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\AssurePrincipalMiddleware;
 use App\Http\Middleware\GestionnaireMiddleware;
 use App\Http\Middleware\MedecinControleurMiddleware;
 use App\Http\Middleware\VerifyApiKey;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => AdminMiddleware::class,
             'gestionnaire' => GestionnaireMiddleware::class,
             'medecin_controleur' => MedecinControleurMiddleware::class,
+            'assure_principal' => AssurePrincipalMiddleware::class
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\v1\Api;
 
+use App\Enums\LienEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ContratFormRequest;
+use App\Models\Assure;
 use App\Models\Contrat;
 use App\Models\Client;
 use Illuminate\Http\Request;
@@ -53,11 +55,21 @@ class ContratController extends Controller
             // Création du contrat
             $contrat = Contrat::create($data);
 
+            // enregistré le client dans la table Assuré
+
+            $client = Client::with(['user'])->where('id', $data['client_id'])->first();
+
+            $assure = Assure::create([
+                'user_id' => $client->user_id,
+                'client_id' => $client->id,
+                'lien_parente' => LienEnum::PRINCIPAL,
+            ]);
+
             DB::commit();
 
             return ApiResponse::success([
                 'contrat_id' => $contrat->id,
-                'uuid' => $contrat->uuid,
+                'assure' => $assure,
             ], 'Contrat enregistré avec succès', 201);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -68,10 +80,10 @@ class ContratController extends Controller
     /**
      * Afficher les détails d'un contrat
      */
-    public function show(string $uuid)
+    public function show(string $numeroPolice)
     {
         $contrat = Contrat::with(['client', 'technicien'])
-            ->where('uuid', $uuid)
+            ->where('numero_police', $numeroPolice)
             ->first();
 
         if (!$contrat) {
@@ -84,9 +96,9 @@ class ContratController extends Controller
     /**
      * Mettre à jour un contrat
      */
-    public function update(ContratFormRequest $request, string $uuid)
+    public function update(ContratFormRequest $request, string $numeroPolice)
     {
-        $contrat = Contrat::where('uuid', $uuid)->first();
+        $contrat = Contrat::where('numero_police', $numeroPolice)->first();
 
         if (!$contrat) {
             return ApiResponse::error('Contrat non trouvé', 404);
@@ -97,16 +109,13 @@ class ContratController extends Controller
         try {
             DB::beginTransaction();
 
-            // Enregistrement des informations de l'utilisateur qui modifie le contrat
-            $data['updated_by'] = Auth::id();
-
             $contrat->update($data);
 
             DB::commit();
 
             return ApiResponse::success([
                 'contrat_id' => $contrat->id,
-                'uuid' => $contrat->uuid,
+                'numero_police' => $contrat->numero_police,
             ], 'Contrat mis à jour avec succès');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -117,47 +126,47 @@ class ContratController extends Controller
     /**
      * Changer le statut d'un contrat (suspension, résiliation)
      */
-    public function changeStatus(Request $request, string $uuid)
-    {
-        $request->validate([
-            'status' => 'required|string|in:actif,suspendu,résilié',
-            'motif' => 'sometimes|string'
-        ]);
+    // public function changeStatus(Request $request, string $uuid)
+    // {
+    //     $request->validate([
+    //         'status' => 'required|string|in:actif,suspendu,résilié',
+    //         'motif' => 'sometimes|string'
+    //     ]);
 
-        $contrat = Contrat::where('uuid', $uuid)->first();
+    //     $contrat = Contrat::where('uuid', $uuid)->first();
 
-        if (!$contrat) {
-            return ApiResponse::error('Contrat non trouvé', 404);
-        }
+    //     if (!$contrat) {
+    //         return ApiResponse::error('Contrat non trouvé', 404);
+    //     }
 
-        try {
-            $oldStatus = $contrat->status;
-            $contrat->status = $request->status;
-            $contrat->updated_by = Auth::id();
+    //     try {
+    //         $oldStatus = $contrat->status;
+    //         $contrat->status = $request->status;
+    //         $contrat->updated_by = Auth::id();
             
-            // Enregistrer le motif du changement de statut si fourni
-            if ($request->has('motif')) {
-                $infosComplementaires = $contrat->infos_complementaires ?? [];
-                $infosComplementaires['changements_status'][] = [
-                    'date' => now()->toDateTimeString(),
-                    'ancien_status' => $oldStatus,
-                    'nouveau_status' => $request->status,
-                    'motif' => $request->motif,
-                    'utilisateur_id' => Auth::id()
-                ];
+    //         // Enregistrer le motif du changement de statut si fourni
+    //         if ($request->has('motif')) {
+    //             $infosComplementaires = $contrat->infos_complementaires ?? [];
+    //             $infosComplementaires['changements_status'][] = [
+    //                 'date' => now()->toDateTimeString(),
+    //                 'ancien_status' => $oldStatus,
+    //                 'nouveau_status' => $request->status,
+    //                 'motif' => $request->motif,
+    //                 'utilisateur_id' => Auth::id()
+    //             ];
                 
-                $contrat->infos_complementaires = $infosComplementaires;
-            }
+    //             $contrat->infos_complementaires = $infosComplementaires;
+    //         }
             
-            $contrat->save();
+    //         $contrat->save();
 
-            return ApiResponse::success([
-                'contrat_id' => $contrat->id,
-                'uuid' => $contrat->uuid,
-                'status' => $contrat->status
-            ], 'Statut du contrat modifié avec succès');
-        } catch (\Exception $e) {
-            return ApiResponse::error($e->getMessage(), 500);
-        }
-    }
+    //         return ApiResponse::success([
+    //             'contrat_id' => $contrat->id,
+    //             'uuid' => $contrat->uuid,
+    //             'status' => $contrat->status
+    //         ], 'Statut du contrat modifié avec succès');
+    //     } catch (\Exception $e) {
+    //         return ApiResponse::error($e->getMessage(), 500);
+    //     }
+    // }
 }

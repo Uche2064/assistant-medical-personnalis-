@@ -46,72 +46,14 @@ class DemandeAdhesionPrestataireFormRequest extends FormRequest
                     TypeDemandeurEnum::CENTRE_DE_SOINS->value,
                     TypeDemandeurEnum::MEDECIN_LIBERAL->value,
                     TypeDemandeurEnum::PHARMACIE->value,
-                    TypeDemandeurEnum::LABORATOIRE->value,
+                    TypeDemandeurEnum::LABORATOIRE_CENTRE_DIAGNOSTIC->value,
                     TypeDemandeurEnum::OPTIQUE->value,
                 ])
             ],
+            'reponses'=> ['required', 'array'],
+            'reponses.*'=> ['required', 'file', 'mimes:jpeg,png,pdf']
         ];
 
-        $typeDemande = $this->input('type_demande');
-        
-        // Récupérer les questions obligatoires pour ce type de demandeur
-        if ($typeDemande) {
-            $questions = Question::where('destinataire', $typeDemande)
-                ->where('est_actif', true)
-                ->get();
-
-            if ($questions->isNotEmpty()) {
-                // ajout des règles de validation des réponses
-                $rules['reponses'] = ['required', 'array'];
-                
-                foreach ($questions as $question) {
-                    $questionId = $question->id;
-                    $rules["reponses.{$questionId}.question_id"] = ['required'];
-                    
-                    // Règles spécifiques selon le type de données de la question
-                    $validationRules = ['required'];
-                    
-                    switch ($question->type_donnees) {
-                        case TypeDonneeEnum::BOOLEAN:
-                            $validationRules[] = 'boolean';
-                            break;
-                        case TypeDonneeEnum::NUMBER:
-                            $validationRules[] = 'numeric';
-                            break;
-                        case TypeDonneeEnum::DATE:
-                            $validationRules[] = 'date';
-                            break;
-                        case TypeDonneeEnum::TEXT:
-                            $validationRules[] = 'string';
-                            break;
-                        case TypeDonneeEnum::FILE:
-                            $validationRules = ['file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'];
-                            break;
-                        case TypeDonneeEnum::SELECT:
-                        case TypeDonneeEnum::CHECKBOX:
-                        case TypeDonneeEnum::RADIO:
-                            // Pour les types avec options prédéfinies, valider contre ces options
-                            if ($question->options) {
-                                $options = json_decode($question->options, true);
-                                if (isset($options['options']) && is_array($options['options'])) {
-                                    if ($question->type_donnees === TypeDonneeEnum::CHECKBOX) {
-                                        $validationRules[] = 'array';
-                                        $rules["reponses.{$questionId}.reponse.*"] = ['in:' . implode(',', $options['options'])];
-                                    } else {
-                                        $validationRules[] = Rule::in($options['options']);
-                                    }
-                                }
-                            }
-                            break;
-                        default: 
-                            $validationRules[] = 'string';
-                            break;
-                    }
-                    
-                    $rules["reponses.{$questionId}.reponse"] = $validationRules;
-                }
-            }
-        }
         return $rules;
     }
 
@@ -124,20 +66,34 @@ class DemandeAdhesionPrestataireFormRequest extends FormRequest
     public function messages()
     {
         return [
-            'type_demande.in' => 'Le type de demande n\'est pas valide. Types valides : Centre de soins, Médecin libéral, Pharmacie, Laboratoire, Optique',
-            'raison_sociale.required' => 'La raison sociale est obligatoire pour ce type de prestataire',
-            'nom.required' => 'Le nom est obligatoire pour un médecin libéral',
-            'prenoms.required' => 'Les prénoms sont obligatoires pour un médecin libéral',
-            'reponses.required' => 'Les réponses au questionnaire sont obligatoires',
-            'reponses.array' => 'Les réponses doivent être envoyées sous forme de tableau',
-            'reponses.*.question_id.required' => 'L\'identifiant de la question est requis pour chaque réponse',
-            'reponses.*.question_id.exists' => 'Une question spécifiée n\'existe pas',
-            'reponses.*.reponse.required' => 'Toutes les questions doivent avoir une réponse',
-            'reponses.*.reponse.file' => 'Le document doit être un fichier valide',
-            'reponses.*.reponse.mimes' => 'Le document doit être au format PDF, JPG, JPEG ou PNG',
-            'reponses.*.reponse.max' => 'La taille du document ne doit pas dépasser 10 Mo',
-            'email.unique' => 'L\'adresse email est déjà utilisée',
-            'contact.unique' => 'Le contact est déjà utilisé'
+            'nom.required' => 'Le nom est obligatoire',
+            'nom.string' => 'Le nom doit être une chaine de caractères',
+            'nom.max' => 'Le nom ne doit pas d passer 255 caractères',
+
+            'raison_sociale.string' => 'La raison sociale doit être une chaine de caractères',
+            'raison_sociale.max' => 'La raison sociale ne doit pas d passer 255 caractères',
+            'raison_sociale.unique' => 'La raison sociale est déjà utilisée',
+
+            'adresse.required' => 'L\'adresse est obligatoire',
+            'adresse.string' => 'L\'adresse doit  être une chaine de caractères',
+            'adresse.max' => 'L\'adresse ne doit pas d passer 255 caractères',
+
+            'email.required' => 'L\'email est obligatoire',
+            'email.email' => 'L\'email n\'est pas valide',
+            'email.max' => 'L\'email ne doit pas d passer 255 caractères',
+            'email.unique' => 'L\'email est déjà utilisé',
+
+            'contact.required' => 'Le contact est obligatoire',
+            'contact.string' => 'Le contact doit  être une chaine de caractères',
+            'contact.max' => 'Le contact ne doit pas d passer 50 caractères',
+            'contact.unique' => 'Le contact est déjà utilisé',
+
+            'type_demande.required' => 'Le type de demande est obligatoire',
+            'type_demande.in' => 'Le type de demande n\'est pas valide',
+
+            'reponses.required' => 'Les réponses sont obligatoires',
+            'reponses.array' => 'Les réponses doivent  être un tableau',
+            
         ];
     }
 }

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('sinistres', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('assure_id')->constrained('assures')->onDelete('set null');
+            $table->foreignId('assure_id')->nullable()->constrained('assures')->onDelete('set null');
             $table->text('description');
             $table->timestamps();
 

@@ -9,24 +9,17 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 
 class LoginWithEmailAndPasswordFormRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email', 'string'],
-            'password' => ['required', 'string', 'min:8'],
+            'email' => ['required', 'email', 'string', 'exists:users,email'],
+            'password' => ['required', 'string', 'min:8', 'regex:/.*[!@#$&].*/'
+        ],
         ];
     }
 
@@ -34,4 +27,19 @@ class LoginWithEmailAndPasswordFormRequest extends FormRequest
     {    
         throw new HttpResponseException(ApiResponse::error('Error de validation', 422, $validator->errors()));
     }
+
+    public function messages() {
+        return [
+            'email.required' => 'L\'email est requis',
+            'email.email' => 'L\'email est invalide',
+            'email.string' => 'L\'email doit être une chaîne valide',
+            'password.required' => 'Le mot de passe est requis',
+            'password.string' => 'Le mot de passe est requis',
+            'password.min' => 'Le mot de passe doit contenir au moins 8 caractères',
+            'password.regex' => 'Le mot de passe doit contenir au moins un caractère spécial',
+
+        ];
+    }
+
+
 }

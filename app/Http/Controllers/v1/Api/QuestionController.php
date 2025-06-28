@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\v1\Api\medecin;
+namespace App\Http\Controllers\v1\Api;
 
 use App\Enums\TypeDemandeurEnum;
 use App\Helpers\ApiResponse;
@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class QuestionController extends Controller
-{
+{   
     /**
      * Liste toutes les questions.
      */

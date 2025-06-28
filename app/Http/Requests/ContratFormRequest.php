@@ -21,13 +21,11 @@ class ContratFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'client_id' => 'required|exists:clients,id',
             'technicien_id' => 'required|exists:personnels,id',
+            'client_id' => 'required|exists:clients,id',
             'prime' => 'required|numeric|min:0',
-            'date_signature' => 'required|date',
-            'status' => 'sometimes|string',
-            'photo_document' => 'sometimes|array',
-            'photo_document.*' => 'sometimes|string',
+            'photo_document' => 'required|array',
+            'photo_document.*' => ['file', 'mimes:jpeg,png,jpg,pdf,doc,docx'],
         ];
     }
 
@@ -39,16 +37,13 @@ class ContratFormRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'client_id.required' => 'Le client est obligatoire',
-            'client_id.exists' => 'Le client sélectionné n\'existe pas',
             'technicien_id.required' => 'Le technicien est obligatoire',
             'technicien_id.exists' => 'Le technicien sélectionné n\'existe pas',
+            'client_id.required' => 'Le client est obligatoire',
+            'client_id.exists' => 'Le client sélectionné n\'existe pas',
             'prime.required' => 'La prime est obligatoire',
             'prime.numeric' => 'La prime doit être un nombre',
             'prime.min' => 'La prime ne peut pas être négative',
-            'date_signature.required' => 'La date de signature est obligatoire',
-            'date_signature.date' => 'Format de date invalide',
-            'status.in' => 'Le statut doit être actif, suspendu ou résilié',
         ];
     }
 }

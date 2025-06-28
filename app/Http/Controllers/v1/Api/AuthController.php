@@ -12,6 +12,7 @@ use App\Http\Requests\auth\SendOtpFormRequest;
 use App\Http\Requests\auth\VerifyOtpFormRequest;
 use App\Models\Otp;
 use App\Models\User;
+use App\Services\NotificationService;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,6 +24,12 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     public function sendOtp(SendOtpFormRequest $request)
     {
         $validated = $request->validated();
@@ -33,17 +40,6 @@ class AuthController extends Controller
         if (!$user) {
             return ApiResponse::error("Ce numéro n'est pas encore enregistré dans le système.", 403);
         }
-
-        // if ($user->assure) {
-        //     $role = 'assure';
-        // } elseif ($user->personnel && $user->personnel->type_personnel === TypePersonnelEnum::COMMERCIAL->value) {
-        //     $role = 'commercial';
-        // } elseif ($user->prestataire && $user->prestataire->type_prestataire === TypePrestataireEnum::PARTICULIER->value) {
-        //     $role = 'particulier';
-        // } else {
-        //     return ApiResponse::error("Ce numéro n'est pas autorisé à recevoir un OTP.", 403);
-        // }
-
         // Générer un OTP de 6 chiffres
         $otp = Otp::generateCode();
 
@@ -109,6 +105,12 @@ class AuthController extends Controller
             return ApiResponse::error('Impossible de créer le token', 500);
         }
 
+        $this->notificationService->sendEmail($user->email, 'Connexion Réussie', 'emails.login_successful', [
+            'user' => $user,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->header('User-Agent'),
+        ]);
+
         return $this->respondWithToken($token, $user);
     }
 
@@ -147,6 +149,12 @@ class AuthController extends Controller
         $user->update([
             'password' => Hash::make($validated['new_password']),
             'must_change_password' => false
+        ]);
+
+        $this->notificationService->sendEmail($user->email, 'Mot de passe changé', 'emails.password_changed', [
+            'user' => $user,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->header('User-Agent'),
         ]);
 
         return ApiResponse::success(null, 'Mot de passe changé avec succès.', 200);

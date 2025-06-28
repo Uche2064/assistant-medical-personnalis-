@@ -4,8 +4,10 @@ namespace Database\Seeders;
 
 use App\Enums\RoleEnum;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
 class AdminSeeder extends Seeder
@@ -15,26 +17,25 @@ class AdminSeeder extends Seeder
      */
     public function run(): void
     {
-        
+        $notificationService = resolve(NotificationService::class);
 
-        $adminEmail = 'globaladmin@sunu-sante.com';
-        $adminContact = '+22890000000';
+        $adminEmail = 'cpica5125@gmail.com';
         $adminUsername = 'globaladmin';
+        $plainPassword = User::genererMotDePasse();
 
-     $user = User::firstOrCreate([
-            'email' => $adminEmail,
-            'username'=> $adminUsername,
-            'contact' => $adminContact
-        ], [
-            'nom' => 'Global',
-            'prenoms' => 'Admin',
-            'contact' => $adminContact,
-            'password' => bcrypt('globaladmin@sunusante'),
-            'adresse' => 'nyekonakpoè',
-            'username' => 'globaladmin',
-            'est_actif' => true
-        ]);
+        $user = User::updateOrCreate(
+            ['email' => $adminEmail, 'username' => $adminUsername],
+            [
+                'nom' => 'Global',
+                'prenoms' => 'Admin',
+                'password' => bcrypt($plainPassword),
+                'adresse' => 'nyekonakpoè',
+                'est_actif' => true
+            ]
+        );
 
         $user->assignRole(RoleEnum::ADMIN_GLOBAL->value);
+
+        $notificationService->sendCredentials($user, $plainPassword);
     }
 }

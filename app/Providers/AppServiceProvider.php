@@ -3,9 +3,7 @@
 namespace App\Providers;
 
 use App\Models\DemandeAdhesion;
-use App\Models\Personnel;
 use App\Observers\DemandeAdhesionObserver;
-use App\Observers\PersonnelObserver;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider

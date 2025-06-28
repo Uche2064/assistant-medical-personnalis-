@@ -33,13 +33,10 @@ class DemandeAdhesionEntrepriseFormRequest extends FormRequest
                 'unique:demandes_adhesions,contact',
                 'unique:users,contact'
             ],
-            'adresse' => ['required', 'string', 'max:255'],
-            'nombre_employes' => ['required', 'integer', 'min:1'],
-            
-            // Champs pour les questionnaires
-            'reponses' => ['required', 'array'],
-            'reponses.*.question_id' => ['required_with:reponses', 'exists:questions,id'],
-            'reponses.*.reponse' => ['required_with:reponses', 'string']
+            'adresse' => ['required', 'json'],
+
+            'reponses' => ['nullable', 'array'],
+            'reponses.*' => ['file', 'mimes:jpeg,png,pdf,jpg'],
         ];
     }
 
@@ -55,9 +52,15 @@ class DemandeAdhesionEntrepriseFormRequest extends FormRequest
             'email.required' => 'L\'email de l\'entreprise est obligatoire',
             'contact.required' => 'Le numéro de téléphone de l\'entreprise est obligatoire',
             'adresse.required' => 'L\'adresse de l\'entreprise est obligatoire',
-            'statuts.required' => 'Les statuts sont obligatoires',
-            'reponses.*.question_id.exists' => 'Une question spécifiée n\'existe pas',
-            'reponses.*.reponse.required_with' => 'Toutes les questions doivent avoir une réponse'
+            'email.email' => 'L\'email de l\'entreprise doit être une adresse valide',
+            'contact.string' => 'Le numéro de téléphone de l\'entreprise doit être une chaine de caractères',
+            'contact.max' => 'Le numéro de téléphone de l\'entreprise est trop long',
+            'nombre_employes.integer' => 'Le nombre d\'employés de l\'entreprise doit être un entier',
+            'nombre_employes.min' => 'Le nombre d\'employés de l\'entreprise doit être supérieur ou égal à 1',
+            'reponses.array' => 'Les réponses au questionnaire doivent être un tableau',
+            'reponses.*.file' => 'Les réponses au questionnaire doivent être des fichiers',
+            'reponses.*.mimes' => 'Les réponses au questionnaire doivent être des fichiers de type jpeg, png, pdf, jpg',
+
         ];
     }
 }

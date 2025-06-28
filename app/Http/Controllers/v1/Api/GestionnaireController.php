@@ -1,22 +1,27 @@
 <?php
 
-namespace App\Http\Controllers\v1\Api\admin;
+namespace App\Http\Controllers\v1\Api;
 
 use App\Enums\RoleEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\admin\GestionnaireFormRequest;
 use App\Http\Requests\admin\GestionnaireUpdateFormRequest;
-use App\Models\Compagnie;
 use App\Models\Gestionnaire;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class GestionnaireController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
+  
     public function index()
     {
         $gestionnaires = Gestionnaire::with('compagnie')->get();
@@ -27,9 +32,7 @@ class GestionnaireController extends Controller
         return ApiResponse::success($gestionnaires, 'Liste des gestionnaires récupérée avec succès');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
+    
     public function store(GestionnaireFormRequest $request)
     {
         $data = $request->validated();
@@ -52,65 +55,44 @@ class GestionnaireController extends Controller
         $user->assignRole(RoleEnum::GESTIONNAIRE);
         $user->save();
 
-        // get le id
         $user_id = $user->id;
 
-
-        // vérifier si la compagnie existe
-        if ($data['compagnie_id']) {
-            $compagnie = Compagnie::find($data['compagnie_id']);
-            if (!$compagnie) {
-                return ApiResponse::error('Compagnie non trouvée', 404, 'compagnie-non-trouve');
-            }
-        }
-
-        // enregistre le gestionnaire
-        $gestionnaire = Gestionnaire::create([
+      $gestionnaire = Gestionnaire::create([
             'user_id' => $user_id,
-            'compagnie_id' => $data['compagnie_id'],
         ]);
+
+        // envoyé un mail au gestionnaire
+
+        $this->notificationService->sendCredentials($user, $password);
 
         // préparer les données à renvoyé
         $reponseData = [
             'gestionnaire' => [
-                'id' => $user->id,
                 'nom' => $user->nom,
                 'prenoms' => $user->prenoms,
                 'email' => $user->email,
-                'contact' => $user->contact,
-                'username' => $user->username,
-                'adresse' => $user->adresse,
-                'sexe' => $user->sexe,
-                'date_naissance' => $user->date_naissance,
-                'photo' => $user->photo,
-                'est_actif' => $user->est_actif,
-                'role' => $gestionnaire->user->getRoleNames()->first(),
                 'must_change_password' => $user->must_change_password,
             ],
             'password' => $password
         ];
-        return ApiResponse::success($reponseData, 'Gestionnaire créé avec succès');
+        return ApiResponse::success($reponseData, 'Un email de confirmation a été envoyé à l\'adresse email fournie.');
     }
 
 
-    /**
-     * Display the specified resource.
-     */
+
     public function show(int $id)
     {
-        $gestionnaire = Gestionnaire::with('compagnie', 'user')->find($id);
+        $gestionnaire = Gestionnaire::with('user')->find($id);
         if (!$gestionnaire) {
             return ApiResponse::error('Gestionnaire non trouvé', 404);
         }
         return ApiResponse::success($gestionnaire, 'Gestionnaire récupéré avec succès');
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
+
     public function update(GestionnaireUpdateFormRequest $request, int $id)
     {
-        $gestionnaire = Gestionnaire::with('user', 'compagnie')->find($id);
+        $gestionnaire = Gestionnaire::with('user')->find($id);
         if (!$gestionnaire) {
             return ApiResponse::error('Gestionnaire non trouvé', 404);
         }
@@ -127,7 +109,7 @@ class GestionnaireController extends Controller
         $gestionnaire->fill($data);
         $gestionnaire->save();
 
-        $gestionnaire->load(['user', 'compagnie']);
+        $gestionnaire->load(['user']);
         $data = [
             'id' => $gestionnaire->id,
             'nom' => $gestionnaire->user->nom ?? null,
@@ -141,7 +123,6 @@ class GestionnaireController extends Controller
             'photo' => $gestionnaire->user->photo ?? null,
             'est_actif' => $gestionnaire->user->est_actif ?? null,
             'must_change_password' => $gestionnaire->user->must_change_password ?? null,
-            'compagnie' => $gestionnaire->compagnie,
             'role' => $gestionnaire->user->getRoleNames()->first(),
         ];
         return ApiResponse::success($data, 'Gestionnaire mis à jour avec succès');

@@ -14,9 +14,11 @@ return new class extends Migration
         Schema::create('reseau_prestataire', function (Blueprint $table) {
             $table->id();
             $table->foreignId('prestataire_id')
+                ->nullable()
                 ->constrained('prestataires')
                 ->onDelete('set null');
             $table->foreignId('client_id')
+                ->nullable()
                 ->constrained('clients')
                 ->onDelete('set null');
             $table->timestamp('date_creation');

@@ -26,7 +26,7 @@ class ImageUploadHelper
              }
 
              // Vérifier si le type MIME est une image autorisée
-             $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+             $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
              if (!in_array($file->getMimeType(), $allowedMimeTypes)) {
                  throw new \Exception('Invalid file type. Only JPEG, PNG, GIF, and WEBP are allowed.');
              }

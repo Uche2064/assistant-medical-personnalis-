@@ -16,16 +16,20 @@ use App\Http\Requests\DemandeAdhesionRejectFormRequest;
 use App\Models\DemandeAdhesion;
 use App\Models\Question;
 use App\Models\ReponsesQuestionnaire;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class DemandeAdhesionController extends Controller
 {
-    /**
-     * Récupérer toutes les demandes d'adhésion
-     * Filtrable par statut (en_attente, valide, rejete)
-     */
+    protected NotificationService $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     public function index(Request $request)
     {
         $query = DemandeAdhesion::with('validePar', 'reponsesQuestionnaire');
@@ -82,37 +86,16 @@ class DemandeAdhesionController extends Controller
             ];
 
             $demande = DemandeAdhesion::create($basicData);
-            $documents = [];
 
             if (isset($data['reponses']) && is_array($data['reponses'])) {
-                $normalizedResponses = $this->normalizeReponses($data['reponses']);
-
-                foreach ($normalizedResponses as $questionId => $reponseData) {
-                    $question = Question::find($questionId);
-                    if (!$question) continue;
-
-                    if ($question->type_donnees === TypeDonneeEnum::FILE && isset($reponseData['reponse'])) {
-                        $fileData = $this->handleFileUpload($reponseData['reponse'], 'demandes_adhesion/' . $demande->id . '/documents');
-                        if ($fileData) {
-                            $reponseData['reponse'] = $fileData;
-                            $documents[$question->libelle] = $fileData;
-                        }
-                    }
-
-                    ReponsesQuestionnaire::create([
-                        'question_id' => $questionId,
-                        'demande_adhesion_id' => $demande->id,
-                        'reponse' => is_array($reponseData['reponse'])
-                            ? json_encode($reponseData['reponse'])
-                            : $reponseData['reponse']
-                    ]);
-                }
-
-                $demande->infos_complementaires = ['documents' => $documents];
-                $demande->save();
+                $this->storeReponses($demande, $data['reponses']);
             }
 
             DB::commit();
+
+            $this->notificationService->sendEmail($data['email'], 'Demande d\'adhésion enregistrée', 'emails.en_attente', [
+                'demande' => $demande,
+            ]);
 
             return ApiResponse::success([
                 'demande_id' => $demande->id,
@@ -134,12 +117,6 @@ class DemandeAdhesionController extends Controller
         try {
             DB::beginTransaction();
 
-            // Préparer les informations complémentaires avec les données de l'entreprise
-            $infosComplementaires = [
-                'secteur_activite' => $data['secteur_activite'] ?? null,
-                'nombre_employes' => $data['nombre_employes'] ?? null,
-            ];
-
             // Création de la demande d'adhésion
             $demande = DemandeAdhesion::create([
                 'raison_sociale' => $data['raison_sociale'],
@@ -147,7 +124,7 @@ class DemandeAdhesionController extends Controller
                 'contact' => $data['contact'],
                 'type_demande' => TypeDemandeurEnum::PROSPECT_MORAL->value,
                 'statut' => StatutValidationEnum::EN_ATTENTE,
-                'infos_complementaires' => $infosComplementaires
+                'adresse' => $data['adresse'],
             ]);
 
             // Traitement des réponses au questionnaire si présentes
@@ -156,6 +133,7 @@ class DemandeAdhesionController extends Controller
             }
 
             DB::commit();
+
 
             return ApiResponse::success([
                 'demande_id' => $demande->id,
@@ -179,8 +157,8 @@ class DemandeAdhesionController extends Controller
 
             // Création de la demande d'adhésion
             $demande = DemandeAdhesion::create([
-                'nom' => $data['nom'],
-                'prenoms' => $data['prenoms'],
+                'nom_demandeur' => $data['nom'],
+                'prenoms_demandeur' => $data['prenoms'],
                 'email' => $data['email'] ?? null,
                 'contact' => $data['contact'],
                 'type_demande' => TypeDemandeurEnum::PROSPECT_PHYSIQUE->value, // Type client individuel
@@ -188,11 +166,7 @@ class DemandeAdhesionController extends Controller
                 'profession' => $data['profession'] ?? null,
                 'adresse' => $data['adresse'],
                 'date_naissance' => $data['date_naissance'],
-                'sexe' => $data['sexe'] ?? null,
-
-                'infos_complementaires' => json_encode([
-                    'photo_url' => $data['photo_url'] ?? null,
-                ])
+                'sexe' => $data['sexe'] ?? null
             ]);
 
             // Traitement des réponses au questionnaire si présentes
@@ -200,12 +174,13 @@ class DemandeAdhesionController extends Controller
                 $this->storeReponses($demande, $data['reponses']);
             }
 
+
             DB::commit();
 
             return ApiResponse::success([
                 'demande_id' => $demande->id,
                 'statut' => $demande->statut->value
-            ], 'Demande d\'adhésion de prospect enregistrée avec succès', 201);
+            ], 'Demande d\'adhésion enregistrée avec succès', 201);
         } catch (\Exception $e) {
             DB::rollBack();
             return ApiResponse::error($e->getMessage(), 500);
@@ -249,7 +224,7 @@ class DemandeAdhesionController extends Controller
         $typePrestataire = $request->query('type_demandeur');
         $validTypes = [
             TypeDemandeurEnum::PHARMACIE->value,
-            TypeDemandeurEnum::LABORATOIRE->value,
+            TypeDemandeurEnum::LABORATOIRE_CENTRE_DIAGNOSTIC->value,
             TypeDemandeurEnum::CENTRE_DE_SOINS->value,
             TypeDemandeurEnum::OPTIQUE->value,
             TypeDemandeurEnum::MEDECIN_LIBERAL->value,
@@ -283,7 +258,7 @@ class DemandeAdhesionController extends Controller
         // Pour prestataires moraux (pharmacie, laboratoire, centre de soins, optique)
         $prestairesMoraux = [
             TypeDemandeurEnum::PHARMACIE->value,
-            TypeDemandeurEnum::LABORATOIRE->value,
+            TypeDemandeurEnum::LABORATOIRE_CENTRE_DIAGNOSTIC->value,
             TypeDemandeurEnum::CENTRE_DE_SOINS->value,
             TypeDemandeurEnum::OPTIQUE->value,
         ];
@@ -344,10 +319,6 @@ class DemandeAdhesionController extends Controller
                 'adresse',
             ],
             'questions' => $questions,
-            'infos_complementaires' => [
-                'secteur_activite',
-                'nombre_employes',
-            ]
         ];
 
         return ApiResponse::success($formulaire, 'Formulaire pour entreprise récupéré avec succès');
@@ -396,6 +367,9 @@ class DemandeAdhesionController extends Controller
         try {
             // Validation de la demande
             $demande->validate($personnel);
+            $this->notificationService->sendEmail($demande->email, 'Demande d\'adhésion validée', 'emails.acceptee', [
+                'demande' => $demande,
+            ]);
 
             // TODO: Créer l'utilisateur et le prestataire/client correspondant
             // Cette partie sera implémentée selon le type de demande
@@ -438,6 +412,9 @@ class DemandeAdhesionController extends Controller
         try {
             // Rejet de la demande
             $demande->reject($personnel, $validatedData['motif_rejet']);
+            $this->notificationService->sendEmail($demande->email, 'Demande d\'adhésion rejetée', 'emails.rejetee', [
+                'demande' => $demande,
+            ]);
             return ApiResponse::success([
                 'demande_id' => $demande->id,
                 'statut' => $demande->statut->value,
@@ -450,122 +427,97 @@ class DemandeAdhesionController extends Controller
 
     // méthode privée
 
-      //Stockage des réponses aux questionnaires pour une demande d'adhésion
-      private function storeReponses(DemandeAdhesion $demande, array $reponses)
-      {
-          if (empty($reponses)) {
-              return;
-          }
-  
-          // Vérifier que les questions existent et sont valides pour le type de destinataire
-          $questionIds = array_column($reponses, 'question_id');
-          $validQuestions = Question::whereIn('id', $questionIds)
-              ->where('est_actif', true)
-              ->pluck('id')
-              ->toArray();
-  
-          // Filtrer les réponses pour ne garder que celles correspondant à des questions valides
-          $validReponses = array_filter($reponses, function ($reponse) use ($validQuestions) {
-              return in_array($reponse['question_id'], $validQuestions);
-          });
-  
-          if (empty($validReponses)) {
-              return;
-          }
-  
-          // Transformer le tableau de réponses en un tableau associatif question_id => reponse
-          $reponsesArray = [];
-          foreach ($validReponses as $reponse) {
-  
-              $reponsesArray[$reponse['question_id']] = $reponse['reponse'];
-          }
-  
-          // Vérifier si une entrée existe déjà pour cette demande d'adhésion
-          $existingReponse = ReponsesQuestionnaire::where('demande_adhesion_id', $demande->id)->first();
-  
-          if ($existingReponse) {
-              // Mettre à jour l'entrée existante
-              $existingReponse->update([
-                  'reponses' => json_encode($reponsesArray),
-                  'est_validee' => false, // Par défaut, les réponses ne sont pas validées
-              ]);
-          } else {
-              // Créer une nouvelle entrée
-              ReponsesQuestionnaire::create([
-                  'demande_adhesion_id' => $demande->id,
-                  'reponses' => json_encode($reponsesArray),
-                  'est_validee' => false, // Par défaut, les réponses ne sont pas validées
-              ]);
-          }
-      }
-
-
-    private function normalizeReponses(array $reponses): array
+    /**
+     * Stockage des réponses aux questionnaires pour une demande d'adhésion
+     * 
+     * @param DemandeAdhesion $demande L'objet demande d'adhésion
+     * @param array $reponses Les réponses à stocker
+     * @return void
+     */
+    private function storeReponses(DemandeAdhesion $demande, array $reponses)
     {
-        $normalized = [];
+        if (empty($reponses)) {
+            return;
+        }
 
+        $reponsesTraitees = [];
+
+        // Parcourir les réponses
         foreach ($reponses as $key => $value) {
-            if (is_array($value) && isset($value['question_id'])) {
-                $questionId = $value['question_id'];
-                if (is_scalar($questionId)) {
-                    $normalized[$questionId] = $value;
+            // Cas 1: C'est un fichier
+            if (is_object($value) && method_exists($value, 'getClientOriginalName')) {
+                $fichier = $value;
+                $mimeType = $fichier->getMimeType();
+                $storagePath = 'demandes_adhesion/' . $demande->id . '/documents';
+                
+                // Traiter selon le type de fichier
+                if (str_starts_with($mimeType, 'image/')) {
+                    // Image
+                    $fileUrl = ImageUploadHelper::uploadImage($fichier, $storagePath);
+                    if ($fileUrl) {
+                        $reponsesTraitees[$key] = [
+                            'type' => 'fichier',
+                            'chemin' => $fileUrl,
+                            'nom_original' => $fichier->getClientOriginalName(),
+                            'mime_type' => $mimeType
+                        ];
+                    }
+                } elseif ($mimeType === 'application/pdf') {
+                    // PDF
+                    $result = PdfUploadHelper::storePdf(
+                        file_get_contents($fichier->getRealPath()),
+                        $storagePath,
+                        $fichier->getClientOriginalName()
+                    );
+                    if ($result) {
+                        $reponsesTraitees[$key] = [
+                            'type' => 'fichier',
+                            'chemin' => $result['url'],
+                            'nom_original' => $fichier->getClientOriginalName(),
+                            'mime_type' => $mimeType
+                        ];
+                    }
+                } else {
+                    // Autre type de fichier
+                    $fileName = uniqid('doc_') . '_' . time() . '.' . $fichier->getClientOriginalExtension();
+                    $filePath = $fichier->storeAs($storagePath, $fileName, 'public');
+                    $reponsesTraitees[$key] = [
+                        'type' => 'fichier',
+                        'chemin' => asset('storage/' . $filePath),
+                        'nom_original' => $fichier->getClientOriginalName(),
+                        'mime_type' => $mimeType
+                    ];
                 }
-            } elseif (is_numeric($key)) {
-                $normalized[$key] = [
-                    'question_id' => $key,
-                    'reponse' => $value
+            } 
+            // Cas 2: C'est un objet clé-valeur
+            else {
+                $reponsesTraitees[$key] = [
+                    'type' => 'texte',
+                    'valeur' => $value
                 ];
             }
         }
 
-        return $normalized;
-    }
+        // Vérifier si une entrée existe déjà pour cette demande d'adhésion
+        $existingReponse = ReponsesQuestionnaire::where('demande_adhesion_id', $demande->id)->first();
 
-
-    private function handleFileUpload($file, $storagePath)
-    {
-        $mimeType = $file->getMimeType();
-        $fileData = null;
-
-        if (str_starts_with($mimeType, 'image/')) {
-            $fileUrl = ImageUploadHelper::uploadImage($file, $storagePath);
-            if ($fileUrl) {
-                $path = str_replace(asset('storage/'), '', $fileUrl);
-                $fileData = [
-                    'path' => $path,
-                    'url' => $fileUrl,
-                    'original_name' => $file->getClientOriginalName(),
-                    'mime_type' => $mimeType,
-                    'size' => $file->getSize()
-                ];
-            }
-        } elseif ($mimeType === 'application/pdf') {
-            $result = PdfUploadHelper::storePdf(
-                file_get_contents($file->getRealPath()),
-                $storagePath,
-                $file->getClientOriginalName()
-            );
-            if ($result) {
-                $fileData = [
-                    'path' => $result['path'],
-                    'url' => $result['url'],
-                    'original_name' => $file->getClientOriginalName(),
-                    'mime_type' => $mimeType,
-                    'size' => $file->getSize()
-                ];
-            }
+        if ($existingReponse) {
+            // Mettre à jour l'entrée existante
+            $existingReponse->update([
+                'reponses' => json_encode($reponsesTraitees),
+            ]);
+            $this->notificationService->sendEmail($demande->email, 'Demande d\'adhésion mise à jour', 'emails.en_attente', [
+                'demande' => $demande,
+            ]);
         } else {
-            $fileName = uniqid('doc_') . '_' . time() . '.' . $file->getClientOriginalExtension();
-            $filePath = $file->storeAs($storagePath, $fileName, 'public');
-            $fileData = [
-                'path' => $filePath,
-                'url' => asset('storage/' . $filePath),
-                'original_name' => $file->getClientOriginalName(),
-                'mime_type' => $mimeType,
-                'size' => $file->getSize()
-            ];
+            // Créer une nouvelle entrée
+            ReponsesQuestionnaire::create([
+                'demande_adhesion_id' => $demande->id,
+                'reponses' => json_encode($reponsesTraitees),
+            ]);
+            $this->notificationService->sendEmail($demande->email, 'Demande d\'adhésion enregistrée', 'emails.en_attente', [
+                'demande' => $demande,
+            ]);
         }
-
-        return $fileData;
     }
 }

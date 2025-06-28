@@ -23,9 +23,10 @@ return new class extends Migration
             $table->string('prenoms_demandeur')->nullable();
             $table->string('email')->unique()->nullable();
             $table->string('contact')->unique()->nullable();
+            $table->date('date_naissance')->nullable();
             $table->json('adresse');
             $table->enum('sexe', SexeEnum::values())->nullable();
-            $table->string('profession');
+            $table->string('profession')->nullable();
             $table->enum('type_demande', TypeDemandeurEnum::values());
             $table->enum('statut', StatutValidationEnum::values())->default(StatutValidationEnum::EN_ATTENTE);
             $table->text('motif_rejet')->nullable();

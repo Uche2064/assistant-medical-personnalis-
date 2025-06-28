@@ -9,25 +9,18 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 
 class ChangePasswordFormRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
+   
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
             'email' => ['required', 'email', 'string', 'exists:users,email'],
             'current_password' => ['required', 'min:8'],
-            'new_password' => ['required', 'confirmed', 'min:8', 'different:current_password'],
+            'new_password' => ['required', 'string', 'confirmed', 'min:8', 'different:current_password', 'regex:/.*[!@#$&].*/'],
             'new_password_confirmation' => ['required', 'min:8'],
         ];
     }
@@ -46,6 +39,8 @@ class ChangePasswordFormRequest extends FormRequest
             'new_password.min' => 'Le nouveau mot de passe doit contenir au moins 8 caractères.',
             'new_password.different' => 'Le nouveau mot de passe doit être différent du mot de passe actuel.',
             'new_password_confirmation.required' => 'La confirmation du mot de passe est obligatoire.',
+            'new_password_confirmation.min' => 'La confirmation du mot de passe doit contenir au moins 8 caractères.',
+            'new_password.regex' => 'Le nouveau mot de passe doit contenir au moins un caractère spécial.',
         ];
     }
 

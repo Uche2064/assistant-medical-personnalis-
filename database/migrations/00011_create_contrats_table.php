@@ -13,10 +13,9 @@ return new class extends Migration
     {
         Schema::create('contrats', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('client_id')->constrained('clients')->onDelete('set null');
+            $table->foreignId('technicien_id')->nullable()->constrained('personnels')->onDelete('set null');
+            $table->foreignId('client_id')->nullable()->constrained('clients')->onDelete('set null');
             $table->string('numero_police')->unique();
-            $table->foreignId('technicien_id')->constrained('personnels')->onDelete('set null');
-            $table->date('date_signature');
             $table->decimal('prime', 12, 2)->nullable();
             $table->json('photo_document');
             $table->timestamps();

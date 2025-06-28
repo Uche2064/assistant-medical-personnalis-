@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('nom');
             $table->string('email')->nullable()->unique();
             $table->string('username')->nullable()->unique();
+            $table->string('raison_sociale')->nullable()->unique();
             $table->string('prenoms')->nullable();
             $table->string('contact')->unique()->nullable();
             $table->json('adresse');
@@ -24,7 +25,7 @@ return new class extends Migration
             $table->date('date_naissance')->nullable();
             $table->boolean('est_actif')->default(true);
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
+            $table->string('password')->nullable();
             $table->string('photo')->nullable();
             $table->boolean("must_change_password")->default(true);
             $table->rememberToken();

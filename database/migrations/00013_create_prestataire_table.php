@@ -14,7 +14,7 @@ return new class extends Migration
     {
         Schema::create('prestataires', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('set null');
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
             $table->enum('type_prestataire', TypePrestataireEnum::values());
             $table->foreignId('medecin_controleur_id')->nullable()->constrained('personnels')->onDelete('set null');
             $table->timestamps();

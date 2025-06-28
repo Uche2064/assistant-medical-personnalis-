@@ -21,10 +21,10 @@ return new class extends Migration
             $table->text('diagnostic');
             $table->json('photo_justificatifs');
             $table->decimal('ticket_moderateur', 12, 2);
-            $table->foreignId('prestataire_id')->constrained('prestataires')->onDelete('set null');
+            $table->foreignId('prestataire_id')->nullable()->constrained('prestataires')->onDelete('set null');
 
             $table->enum('statut', StatutFactureEnum::values())->default(StatutFactureEnum::EN_ATTENTE);
-            $table->foreignId('sinistre_id')->constrained('sinistres')->onDelete('set null');
+            $table->foreignId('sinistre_id')->nullable()->constrained('sinistres')->onDelete('set null');
 
             $table->boolean('est_valide_par_medecin')->default(false);
             $table->foreignId('medecin_id')->nullable()->constrained('personnels')->onDelete('set null'); // ou personnel_id filtré par type

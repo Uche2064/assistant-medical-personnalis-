@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('messages', function (Blueprint $table) {
             $table->id();
             $table->text('contenu');
-            $table->foreignId('conversation_id')->constrained('conversations')->onDelete('set null');
+            $table->foreignId('conversation_id')->nullable()->constrained('conversations')->onDelete('set null');
             $table->foreignId('expediteur_id')->nullable()->constrained('users')->onDelete('set null');
             $table->date('envoyer_a')->nullable();
             $table->date('lu_a')->nullable();

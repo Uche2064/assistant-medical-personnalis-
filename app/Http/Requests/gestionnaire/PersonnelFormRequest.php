@@ -14,77 +14,28 @@ use Illuminate\Validation\Rule;
 
 class PersonnelFormRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
+
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
-        // Récupérer l'ID de la compagnie du gestionnaire connecté
-        $compagnieId = Auth::user()->gestionnaire->compagnie_id;
-        
-        // Déterminer si le contact est obligatoire selon le type de personnel
-        $contactRules = ['string', 'max:50', 'unique:users,contact'];
-        
-        // Si le type est Commercial, le contact devient obligatoire
-        if ($this->input('type_personnel') === TypePersonnelEnum::COMMERCIAL->value) {
-            $contactRules[] = 'required';
-        } else {
-            $contactRules[] = 'nullable';
-        }
-        
-        // Vérifier s'il s'agit d'une création (POST) ou d'une mise à jour (PUT)
-        $isUpdate = $this->isMethod('PUT');
-        
-        // Règles de base communes
+
         $rules = [
+            'nom' => ['required', 'string', 'max:255'],
             'prenoms' => ['nullable', 'string', 'max:255'],
-            'email' => [
-                !$isUpdate ? 'required' : 'nullable', 
-                'email', 
-                'max:255',
-                $isUpdate ? Rule::unique('users')->ignore($this->route('id')) : 'unique:users,email'
-            ],
-            'contact' => $contactRules,
-            'username' => [
-                'nullable', 
-                'string',
-                function($attribute, $value, $fail) use ($compagnieId) {
-                    if (!$value) return;
-                    
-                    $exists = User::where('username', $value)
-                        ->whereHas('personnel', function($q) use ($compagnieId) {
-                            $q->where('compagnie_id', $compagnieId);
-                        })->exists();
-                    if ($exists) {
-                        $fail('Ce nom d\'utilisateur existe déjà dans cette compagnie.');
-                    }
-                }
-            ],
-            'adresse' => [ !$isUpdate ? 'required' : 'nullable', 'json', 'max:255'],
+            'email' => ['email', 'max:255',],
+            'contact' => ['string', 'max:50', 'unique:users,contact'],
+            'username' => ['nullable', 'string', 'unique:users,username'],
+            'adresse' => ['required', 'json'],
             'sexe' => ['nullable', Rule::in(SexeEnum::values())],
             'date_naissance' => ['nullable', 'date'],
-            'photo' => ['nullable', 'string', 'max:255'],
-            'type_personnel' => [ !$isUpdate ? 'required' : 'nullable', Rule::in(TypePersonnelEnum::values())]
+            'photo' => ['nullable', 'string'],
+            'type_personnel' => ['required', Rule::in(TypePersonnelEnum::values())]
         ];
-        
-        // Pour la création, le nom est obligatoire
-        // Pour la mise à jour, le nom est optionnel
-        if ($isUpdate) {
-            $rules['nom'] = ['nullable', 'string', 'max:255'];
-        } else {
-            $rules['nom'] = ['required', 'string', 'max:255'];
-        }
-        
+
         return $rules;
     }
 
@@ -93,5 +44,30 @@ class PersonnelFormRequest extends FormRequest
         throw new HttpResponseException(
             ApiResponse::error($validator->errors()->first(), 422)
         );
+    }
+
+    public function messages() {
+        return [
+            'nom.required' => 'Le champ nom est obligatoire.',
+            'nom.string' => 'Le champ nom doit être une chaine de caractères.',
+            'nom.max' => 'Le champ nom ne doit pas contenir plus de 255 caractères.',
+            'prenoms.string' => 'Le champ prenom doit être une chaine de caractères.',
+            'prenoms.max' => 'Le champ prenom ne doit pas contenir plus de 255 caractères.',
+            'email.email' => 'L\'adresse e-mail est invalide.',
+            'email.max' => 'L\'adresse e-mail ne doit pas contenir plus de 255 caractères.',
+            'contact.string' => 'Le champ contact doit être une chaine de caractères.',
+            'contact.max' => 'Le champ contact ne doit pas contenir plus de 50 caractères.',
+            'contact.unique' => 'Ce contact existe déjà dans la base de données.',
+            'username.string' => 'Le champ username doit être une chaine de caractères.',
+            'username.unique' => 'Ce username existe déjà dans la base de données.',
+            'adresse.required' => 'Le champ adresse est obligatoire.',
+            'adresse.json' => 'Le champ adresse doit être un objet JSON.',
+            'sexe.in' => 'Le champ sexe n\'est pas dans la liste des valeurs acceptées.',
+            'date_naissance.date' => 'Le champ date de naissance est invalide.',
+            'photo.string' => 'Le champ photo doit être une chaine de caractères.',
+            'type_personnel.required' => 'Le champ type de personnel est obligatoire.',
+            'type_personnel.in' => 'Le champ type de personnel n\'est pas dans la liste des valeurs acceptées.',
+
+        ];
     }
 }

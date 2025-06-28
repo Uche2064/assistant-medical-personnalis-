@@ -19,6 +19,7 @@ class DemandeAdhesion extends Model
         'nom_demandeur',
         'raison_sociale',
         'prenoms_demandeur',
+        'date_naissance',
         'email',
         'contact',
         'adresse',
@@ -40,6 +41,7 @@ class DemandeAdhesion extends Model
             'sexe' => SexeEnum::class,
             'valider_a' => 'datetime',
             'adresse' => 'json',
+            'date_naissance'=> 'date'
         ];
     }
   

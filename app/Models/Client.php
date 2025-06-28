@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\TypeClientEnum;
-use App\Enums\StatutValidationEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -16,7 +15,6 @@ class Client extends Model
         'user_id',
         'profession',
         'type_client',
-        'statut_validation',
         'prime',
         'date_paiement_prime',
     ];
@@ -25,7 +23,6 @@ class Client extends Model
     {
         return [
             'type_client' => TypeClientEnum::class,
-            'statut_validation' => StatutValidationEnum::class,
             'prime' => 'decimal:2',
             'date_paiement_prime' => 'date',
         ];
@@ -36,4 +33,5 @@ class Client extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
 }

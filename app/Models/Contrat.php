@@ -15,14 +15,11 @@ class Contrat extends Model
         'client_id',
         'numero_police',
         'technicien_id',
-        'date_signature',
-        'status',
         'photo_document',
         'prime',
     ];
 
     protected $casts = [
-        'date_signature' => 'date',
         'prime' => 'decimal:2',
         'photo_document' => 'json',
     ];

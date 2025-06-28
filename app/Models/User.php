@@ -23,6 +23,7 @@ class User extends Authenticatable implements JWTSubject
         'email',
         'contact',
         'adresse',
+        'raison_sociale',
         'sexe',
         'date_naissance',
         'est_actif',
@@ -38,7 +39,7 @@ class User extends Authenticatable implements JWTSubject
         'remember_token',
     ];
 
-  
+
     protected function casts(): array
     {
         return [
@@ -52,7 +53,7 @@ class User extends Authenticatable implements JWTSubject
         ];
     }
 
- 
+
     public function getJWTIdentifier()
     {
         return $this->getKey();
@@ -76,7 +77,19 @@ class User extends Authenticatable implements JWTSubject
 
     static function genererMotDePasse($longueur = 8)
     {
-        return substr(bin2hex(random_bytes($longueur)), 0, $longueur);
+        $lettres = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $chiffres = '0123456789';
+        $caracteresSpeciaux = '!@#$&';
+
+        $motDePasse = $caracteresSpeciaux[rand(0, strlen($caracteresSpeciaux) - 1)];
+
+        $tousCaracteres = $lettres . $chiffres . $caracteresSpeciaux;
+
+        for ($i = 1; $i < $longueur; $i++) {
+            $motDePasse .= $tousCaracteres[rand(0, strlen($tousCaracteres) - 1)];
+        }
+
+        return str_shuffle($motDePasse);
     }
 
 
@@ -107,7 +120,7 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasOne(Client::class, 'user_id');
     }
 
-     public function assure()
+    public function assure()
     {
         return $this->hasOne(Assure::class, 'user_id');
     }
@@ -117,7 +130,8 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasOne(Personnel::class, 'user_id');
     }
 
-    public function gestionnaire() {
+    public function gestionnaire()
+    {
         return $this->hasOne(Gestionnaire::class, 'user_id');
     }
 
