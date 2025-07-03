@@ -17,11 +17,15 @@ class Contrat extends Model
         'technicien_id',
         'photo_document',
         'prime',
+        'date_debut',
+        'date_fin',
     ];
 
     protected $casts = [
         'prime' => 'decimal:2',
         'photo_document' => 'json',
+        'date_debut' => 'date',
+        'date_fin' => 'date',
     ];
 
 

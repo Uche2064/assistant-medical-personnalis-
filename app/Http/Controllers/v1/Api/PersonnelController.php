@@ -45,7 +45,6 @@ class PersonnelController extends Controller
         // Récupérer les données validées
         $data = $request->validated();
         
-        // Récupérer l'ID et la compagnie du gestionnaire connecté
         $gestionnaire = Auth::user()->gestionnaire;
         
         try {
@@ -100,13 +99,10 @@ class PersonnelController extends Controller
      */
     public function show(string $id)
     {
-        // Récupérer l'ID de la compagnie du gestionnaire connecté
-        $compagnieId = Auth::user()->gestionnaire->compagnie_id;
+
         
-        // Récupérer le personnel avec l'ID spécifié et appartenant à la compagnie
         $personnel = Personnel::with('user')
             ->where('id', $id)
-            ->where('compagnie_id', $compagnieId)
             ->first();
             
         if (!$personnel) {
@@ -124,12 +120,9 @@ class PersonnelController extends Controller
         // Récupérer les données validées
         $data = $request->validated();
         
-        // Récupérer l'ID de la compagnie du gestionnaire connecté
-        $compagnieId = Auth::user()->gestionnaire->compagnie_id;
         
-        // Récupérer le personnel avec l'ID spécifié et appartenant à la compagnie
+        
         $personnel = Personnel::where('id', $id)
-            ->where('compagnie_id', $compagnieId)
             ->first();
             
         if (!$personnel) {
@@ -175,12 +168,8 @@ class PersonnelController extends Controller
      */
     public function destroy(string $id)
     {
-        // Récupérer l'ID de la compagnie du gestionnaire connecté
-        $compagnieId = Auth::user()->gestionnaire->compagnie_id;
         
-        // Récupérer le personnel avec l'ID spécifié et appartenant à la compagnie
         $personnel = Personnel::where('id', $id)
-            ->where('compagnie_id', $compagnieId)
             ->first();
             
         if (!$personnel) {

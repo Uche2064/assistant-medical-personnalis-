@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\Contrat;
 use App\Models\DemandeAdhesion;
+use App\Observers\ContratObserver;
 use App\Observers\DemandeAdhesionObserver;
 use Illuminate\Support\ServiceProvider;
 
@@ -22,5 +24,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         DemandeAdhesion::observe(DemandeAdhesionObserver::class);
+        Contrat::observe(ContratObserver::class);
     }
 }

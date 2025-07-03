@@ -34,8 +34,7 @@ class GestionnaireFormRequest extends FormRequest
             'adresse' => ['required', 'json'],
             'sexe' => ['nullable', Rule::in(SexeEnum::values())],
             'date_naissance' => ['nullable', 'date'],
-            'est_actif' => ['nullable', 'boolean'],
-            'photo' => ['nullable', 'string'],
+            'photo' => ['nullable', 'file'],
         ];
     }
 

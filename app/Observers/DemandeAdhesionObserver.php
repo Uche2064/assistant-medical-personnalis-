@@ -28,7 +28,6 @@ class DemandeAdhesionObserver
     {
         // Si la demande vient d'être validée
         if ($demandeAdhesion->isDirty('statut') && $demandeAdhesion->statut === StatutValidationEnum::VALIDE) {
-            dd($demandeAdhesion);
             try {
                 DB::beginTransaction();
                 

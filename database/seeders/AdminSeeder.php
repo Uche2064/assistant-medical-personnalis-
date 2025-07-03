@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Enums\RoleEnum;
+use App\Jobs\SendCredentialsJob;
+use App\Jobs\SendLoginNotificationJob;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -36,6 +38,6 @@ class AdminSeeder extends Seeder
 
         $user->assignRole(RoleEnum::ADMIN_GLOBAL->value);
 
-        $notificationService->sendCredentials($user, $plainPassword);
+        dispatch(new SendCredentialsJob($user, $plainPassword));
     }
 }

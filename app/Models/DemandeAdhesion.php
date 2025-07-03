@@ -90,7 +90,8 @@ class DemandeAdhesion extends Model
             'statut' => StatutValidationEnum::REJETE,
             'valide_par_id' => $personnel->id,
             'valider_a' => now(),
-            'motif_rejet' => $motif_rejet
+            'motif_rejet' => $motif_rejet,
+            'deleted_at' => now()
         ]);
     }
 

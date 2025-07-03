@@ -21,6 +21,7 @@ class NotificationService
     public function sendEmail(string $recipientEmail, string $subject, string $view, array $data): void
     {
         try {
+            Log::alert("Sending....");
             Mail::to($recipientEmail)->send(new GenericMail($subject, $view, $data));
         } catch (\Exception $e) {
             // Gérer l'échec de l'envoi de l'e-mail, par exemple, en loguant l'erreur.

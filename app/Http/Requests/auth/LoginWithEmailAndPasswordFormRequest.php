@@ -17,9 +17,8 @@ class LoginWithEmailAndPasswordFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email', 'string', 'exists:users,email'],
-            'password' => ['required', 'string', 'min:8', 'regex:/.*[!@#$&].*/'
-        ],
+            'email' => ['required', 'email', 'string'],
+            'password' => ['required', 'string', 'min:8'],
         ];
     }
 
@@ -36,7 +35,6 @@ class LoginWithEmailAndPasswordFormRequest extends FormRequest
             'password.required' => 'Le mot de passe est requis',
             'password.string' => 'Le mot de passe est requis',
             'password.min' => 'Le mot de passe doit contenir au moins 8 caractères',
-            'password.regex' => 'Le mot de passe doit contenir au moins un caractère spécial',
 
         ];
     }

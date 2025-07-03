@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\v1\Api;
 
+use App\Enums\EmailType;
 use App\Enums\StatutValidationEnum;
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
@@ -13,6 +14,7 @@ use App\Http\Requests\DemandeAdhesionClientFormRequest;
 use App\Http\Requests\DemandeAdhesionEntrepriseFormRequest;
 use App\Http\Requests\DemandeAdhesionPrestataireFormRequest;
 use App\Http\Requests\DemandeAdhesionRejectFormRequest;
+use App\Jobs\SendEmailJob;
 use App\Models\DemandeAdhesion;
 use App\Models\Question;
 use App\Models\ReponsesQuestionnaire;
@@ -506,18 +508,20 @@ class DemandeAdhesionController extends Controller
             $existingReponse->update([
                 'reponses' => json_encode($reponsesTraitees),
             ]);
-            $this->notificationService->sendEmail($demande->email, 'Demande d\'adhésion mise à jour', 'emails.en_attente', [
+            
+            dispatch(new SendEmailJob($demande->email, 'Demande d\'adhésion mise à jour', EmailType::EN_ATTENTE->value, [
                 'demande' => $demande,
-            ]);
+            ]));
         } else {
             // Créer une nouvelle entrée
             ReponsesQuestionnaire::create([
                 'demande_adhesion_id' => $demande->id,
                 'reponses' => json_encode($reponsesTraitees),
             ]);
-            $this->notificationService->sendEmail($demande->email, 'Demande d\'adhésion enregistrée', 'emails.en_attente', [
+            
+            dispatch(new SendEmailJob($demande->email, 'Demande d\'adhésion enregistrée', EmailType::EN_ATTENTE->value, [
                 'demande' => $demande,
-            ]);
+            ]));
         }
     }
 }

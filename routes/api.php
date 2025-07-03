@@ -3,7 +3,6 @@
 use App\Http\Controllers\v1\Api\Assure\BeneficiaireController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\v1\Api\AuthController;
-use App\Http\Controllers\v1\Api\CompagnieController;
 use App\Http\Controllers\v1\Api\GestionnaireController;
 use App\Http\Controllers\v1\Api\ContratController;
 use App\Http\Controllers\v1\Api\PersonnelController;

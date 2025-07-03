@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\v1\Api;
 
+use App\Enums\EmailType;
 use App\Enums\TypePersonnelEnum;
 use App\Enums\TypePrestataireEnum;
 use App\Helpers\ApiResponse;
@@ -10,25 +11,28 @@ use App\Http\Requests\auth\ChangePasswordFormRequest;
 use App\Http\Requests\auth\LoginWithEmailAndPasswordFormRequest;
 use App\Http\Requests\auth\SendOtpFormRequest;
 use App\Http\Requests\auth\VerifyOtpFormRequest;
+use App\Jobs\SendEmailJob;
+use App\Jobs\SendLoginNotificationJob;
 use App\Models\Otp;
 use App\Models\User;
+use App\Services\AuthService;
 use App\Services\NotificationService;
 use Exception;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
-    protected $notificationService;
+    protected NotificationService $notificationService;
+    protected AuthService $authService;
 
-    public function __construct(NotificationService $notificationService)
+
+    public function __construct(NotificationService $notificationService, AuthService $authService)
     {
         $this->notificationService = $notificationService;
+        $this->authService = $authService;
     }
     public function sendOtp(SendOtpFormRequest $request)
     {
@@ -94,31 +98,29 @@ class AuthController extends Controller
             ->first();
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
-            return ApiResponse::error('Identifiants incorrects', 401);
+            return ApiResponse::error('Identifiants incorrects');
         }
 
         if ($user->must_change_password) {
-            return ApiResponse::success(['must_change_password' => true], 'Changement de mot de passe obligatoire', 200);
+            return ApiResponse::success(
+                ['must_change_password' => true],
+                'Changement de mot de passe obligatoire',
+                202
+            );
         }
 
-        if (! $token = JWTAuth::fromUser($user)) {
-            return ApiResponse::error('Impossible de créer le token', 500);
-        }
+        $token = $this->authService->generateToken($user);
 
-        $this->notificationService->sendEmail($user->email, 'Connexion Réussie', 'emails.login_successful', [
-            'user' => $user,
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->header('User-Agent'),
-        ]);
+        dispatch(new SendLoginNotificationJob($user,));
 
-        return $this->respondWithToken($token, $user);
+        return $this->authService->respondWithToken($token, $user);
     }
 
     public function refreshToken()
     {
         try {
             $token = JWTAuth::refresh(JWTAuth::getToken());
-            return $this->respondWithToken($token, auth('api')->user());
+            return $this->authService->respondWithToken($token, auth('api')->user());
         } catch (TokenInvalidException $e) {
             return ApiResponse::error('Token invalide', 401);
         } catch (JWTException $e) {
@@ -138,35 +140,31 @@ class AuthController extends Controller
 
     public function changePassword(ChangePasswordFormRequest $request)
     {
-        $validated = $request->validated();
-        $user = User::where('email', $validated['email'])->first();
+        try {
+            $validated = $request->validated();
+            $user = User::where('email', $validated['email'])->first();
 
-        // vérifier si le mot de passe courant dans la base de données est idem que celui que l'utilisateur nous envoie
-        if (!Hash::check($validated['current_password'], $user->password)) {
-            return ApiResponse::error('Mot de passe actuel incorrect', 401);
+            // vérifier si le mot de passe courant dans la base de données est idem que celui que l'utilisateur nous envoie
+            if (!Hash::check($validated['current_password'], $user->password)) {
+                return ApiResponse::error('Mot de passe actuel incorrect', 401);
+            }
+
+            $user->update([
+                'password' => Hash::make($validated['new_password']),
+                'est_actif' => true,
+                'must_change_password' => false
+            ]);
+
+            SendEmailJob::dispatch(
+                $user->email,
+                'Mot de passe modifié',
+                EmailType::PASSWORD_CHANGED->value,
+                ['user' => $user]
+            );
+
+            return ApiResponse::success(null, 'Mot de passe changé avec succès.', 200);
+        } catch (\Throwable $th) {
+            return ApiResponse::error('Erreur lors de la modification du mot de passe', 500, $th);
         }
-
-        $user->update([
-            'password' => Hash::make($validated['new_password']),
-            'must_change_password' => false
-        ]);
-
-        $this->notificationService->sendEmail($user->email, 'Mot de passe changé', 'emails.password_changed', [
-            'user' => $user,
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->header('User-Agent'),
-        ]);
-
-        return ApiResponse::success(null, 'Mot de passe changé avec succès.', 200);
-    }
-
-    protected function respondWithToken($token, $user)
-    {
-        return ApiResponse::success([
-            'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => JWTAuth::factory()->getTTL() * 60,
-            'user' => $user,
-        ], 'Connexion réussie');
     }
 }

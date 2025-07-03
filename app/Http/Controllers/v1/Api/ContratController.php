@@ -4,6 +4,8 @@ namespace App\Http\Controllers\v1\Api;
 
 use App\Enums\LienEnum;
 use App\Helpers\ApiResponse;
+use App\Helpers\ImageUploadHelper;
+use App\Helpers\PdfUploadHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ContratFormRequest;
 use App\Models\Assure;
@@ -52,11 +54,94 @@ class ContratController extends Controller
         try {
             DB::beginTransaction();
 
+            // Vérifier si le client a déjà un contrat pour cette période
+            $clientId = $data['client_id'];
+            $dateDebut = $data['date_debut'];
+            $dateFin = $data['date_fin'];
+
+            $existingContrat = Contrat::where('client_id', $clientId)
+                ->where(function($query) use ($dateDebut, $dateFin) {
+                    // Vérifie les chevauchements de périodes
+                    // Cas 1: La nouvelle période commence pendant une période existante
+                    $query->where(function($q) use ($dateDebut, $dateFin) {
+                        $q->where('date_debut', '<=', $dateDebut)
+                          ->where('date_fin', '>=', $dateDebut);
+                    })
+                    // Cas 2: La nouvelle période se termine pendant une période existante
+                    ->orWhere(function($q) use ($dateDebut, $dateFin) {
+                        $q->where('date_debut', '<=', $dateFin)
+                          ->where('date_fin', '>=', $dateFin);
+                    })
+                    // Cas 3: La nouvelle période englobe entièrement une période existante
+                    ->orWhere(function($q) use ($dateDebut, $dateFin) {
+                        $q->where('date_debut', '>=', $dateDebut)
+                          ->where('date_fin', '<=', $dateFin);
+                    });
+                })
+                ->first();
+
+            if ($existingContrat) {
+                return ApiResponse::error('Ce client possède déjà un contrat actif pour cette période. Un client ne peut avoir qu\'un seul contrat à la fois.', 422);
+            }
+
+            // Traiter les fichiers photo_document
+            $processedDocuments = [];
+            
+            if (isset($data['photo_document']) && is_array($data['photo_document'])) {
+                foreach ($data['photo_document'] as $document) {
+                    if (is_object($document) && method_exists($document, 'getClientOriginalName')) {
+                        $mimeType = $document->getMimeType();
+                        $storagePath = 'contrats/documents';
+                        
+                        // Traiter selon le type de fichier
+                        if (str_starts_with($mimeType, 'image/')) {
+                            // Image
+                            $fileUrl = ImageUploadHelper::uploadImage($document, $storagePath);
+                            if ($fileUrl) {
+                                $processedDocuments[] = [
+                                    'type' => 'fichier',
+                                    'chemin' => $fileUrl,
+                                    'nom_original' => $document->getClientOriginalName(),
+                                    'mime_type' => $mimeType
+                                ];
+                            }
+                        } elseif ($mimeType === 'application/pdf') {
+                            // PDF
+                            $result = PdfUploadHelper::storePdf(
+                                file_get_contents($document->getRealPath()),
+                                $storagePath,
+                                $document->getClientOriginalName()
+                            );
+                            if ($result) {
+                                $processedDocuments[] = [
+                                    'type' => 'fichier',
+                                    'chemin' => $result['url'],
+                                    'nom_original' => $document->getClientOriginalName(),
+                                    'mime_type' => $mimeType
+                                ];
+                            }
+                        } else {
+                            // Autre type de fichier
+                            $fileName = uniqid('doc_') . '_' . time() . '.' . $document->getClientOriginalExtension();
+                            $filePath = $document->storeAs($storagePath, $fileName, 'public');
+                            $processedDocuments[] = [
+                                'type' => 'fichier',
+                                'chemin' => asset('storage/' . $filePath),
+                                'nom_original' => $document->getClientOriginalName(),
+                                'mime_type' => $mimeType
+                            ];
+                        }
+                    }
+                }
+            }
+            
+            // Ajouter les documents traités aux données
+            $data['photo_document'] = $processedDocuments;
+
             // Création du contrat
             $contrat = Contrat::create($data);
 
             // enregistré le client dans la table Assuré
-
             $client = Client::with(['user'])->where('id', $data['client_id'])->first();
 
             $assure = Assure::create([
@@ -64,6 +149,7 @@ class ContratController extends Controller
                 'client_id' => $client->id,
                 'lien_parente' => LienEnum::PRINCIPAL,
             ]);
+
 
             DB::commit();
 
