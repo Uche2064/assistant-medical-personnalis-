@@ -25,16 +25,12 @@ class GestionnaireFormRequest extends FormRequest
             'nom' => ['required', 'string', 'max:255'],
             'prenoms' => ['nullable', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'contact' => ['nullable', 'string', 'max:50', 'unique:users,contact'],
-            'username' => [
-                'nullable',
-                'string',
-                'unique:users,username'
-            ],
-            'adresse' => ['required', 'json'],
+            'contact' => ['nullable', 'numeric', 'unique:users,contact'],
+            'username' => ['nullable', Rule::unique('users', 'username')],
+            'adresse' => ['required', 'string'],
             'sexe' => ['nullable', Rule::in(SexeEnum::values())],
             'date_naissance' => ['nullable', 'date'],
-            'photo' => ['nullable', 'file'],
+            'photo_url' => ['nullable'],
         ];
     }
 
@@ -55,7 +51,7 @@ class GestionnaireFormRequest extends FormRequest
             'email.email' => 'Le champ email doit  être un email valide.',
             'email.max' => 'Le champ email ne doit pas faire plus de 255 caractères.',
             'email.unique' => 'Le champ email doit  être unique.',
-            'contact.string' => 'Le champ contact doit  être une chaîne de caractères.',
+            'contact.numeric' => 'Le champ contact doit  être un nombre.',
             'contact.max' => 'Le champ contact ne doit pas faire plus de 50 caractères.',
             'contact.unique' => 'Le champ contact doit  être unique.',
             'username.string' => 'Le champ username doit  être une chaîne de caractères.',

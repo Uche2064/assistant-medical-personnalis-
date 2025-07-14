@@ -97,7 +97,7 @@ class BeneficiaireController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return ApiResponse::error($validator->errors(), 422);
+            return ApiResponse::error($validator->errors());
         }
 
         // Créer un nouvel utilisateur pour le bénéficiaire si nécessaire

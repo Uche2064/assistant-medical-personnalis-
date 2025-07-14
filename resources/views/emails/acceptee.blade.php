@@ -130,6 +130,36 @@
             font-weight: bold;
             text-transform: uppercase;
         }
+        .contrat-details {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            border-left: 6px solid #2196f3;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        .contrat-details h3 {
+            color: #1976d2;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .contrat-details table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .contrat-details td {
+            padding: 8px 0;
+            border-bottom: 1px solid #e1f5fe;
+        }
+        .contrat-details td:first-child {
+            font-weight: bold;
+            width: 40%;
+            color: #1976d2;
+        }
+        .contrat-details td:last-child {
+            color: #2196f3;
+            font-weight: 500;
+        }
         .next-steps {
             background: linear-gradient(135deg, #fff8e1, #ffecb3);
             border-left: 6px solid #ffc107;
@@ -183,25 +213,7 @@
             margin: 0;
             color: #084298;
         }
-        .contact-info {
-            background-color: #f8f9fa;
-            padding: 20px;
-            margin: 25px 0;
-            border-radius: 8px;
-            border: 1px solid #dee2e6;
-        }
-        .contact-info h4 {
-            color: #495057;
-            margin-top: 0;
-            margin-bottom: 15px;
-        }
-        .contact-info p {
-            margin: 8px 0;
-            color: #6c757d;
-        }
-        .contact-info strong {
-            color: #28a745;
-        }
+       
         .footer {
             background-color: #f8f9fa;
             padding: 20px;
@@ -242,35 +254,33 @@
                 <h3>📋 Détails de votre demande</h3>
                 <table>
                     <tr>
-                        <td>Référence :</td>
-                        <td><strong>{{ $demande->id }}</strong></td>
-                    </tr>
-                    <tr>
-                        <td>Type de demande :</td>
-                        <td><strong>{{ ucfirst($demande->type_demande->value) }}</strong></td>
-                    </tr>
-                    <tr>
                         <td>Date d'approbation :</td>
                         <td><strong>{{ now()->format('d/m/Y à H:i') }}</strong></td>
-                    </tr>
-                    <tr>
-                        <td>Statut :</td>
-                        <td><span class="status-approved">✓ Approuvé</span></td>
                     </tr>
                 </table>
             </div>
 
-            <div class="divider"></div>
-
-            <div class="next-steps">
-                <h3>🚀 Prochaines étapes</h3>
-                <ul>
-                    <li><strong>Connectez-vous</strong> à votre espace personnel via le bouton ci-dessous</li>
-                    <li><strong>Complétez</strong> votre profil si nécessaire</li>
-                    <li><strong>Explorez</strong> toutes les fonctionnalités de la plateforme</li>
-                    <li><strong>Contactez-nous</strong> si vous avez des questions</li>
-                </ul>
+            @if(isset($contrat) && $contrat)
+            <div class="contrat-details">
+                <h3>📋 Détails du contrat proposer selon les analyses</h3>
+                <table>
+                    <tr>
+                        <td>ID du contrat :</td>
+                        <td><strong>{{ $contrat->id }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Type de contrat :</td>
+                        <td><strong class="uppercase">{{ $contrat->type_contrat ?? 'N/A' }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Prime standard de base a payé :</td>
+                        <td><strong>{{ number_format($contrat->prime_standard, 2, ',', ' ') }} FCFA</strong></td>
+                    </tr>
+                </table>
             </div>
+            @endif
+
+            <div class="divider"></div>
 
             <div class="button-container">
                 <a href="https://app.sunusante.sn/login" class="button">
@@ -280,14 +290,6 @@
 
             <div class="welcome-message">
                 <p><strong>Bienvenue dans la famille SUNU Santé !</strong> Toute notre équipe vous souhaite une excellente expérience sur notre plateforme et reste à votre disposition pour vous accompagner.</p>
-            </div>
-
-            <div class="contact-info">
-                <h4>📞 Besoin d'aide ? Nous sommes là !</h4>
-                <p><strong>Email :</strong> support@sunusante.sn</p>
-                <p><strong>Téléphone :</strong> +221 33 XXX XX XX</p>
-                <p><strong>Horaires :</strong> Lundi - Vendredi, 8h00 - 18h00</p>
-                <p style="margin-top: 15px; font-style: italic;">Notre équipe support vous répondra dans les plus brefs délais.</p>
             </div>
 
             <div class="divider"></div>

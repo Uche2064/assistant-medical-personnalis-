@@ -2,14 +2,17 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\LienEnum;
 use App\Enums\SexeEnum;
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
 use App\Helpers\ApiResponse;
 use App\Models\Question;
+use App\Utils\QuestionValidatorBuilder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class DemandeAdhesionClientFormRequest extends FormRequest
@@ -21,31 +24,29 @@ class DemandeAdhesionClientFormRequest extends FormRequest
 
     public function rules(): array
     {
-        $baseRules = [
-            'nom' => ['required', 'string', 'max:255',],
-            'prenoms' => ['required', 'string', 'max:255'],
-            'email' => [
-                'nullable', 
-                'email', 
-                'max:255', 
-                'unique:demandes_adhesions,email',
-                'unique:users,email'
-            ],
-            'contact' => [
-                'required', 
-                'string', 
-                'max:50', 
-                'unique:demandes_adhesions,contact',
-                'unique:users,contact'
-            ],
-            'date_naissance' => ['nullable', 'date', 'before:today'],
-            'adresse' => ['required', 'string', 'max:255'],
-            'profession' => ['required', 'string', 'max:255'],
-            'reponses' => ['required', 'array'],
-            'sexe' => ['required', Rule::in(SexeEnum::values())],
+        return [
+            "nom" => ['required', 'string', 'max:255'],
+            "prenoms" => ['required', 'string', 'max:255'],
+            "email" => ['required', 'email', 'max:255', 'unique:users,email'],
+            "contact" => ['required', 'numeric', 'unique:users,contact'],
+            "sexe" => ['required', Rule::in(SexeEnum::values())],
+            "adresse" => ['required', 'string'],
+            "date_naissance" => ['required', 'date'],
+            "commercial_code" => ['nullable', 'string', 'exists:commercials,code_parainage'],
+            "photo_url" => ['required', 'file'],
+            "profession" => ['nullable', 'string', 'max:255'],
+            "reponses" => ['nullable', 'array'], // on vérifie juste que c’est un tableau
+            'beneficiaires' => ['nullable', 'array'],
+            'beneficiaires.*.nom' => ['required', 'string'],
+            'beneficiaires.*.prenoms' => ['required', 'string'],
+            'beneficiaires.*.date_naissance' => ['required', 'date'],
+            'beneficiaires.*.lien_parente' => ['required', Rule::in(LienEnum::values())],
+            'beneficiaires.*.photo_url' => ['required', 'file', 'mimes:jpeg,jpg,png', 'max:2048'],
+            'beneficiaires.*.sexe' => ['required', Rule::in(SexeEnum::values())],
+            'beneficiaires.*.profession' => ['nullable', 'string'],
+            'beneficiaires.*.reponses' => ['required', 'array',],
+
         ];
-        
-        return $baseRules;
     }
 
     protected function failedValidation(Validator $validator)
@@ -55,19 +56,35 @@ class DemandeAdhesionClientFormRequest extends FormRequest
 
     public function messages()
     {
-        return [
-            'nom.required' => 'Le nom est obligatoire',
-            'prenoms.required' => 'Les prénoms sont obligatoires',
-            'email.required' => 'L\'email est obligatoire',
-            'profession.required' => 'La prefession est obligatoire',
-            'email.email' => 'L\'email doit être une adresse valide',
-            'contact.required' => 'Le numéro de téléphone est obligatoire',
-            'date_naissance.date' => 'La date de naissance doit être une date valide',
-            'date_naissance.before' => 'La date de naissance doit être antérieure à aujourd\'hui',
-            'adresse.required' => 'L\'adresse est obligatoire',
-            'sexe.required' => 'Le sexe est obligatoire',
-            'sexe.in' => 'Le champ sexe doit  être l\'un des suivants : ' . implode(', ', SexeEnum::values()),
-            'reponses.required' => 'Les réponses au questionnaire sont obligatoires',
-        ];
+        $messages = [];
+
+        $questions = Question::forDestinataire(TypeDemandeurEnum::PROSPECT_PHYSIQUE->value)->get();
+
+        foreach ($questions as $question) {
+            $label = $question->libelle;
+            $questionKey = 'reponses.' . $question->id;
+
+            if ($question->isRequired()) {
+                $messages[$questionKey . '.required'] = "La réponse à la question \"$label\" est obligatoire.";
+            }
+
+            if ($question->type_donnee === TypeDonneeEnum::NUMBER) {
+                $messages[$questionKey . '.numeric'] = "La réponse à la question \"$label\" doit être un nombre.";
+            }
+
+            if ($question->type_donnee === TypeDonneeEnum::DATE) {
+                $messages[$questionKey . '.date'] = "La réponse à la question \"$label\" doit être une date valide.";
+            }
+
+            if ($question->type_donnee === TypeDonneeEnum::BOOLEAN || $question->type_donnee === TypeDonneeEnum::RADIO) {
+                $messages[$questionKey . '.in'] = "La réponse à la question \"$label\" n'est pas valide.";
+            }
+
+            if ($question->type_donnee === TypeDonneeEnum::FILE) {
+                $messages[$questionKey . '.file'] = "La réponse à la question \"$label\" doit être un fichier.";
+            }
+        }
+
+        return $messages;
     }
 }

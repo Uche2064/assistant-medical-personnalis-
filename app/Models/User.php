@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\RoleEnum;
 use App\Enums\SexeEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,22 +16,19 @@ class User extends Authenticatable implements JWTSubject
 {
     use HasFactory, Notifiable, SoftDeletes, HasRoles;
 
-    protected $table = "users";
     protected $fillable = [
         'nom',
         'prenoms',
-        'username',
         'email',
+        'raison_sociale',
         'contact',
         'adresse',
-        'raison_sociale',
         'sexe',
         'date_naissance',
-        'est_actif',
         'password',
-        'photo',
-        'must_change_password',
-        'email_verified_at',
+        'photo_url',
+        'est_actif',
+        'mot_de_passe_a_changer'
     ];
 
 
@@ -44,12 +42,12 @@ class User extends Authenticatable implements JWTSubject
     {
         return [
             'email_verified_at' => 'datetime',
-            'mot_de_passe' => 'hashed',
+            'password' => 'hashed',
             'date_naissance' => 'date',
-            'adresse' => 'array',
+            'adresse' => 'string',
             'sexe' => SexeEnum::class,
             'est_actif' => 'boolean',
-            'must_change_password' => 'boolean'
+            'mot_de_passe_a_changer' => 'boolean'
         ];
     }
 
@@ -98,50 +96,32 @@ class User extends Authenticatable implements JWTSubject
     }
 
 
-
-    public function conversations()
+    public function personnel()
     {
-        return $this->hasMany(Conversation::class);
-    }
-
-    public function messages()
-    {
-        return $this->hasMany(Message::class, 'expediteur_id');
-    }
-
-    public function isActive(): bool
-    {
-        return $this->est_actif;
-    }
-
-
-    public function scopeActive($query)
-    {
-        return $query->where('est_actif', true);
+        return $this->hasOne(Personnel::class);
     }
 
     public function client()
     {
-        return $this->hasOne(Client::class, 'user_id');
+        return $this->hasOne(Client::class);
     }
 
-    public function assure()
+    public function prospect()
     {
-        return $this->hasOne(Assure::class, 'user_id');
-    }
-
-    public function personnel()
-    {
-        return $this->hasOne(Personnel::class, 'user_id');
-    }
-
-    public function gestionnaire()
-    {
-        return $this->hasOne(Gestionnaire::class, 'user_id');
+        return $this->hasOne(Prospect::class);
     }
 
     public function prestataire()
     {
-        return $this->hasOne(Prestataire::class, 'user_id');
+        return $this->hasOne(Prestataire::class);
+    }
+
+    public function assure()
+    {
+        return $this->hasOne(Assure::class);
+    }
+    public function getRoles()
+    {
+        return $this->roles->pluck('name')->toArray();
     }
 }

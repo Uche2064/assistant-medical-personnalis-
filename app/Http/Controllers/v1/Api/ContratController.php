@@ -24,6 +24,7 @@ class ContratController extends Controller
     public function index(Request $request)
     {
         $query = Contrat::with(['client', 'technicien']);
+        $perPage = $request->input('per_page', 10);
 
         // Filtrage par statut si fourni
         if ($request->has('status')) {
@@ -35,10 +36,10 @@ class ContratController extends Controller
             $query->where('client_id', $request->query('client_id'));
         }
 
-        $contrats = $query->orderBy('created_at', 'desc')->get();
+        $contrats = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         if ($contrats->isEmpty()) {
-            return ApiResponse::success([], 'Aucun contrat trouvé');
+            return ApiResponse::success($contrats, 'Aucun contrat trouvé');
         }
 
         return ApiResponse::success($contrats, 'Liste des contrats récupérée avec succès');

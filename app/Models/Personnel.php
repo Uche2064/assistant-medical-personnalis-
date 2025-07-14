@@ -13,76 +13,32 @@ class Personnel extends Model
 
     protected $fillable = [
         'user_id',
-        'type_personnel',
+        'code_parainage',
         'gestionnaire_id'
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'type_personnel' => TypePersonnelEnum::class,
-        ];
-    }
-
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class);
     }
 
-    public function demandesAdhesionValidees()
+    public function gestionnaire()
+    {
+        return $this->belongsTo(Personnel::class, 'gestionnaire_id');
+    }
+
+    public function validations()
     {
         return $this->hasMany(DemandeAdhesion::class, 'valide_par_id');
     }
 
-
-    public function demandesAdhesionCreees()
+    public function clients()
     {
-        return $this->hasMany(DemandeAdhesion::class, 'fait_par');
+        return $this->hasMany(Client::class, 'commercial_id');
     }
-
-
-    public function questions()
+    public static function genererCodeParainage(): string
     {
-        return $this->hasMany(Question::class, 'cree_par_id');
-    }
-
-
-    public function facturesValideesMedecin()
-    {
-        return $this->hasMany(Facture::class, 'medecin_id');
-    }
-
-    public function facturesValideesTechnicien()
-    {
-        return $this->hasMany(Facture::class, 'technicien_id');
-    }
-
-
-    public function facturesAutorisees()
-    {
-        return $this->hasMany(Facture::class, 'comptable_id');
-    }
-
-
-    public function prestataires()
-    {
-        return $this->hasMany(Prestataire::class, 'medecin_controleur_id');
-    }
-
-    public function isMedecinControleur(): bool
-    {
-        return $this->type_personnel === TypePersonnelEnum::MEDECIN_CONTROLEUR;
-    }
-
-
-    public function isTechnicien(): bool
-    {
-        return $this->type_personnel === TypePersonnelEnum::TECHNICIEN;
-    }
-
-
-    public function isComptable(): bool
-    {
-        return $this->type_personnel === TypePersonnelEnum::COMPTABLE;
+        $code = strtoupper('PAR' . substr(uniqid(), -6));
+        return $code;
     }
 }

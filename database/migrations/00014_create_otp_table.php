@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('otps', function (Blueprint $table) {
             $table->id();
-            $table->string('code_otp');
+            $table->string('code_otp')->unique();
             $table->string('phone')->unique();
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamp('expire_a')->nullable(); // Date d'expiration de l'OTP

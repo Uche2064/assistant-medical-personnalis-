@@ -16,7 +16,7 @@ class Question extends Model
 
     protected $fillable = [
         'libelle',
-        'type_donnees',
+        'type_donnee',
         'destinataire',
         'obligatoire',
         'est_actif',
@@ -27,11 +27,11 @@ class Question extends Model
     protected function casts(): array
     {
         return [
-            'type_donnees' => TypeDonneeEnum::class,
+            'type_donnee' => TypeDonneeEnum::class,
             'destinataire' => TypeDemandeurEnum::class,
             'obligatoire' => 'boolean',
             'est_actif' => 'boolean',
-            'options' => 'json'
+            'options' => 'array'
         ];
     }
 
@@ -66,9 +66,12 @@ class Question extends Model
     }
 
 
-    public function scopeForDestinataire($query, TypeDemandeurEnum $destinataire)
+    static public function scopeForDestinataire($query, String $destinataire)
     {
-        return $query->where('destinataire', $destinataire);
+        $destinataire = TypeDemandeurEnum::from($destinataire);
+        return $query->where('destinataire', $destinataire)
+        ->where('est_actif', true)
+        ->orderBy('id', 'asc');
     }
 
     public function scopeRequired($query)

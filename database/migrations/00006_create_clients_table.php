@@ -15,12 +15,11 @@ return new class extends Migration
         Schema::create('clients', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
-            $table->string('profession');
-            $table->enum('type_client', TypeClientEnum::values())->nullable();
-            $table->decimal('prime', 12, 2)->nullable();
-            $table->date('date_paiement_prime')->nullable();
-            $table->softDeletes();
+            $table->foreignId('commercial_id')->nullable()->constrained('personnels');
+            $table->enum('type_client', TypeClientEnum::values())->nullable(); // physique, moral
+            $table->string('profession')->nullable(); // utile pour type physique
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

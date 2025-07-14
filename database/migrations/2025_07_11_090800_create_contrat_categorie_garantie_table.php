@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('gestionnaires', function (Blueprint $table) {
+        Schema::create('contrat_categorie_garantie', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->foreignId('contrat_id')->nullable()->constrained('contrats')->onDelete('set null');
+            $table->foreignId('categorie_garantie_id')->nullable()->constrained('categories_garanties')->onDelete('set null');
+            $table->decimal('couverture', 3, 2)->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -24,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('gestionnaires');
+        Schema::dropIfExists('contrat_categorie_garantie');
     }
 };

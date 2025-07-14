@@ -32,6 +32,7 @@ class LoginWithEmailAndPasswordFormRequest extends FormRequest
             'email.required' => 'L\'email est requis',
             'email.email' => 'L\'email est invalide',
             'email.string' => 'L\'email doit être une chaîne valide',
+            'email.exists' => 'L\'email n\'exist pas',
             'password.required' => 'Le mot de passe est requis',
             'password.string' => 'Le mot de passe est requis',
             'password.min' => 'Le mot de passe doit contenir au moins 8 caractères',

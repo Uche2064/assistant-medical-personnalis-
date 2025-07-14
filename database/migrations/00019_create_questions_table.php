@@ -16,7 +16,7 @@ return new class extends Migration
         Schema::create('questions', function (Blueprint $table) {
             $table->id();
             $table->string('libelle');
-            $table->enum('type_donnees', TypeDonneeEnum::values());
+            $table->enum('type_donnee', TypeDonneeEnum::values());
             $table->json('options')->nullable();
             $table->enum('destinataire', TypeDemandeurEnum::values());
             $table->boolean('obligatoire')->default(false);

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\TypeContratEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -14,12 +15,10 @@ return new class extends Migration
         Schema::create('contrats', function (Blueprint $table) {
             $table->id();
             $table->foreignId('technicien_id')->nullable()->constrained('personnels')->onDelete('set null');
-            $table->foreignId('client_id')->nullable()->constrained('clients')->onDelete('set null');
-            $table->string('numero_police')->unique();
-            $table->decimal('prime', 12, 2)->nullable();
-            $table->json('photo_document');
+            $table->decimal('prime_standard', 12, 2)->nullable();
+            $table->enum('type_contrat', TypeContratEnum::values());
             $table->timestamps();
-            $table->softDeletes();        
+            $table->softDeletes();
         });
     }
 

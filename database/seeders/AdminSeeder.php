@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
@@ -21,21 +23,23 @@ class AdminSeeder extends Seeder
     {
         $notificationService = resolve(NotificationService::class);
 
-        $adminEmail = 'cpica5125@gmail.com';
+        $adminEmail = 'tutowordpress2064@gmail.com';
         $adminUsername = 'globaladmin';
         $plainPassword = User::genererMotDePasse();
 
         $user = User::updateOrCreate(
-            ['email' => $adminEmail, 'username' => $adminUsername],
+            ['email' => $adminEmail],
             [
                 'nom' => 'Global',
                 'prenoms' => 'Admin',
-                'password' => bcrypt($plainPassword),
+                'password' => Hash::make($plainPassword),
                 'adresse' => 'nyekonakpoè',
                 'est_actif' => true
+                
             ]
         );
 
+        Log::info($plainPassword);
         $user->assignRole(RoleEnum::ADMIN_GLOBAL->value);
 
         dispatch(new SendCredentialsJob($user, $plainPassword));

@@ -16,8 +16,7 @@ class QuestionsBulkUpdateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return Auth::user()->role->name === RoleEnum::PERSONNEL 
-        && Auth::user()->personnel === TypePersonnelEnum::MEDECIN_CONTROLEUR;
+        return Auth::check() && Auth::user()->role === RoleEnum::MEDECIN_CONTROLEUR;
     }
 
     public function rules(): array
@@ -38,17 +37,27 @@ class QuestionsBulkUpdateRequest extends FormRequest
         throw new HttpResponseException(ApiResponse::error('Erreur de validation', 422, $validator->errors()));
     }
     
-    public function messages(): array
-    {
+    public function messages() {
         return [
-            '*.id' => 'required|integer|exists:questions,id',
-            '*.libelle' => 'sometimes|required|string|max:255',
-            '*.type_donnees' => 'sometimes|required|string|in:' . implode(',', TypeDonneeEnum::values()),
-            '*.destinataire' => 'sometimes|required|string|in:' . implode(',', TypeDemandeurEnum::values()),
-            '*.obligatoire' => 'sometimes|boolean',
-            '*.est_actif' => 'sometimes|boolean',
-            '*.options' => 'sometimes|nullable|json',
+            '*.id.required' => 'L\'id est obligatoire.',
+            '*.libelle.required' => 'Le libell  est obligatoire.',
+            '*.libelle.string' => 'Le libell  doit  tre une cha ne de caract res.',
+            '*.libelle.max' => 'Le libell  ne doit pas d passer :max caract res.',
+
+            '*.type_donnees.required' => 'Le type de donn es est obligatoire.',
+            '*.type_donnees.string' => 'Le type de donn es doit  tre une cha ne de caract res.',
+            '*.type_donnees.in' => 'Le type de donn es doit  tre l\'un des suivants : ' . implode(', ', TypeDonneeEnum::values()),
+
+            '*.destinataire.required' => 'Le destinataire est obligatoire.',
+            '*.destinataire.string' => 'Le destinataire doit  tre une cha ne de caract res.',
+            '*.destinataire.in' => 'Le destinataire doit  tre l\'un des suivants : ' . implode(', ', TypeDemandeurEnum::values()),
+
+            '*.obligatoire.boolean' => 'La valeur de champ obligatoire doit  tre un bool en.',
+            '*.est_actif.boolean' => 'La valeur de champ est actif doit  tre un bool en.',
+
+            '*.options.json' => 'Le champ options doit  tre un objet JSON.',
         ];
+
     }
 
 }

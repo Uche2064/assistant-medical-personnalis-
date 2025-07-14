@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\RoleEnum;
 use App\Enums\SexeEnum;
+use App\Enums\TypeDemandeurEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -14,25 +16,24 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('nom');
-            $table->string('email')->nullable()->unique();
-            $table->string('username')->nullable()->unique();
-            $table->string('raison_sociale')->nullable()->unique();
+            $table->string('nom')->nullable();
             $table->string('prenoms')->nullable();
-            $table->string('contact')->unique()->nullable();
-            $table->json('adresse');
-            $table->enum('sexe', SexeEnum::values())->nullable();
-            $table->date('date_naissance')->nullable();
+            $table->string('raison_sociale')->nullable()->unique();
+            $table->string('adresse')->nullable();
+            $table->string('email')->unique();
+            $table->string('contact')->nullable()->unique();
+            $table->string('password')->nullable();
+            $table->enum('type_prospect', TypeDemandeurEnum::values())->nullable();
             $table->boolean('est_actif')->default(true);
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('password')->nullable();
-            $table->string('photo')->nullable();
-            $table->boolean("must_change_password")->default(true);
+            $table->string('photo_url')->nullable();
+            $table->boolean('mot_de_passe_a_changer')->default(true);
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
-
         });
+
+
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();

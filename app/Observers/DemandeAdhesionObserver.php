@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Models\DemandeAdhesion;
 use App\Models\Entreprise;
 use App\Models\Prestataire;
+use App\Models\Prospect;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -27,52 +28,51 @@ class DemandeAdhesionObserver
     public function updated(DemandeAdhesion $demandeAdhesion): void
     {
         // Si la demande vient d'être validée
-        if ($demandeAdhesion->isDirty('statut') && $demandeAdhesion->statut === StatutValidationEnum::VALIDE) {
+        if ($demandeAdhesion->isDirty('statut') && $demandeAdhesion->statut === StatutValidationEnum::VALIDEE) {
             try {
                 DB::beginTransaction();
                 
                 // Vérifier si un utilisateur avec cet email ou contact existe déjà
-                $user = User::where('email', $demandeAdhesion->email)
-                    ->orWhere('contact', $demandeAdhesion->contact)
+                $user = Prospect::where('email', $demandeAdhesion->prospect->email)
+                    ->orWhere('contact', $demandeAdhesion->prospect->contact)
                     ->first();
                     
                 if (!$user) {
                     // Créer un nouvel utilisateur uniquement s'il n'existe pas
                     $userData = [
-                        'email' => $demandeAdhesion->email,
-                        'contact' => $demandeAdhesion->contact,
-                        'adresse' => $demandeAdhesion->adresse,
+                        'email' => $demandeAdhesion->prospect->email,
+                        'contact' => $demandeAdhesion->prospect->contact,
+                        'adresse' => $demandeAdhesion->prospect->adresse,
                     ];
                     
                     // Ajouter les champs spécifiques selon le type de demandeur
-                    if ($demandeAdhesion->type_demande === TypeDemandeurEnum::PROSPECT_PHYSIQUE) {
+                    if ($demandeAdhesion->type_demandeur === TypeDemandeurEnum::PROSPECT_PHYSIQUE) {
                         // Pour un client individuel (humain)
-                        $userData['nom'] = $demandeAdhesion->nom_demandeur;
-                        $userData['prenoms'] = $demandeAdhesion->prenoms_demandeur;
-                        $userData['sexe'] = $demandeAdhesion->sexe;
-                        $userData['date_naissance'] = $demandeAdhesion->date_naissance ?? null;
+                        $userData['nom'] = $demandeAdhesion->prospect->nom_demandeur;
+                        $userData['prenoms'] = $demandeAdhesion->prospect->prenoms_demandeur;
+                        $userData['sexe'] = $demandeAdhesion->prospect->sexe;
+                        $userData['date_naissance'] = $demandeAdhesion->prospect->date_naissance ?? null;
                     } else {
                         // Pour les entreprises et prestataires
-                        $userData['raison_sociale'] = $demandeAdhesion->raison_sociale;
+                        $userData['raison_sociale'] = $demandeAdhesion->prospect->raison_sociale;
                     }
                     
                     $user = User::create($userData);
                 }
                 
                 // Créer l'entité appropriée selon le type de demandeur
-                if ($demandeAdhesion->type_demande === TypeDemandeurEnum::PROSPECT_PHYSIQUE) {
+                if ($demandeAdhesion->type_demandeur === TypeDemandeurEnum::PROSPECT_PHYSIQUE) {
                     // Pour un client physique (individu)
                     $existingClient = Client::where('user_id', $user->id)->first();
                     
                     if (!$existingClient) {
                         Client::create([
                             'user_id' => $user->id,
-                            'profession' => $demandeAdhesion->profession,
+                            'profession' => $demandeAdhesion->prospect->profession,
                             'type_client' => TypeClientEnum::PHYSIQUE,
-                            'statut_validation' => $demandeAdhesion->statut,
                         ]);
                     }
-                } elseif ($demandeAdhesion->type_demande === TypeDemandeurEnum::PROSPECT_MORAL) {
+                } elseif ($demandeAdhesion->type_demandeur === TypeDemandeurEnum::PROSPECT_MORAL) {
                     // Pour un client moral (entreprise)
                     $existingClient = Client::where('user_id', $user->id)->first();
                     
@@ -80,7 +80,6 @@ class DemandeAdhesionObserver
                         Client::create([
                             'user_id' => $user->id,
                             'type_client' => TypeClientEnum::MORAL,
-                            'statut_validation' => $demandeAdhesion->statut,
                         ]);
                     }
                 } else {
@@ -90,9 +89,8 @@ class DemandeAdhesionObserver
                     if (!$existingPrestataire) {
                         Prestataire::create([
                             'user_id' => $user->id,
-                            'type' => $demandeAdhesion->type_demande->value,
+                            'type_prestataire' => $demandeAdhesion->type_demandeur,
                             'raison_sociale' => $demandeAdhesion->raison_sociale,
-                            'statut_validation' => $demandeAdhesion->statut,
                         ]);
                     }
                 }

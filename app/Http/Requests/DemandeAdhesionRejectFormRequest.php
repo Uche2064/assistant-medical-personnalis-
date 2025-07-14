@@ -18,7 +18,7 @@ class DemandeAdhesionRejectFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'motif_rejet' => 'required|string|max:255'
+            'motif_rejet' => 'required|string'
         ];
     }
 

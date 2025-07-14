@@ -4,16 +4,19 @@ namespace App\Http\Requests;
 
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
+use App\Enums\TypePrestataireEnum;
 use App\Helpers\ApiResponse;
 use App\Models\Question;
+use App\Utils\QuestionValidatorBuilder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class DemandeAdhesionPrestataireFormRequest extends FormRequest
 {
-    
+
     public function authorize(): bool
     {
         return true;
@@ -21,43 +24,29 @@ class DemandeAdhesionPrestataireFormRequest extends FormRequest
 
     public function rules(): array
     {
+
+        if (!$this->has('type_prestataire')) {
+            return [];
+        }
+
+        $type = TypePrestataireEnum::tryFrom($this->input('type_prestataire'));
+
+        if (!$type) {
+            return [];
+        }
         $rules = [
-            'nom' => ['nullable', 'string', 'max:255'],
-            'prenoms' => ['nullable', 'string', 'max:255'],
-            'raison_sociale' => ['nullable', 'string', 'max:255', 'unique:demandes_adhesions,raison_sociale'],
-            'adresse' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required', 
-                'email', 
-                'max:255',
-                'unique:demandes_adhesions,email',
-                'unique:users,email'
-            ],
-            'contact' => [
-                'required', 
-                'string', 
-                'max:50',
-                'unique:demandes_adhesions,contact',
-                'unique:users,contact'
-            ],
-            'type_demande' => [
-                'required',
-                Rule::in([
-                    TypeDemandeurEnum::CENTRE_DE_SOINS->value,
-                    TypeDemandeurEnum::MEDECIN_LIBERAL->value,
-                    TypeDemandeurEnum::PHARMACIE->value,
-                    TypeDemandeurEnum::LABORATOIRE_CENTRE_DIAGNOSTIC->value,
-                    TypeDemandeurEnum::OPTIQUE->value,
-                ])
-            ],
-            'reponses'=> ['required', 'array'],
-            'reponses.*'=> ['required', 'file', 'mimes:jpeg,png,pdf']
+            "raison_sociale" => ['required', 'string', 'max:255',],
+            "email" => ['required', 'email', 'max:255', 'unique:users,email'],
+            "contact" => ['required', 'numeric', 'unique:users,contact', 'regex:/^\+[0-9]+$/'],
+            "adresse" => ['required', 'string'],
+            "type_prestataire" => ['required', Rule::in(TypePrestataireEnum::values())],
         ];
 
-        return $rules;
+
+        return array_merge($rules, QuestionValidatorBuilder::buildRules($type->value));
     }
 
-    
+
     protected function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(ApiResponse::error('Erreur de validation', 422, $validator->errors()));
@@ -65,35 +54,31 @@ class DemandeAdhesionPrestataireFormRequest extends FormRequest
 
     public function messages()
     {
-        return [
-            'nom.required' => 'Le nom est obligatoire',
-            'nom.string' => 'Le nom doit être une chaine de caractères',
-            'nom.max' => 'Le nom ne doit pas d passer 255 caractères',
+        $messages = [];
 
-            'raison_sociale.string' => 'La raison sociale doit être une chaine de caractères',
-            'raison_sociale.max' => 'La raison sociale ne doit pas d passer 255 caractères',
-            'raison_sociale.unique' => 'La raison sociale est déjà utilisée',
+        $questions = Question::forDestinataire(TypeDemandeurEnum::PROSPECT_PHYSIQUE->value)->get();
 
-            'adresse.required' => 'L\'adresse est obligatoire',
-            'adresse.string' => 'L\'adresse doit  être une chaine de caractères',
-            'adresse.max' => 'L\'adresse ne doit pas d passer 255 caractères',
+        foreach ($questions as $question) {
+            $label = $question->libelle;
+            $questionKey = 'reponses.' . $question->id;
 
-            'email.required' => 'L\'email est obligatoire',
-            'email.email' => 'L\'email n\'est pas valide',
-            'email.max' => 'L\'email ne doit pas d passer 255 caractères',
-            'email.unique' => 'L\'email est déjà utilisé',
+            if ($question->isRequired()) {
+                $messages[$questionKey . '.required'] = "La réponse à la question \"$label\" est obligatoire.";
+            }
 
-            'contact.required' => 'Le contact est obligatoire',
-            'contact.string' => 'Le contact doit  être une chaine de caractères',
-            'contact.max' => 'Le contact ne doit pas d passer 50 caractères',
-            'contact.unique' => 'Le contact est déjà utilisé',
+            if ($question->type_donnee === TypeDonneeEnum::NUMBER) {
+                $messages[$questionKey . '.numeric'] = "La réponse à la question \"$label\" doit être un nombre.";
+            }
 
-            'type_demande.required' => 'Le type de demande est obligatoire',
-            'type_demande.in' => 'Le type de demande n\'est pas valide',
+            if ($question->type_donnee === TypeDonneeEnum::DATE) {
+                $messages[$questionKey . '.date'] = "La réponse à la question \"$label\" doit être une date valide.";
+            }
 
-            'reponses.required' => 'Les réponses sont obligatoires',
-            'reponses.array' => 'Les réponses doivent  être un tableau',
-            
-        ];
+            if ($question->type_donnee === TypeDonneeEnum::BOOLEAN || $question->type_donnee === TypeDonneeEnum::RADIO) {
+                $messages[$questionKey . '.in'] = "La réponse à la question \"$label\" n'est pas valide.";
+            }
+        }
+
+        return $messages;
     }
 }

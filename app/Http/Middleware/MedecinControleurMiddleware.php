@@ -16,9 +16,8 @@ class MedecinControleurMiddleware
     public function handle(Request $request, Closure $next): Response
     {
        if (!Auth::check() || 
-            !Auth::user()->hasRole(RoleEnum::PERSONNEL->value) || 
-            Auth::user()->personnel->type_personnel->value !== TypePersonnelEnum::MEDECIN_CONTROLEUR->value) {
-            return ApiResponse::error('Accès réservé au médecin contrôleur.', 403, 'unauthorized');
+            !Auth::user()->hasRole(RoleEnum::MEDECIN_CONTROLEUR->value)) {
+            return ApiResponse::error('Accès réservé au médecin contrôleur.', 401, 'unauthorized');
         }
 
         return $next($request);

@@ -19,7 +19,11 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             AdminSeeder::class,
             ProspectPhysiqueMedicalQuestionSeeder::class,
-            PrestataireMedicalQuestionSeeder::class
+            PrestataireMedicalQuestionSeeder::class,
+            // GestionnaireSeeder::class,
+            // PersonnelSeeder::class,
+            // ContratSeeder::class,
+
         ]); 
     }
 }

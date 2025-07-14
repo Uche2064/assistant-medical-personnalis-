@@ -3,17 +3,21 @@
 namespace App\Http\Controllers\v1\Api;
 
 use App\Enums\TypeDemandeurEnum;
+use App\Enums\TypeDonneeEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\medecin\QuestionsFormRequest;
-use App\Http\Requests\medecin\QuestionsUpdateFormRequest;
+use App\Http\Requests\GetPrestataireQuestionsFormRequest;
+use App\Http\Requests\medecin\QuestionFormRequest;
 use App\Http\Requests\medecin\QuestionsBulkInsertRequest;
 use App\Http\Requests\medecin\QuestionsBulkUpdateRequest;
+use App\Http\Requests\medecin\QuestionUpdateFormRequest;
 use App\Models\Question;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class QuestionController extends Controller
 {   
@@ -23,6 +27,13 @@ class QuestionController extends Controller
     public function index(Request $request)
     {
         $query = Question::query();
+        $perPage = $request->input('per_page', 10);
+
+
+        Log::info($request->all());
+        if ($request->has('type_donnees')) {
+            $query->where('type_donnees', $request->type_donnees);
+        }
 
         // Filtres optionnels
         if ($request->has('destinataire')) {
@@ -30,10 +41,19 @@ class QuestionController extends Controller
         }
 
         if ($request->has('obligatoire')) {
-            $query->where('obligatoire', $request->obligatoire == 'true');
+            $query->where('obligatoire',  filter_var($request->obligatoire, FILTER_VALIDATE_BOOLEAN));
         }
 
-        $questions = $query->orderBy('id', 'asc')->get();
+        if ($request->has('est_actif')) {
+            $query->where('est_actif', filter_var($request->est_actif, FILTER_VALIDATE_BOOLEAN));
+        }
+
+        $questions = $query->orderBy('created_at', 'desc')->paginate($perPage);
+        Log::alert($request->has('type_donnees'));
+        Log::alert($request->has('destinataire'));
+        Log::alert($request->has('obligatoire'));
+        Log::alert(gettype((bool)$request->input('est_actif')));
+        Log::alert($query->toSql());
 
         return ApiResponse::success($questions, 'Questions récupérées avec succès');
     }
@@ -43,12 +63,20 @@ class QuestionController extends Controller
      */
     public function getProspectPhysiqueQuestions()
     {
-        $questions = Question::where('destinataire', TypeDemandeurEnum::PROSPECT_PHYSIQUE->value)
-            ->where('est_actif', true)
-            ->orderBy('id', 'asc')
-            ->get();
-
+        $questions = Question::forDestinataire(TypeDemandeurEnum::PROSPECT_PHYSIQUE)->get();
         return ApiResponse::success($questions, 'Questions pour prospects physiques récupérées avec succès');
+    }
+
+    public function getPrestataireQuestions($destinataire)
+    {
+        $query = Question::query();
+
+        // Filtres optionnels
+        $query->where('destinataire', $destinataire);   
+
+        $questions = $query->orderBy('id', 'asc')->get();
+
+        return ApiResponse::success($questions, 'Questions pour prestataires récupérées avec succès');
     }
 
     public function getProspectMoralQuestions()
@@ -118,6 +146,42 @@ class QuestionController extends Controller
         }
     }
 
+    public function store(QuestionFormRequest $request) {
+        $data = $request->validated();
+
+        try {
+            DB::beginTransaction();
+
+            $question = Question::create($data);
+
+            DB::commit();
+            return ApiResponse::success($question, 'Question créée avec succès', 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ApiResponse::error('Erreur lors de la création de la question: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /*
+        Mise à jour d'une question spécifique
+    */
+
+    public function update(QuestionUpdateFormRequest $request, int $id) {
+        $data = $request->validated();
+
+        try {
+            DB::beginTransaction();
+
+            $question = Question::findOrFail($id);
+            $question->update($data);
+
+            DB::commit();
+            return ApiResponse::success($question, 'Question mise à jour avec succès');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ApiResponse::error('Erreur lors de la mise à jour de la question: ' . $e->getMessage(), 500);
+        }
+    }
 
     /**
      * Met à jour plusieurs questions en une seule opération.
@@ -174,18 +238,31 @@ class QuestionController extends Controller
     /**
      * Supprime une question.
      */
-    public function destroy($id)
+    public function destroy(int $id)
     {
         $question = Question::find($id);
         if ($question == null) {
             return ApiResponse::error('Question non trouvée', 404);
         }
-        $question->delete();
+        // $question->delete();
         $question->update([
             'est_actif' => false
         ]);
 
         return ApiResponse::success(null, 'Question supprimée avec succès');
+    }
+
+    public function activate(int $id)
+    {
+        $question = Question::find($id);
+        if ($question == null) {
+            return ApiResponse::error('Question non trouvée', 404);
+        }
+        $question->update([
+            'est_actif' => true
+        ]);
+
+        return ApiResponse::success(null, 'Question activée avec succès');
     }
 
     /**

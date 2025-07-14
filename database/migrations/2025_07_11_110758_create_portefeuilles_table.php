@@ -11,9 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('contrats', function (Blueprint $table) {
-            $table->date('date_debut')->nullable();
-            $table->date('date_fin')->nullable();
+        Schema::create('portefeuilles', function (Blueprint $table) {
+            $table->id();
+            $table->decimal('solde', 12, 2)->default(0); // prime déposer
+            $table->timestamps();
         });
     }
 
@@ -22,9 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('contrats', function (Blueprint $table) {
-            $table->dropColumn('date_debut');
-            $table->dropColumn('date_fin');
-        });
+        Schema::dropIfExists('portefeuilles');
     }
 };

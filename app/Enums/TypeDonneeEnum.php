@@ -11,6 +11,7 @@ enum TypeDonneeEnum: String
     case SELECT = 'select';
     case CHECKBOX = 'checkbox';
     case RADIO = 'radio';
+    case FILE = 'file';
 
     public static function values() : array {
         return array_column(self::cases(), 'value');

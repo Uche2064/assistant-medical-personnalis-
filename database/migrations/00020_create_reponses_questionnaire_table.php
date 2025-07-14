@@ -13,8 +13,14 @@ return new class extends Migration
     {
         Schema::create('reponses_questionnaire', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('demande_adhesion_id')->nullable()->constrained('demandes_adhesions')->onDelete('set null');
-            $table->json('reponses');
+            $table->unsignedBigInteger('personne_id');
+            $table->string('personne_type'); // morph: assures ou prospects
+            $table->foreignId('question_id')->nullable()->constrained('questions')->onDelete('set null');
+            $table->string('reponses_text')->nullable();
+            $table->boolean('reponse_bool')->nullable();
+            $table->decimal('reponse_decimal', 12, 2)->nullable();
+            $table->date('reponse_date')->nullable();
+            $table->string('reponse_fichier')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

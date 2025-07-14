@@ -13,11 +13,12 @@ return new class extends Migration
     {
         Schema::create('garanties', function (Blueprint $table) {
             $table->id();
-            $table->string('libelle');
-            $table->foreignId('contrat_id')->nullable()->constrained('contrats')->onDelete('set null');
+            $table->string('libelle')->unique();
             $table->foreignId('categorie_garantie_id')->nullable()->constrained('categories_garanties')->onDelete('set null');
+            $table->foreignId('medecin_controleur_id')->nullable()->constrained('personnels')->onDelete('set null');
             $table->decimal('plafond', 12, 2);
-            $table->decimal('taux_couverture', 12, 2);
+            $table->decimal('prix_standard', 12, 2);
+            $table->decimal('taux_couverture', 12, 2)->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

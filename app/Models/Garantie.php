@@ -12,10 +12,11 @@ class Garantie extends Model
 
     protected $fillable = [
         'libelle',
-        'contrat_id',
         'categorie_garantie_id',
         'plafond',
         'taux_couverture',
+        'prix_standard',
+        'medecin_controleur_id',
     ];
 
     protected function casts(): array
@@ -26,9 +27,9 @@ class Garantie extends Model
         ];
     }
 
-    public function categorieGarantie()
+    public function categorie()
     {
-        return $this->belongsTo(CategorieGarantie::class);
+        return $this->belongsTo(CategoriesGaranties::class, 'categorie_garantie_id');
     }
 
     public function assures()

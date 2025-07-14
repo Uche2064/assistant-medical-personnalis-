@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\v1\Api;
 
 use App\Enums\RoleEnum;
+use App\Events\GestionnaireCreated;
 use App\Helpers\ApiResponse;
 use App\Helpers\ImageUploadHelper;
 use App\Http\Controllers\Controller;
@@ -12,6 +13,10 @@ use App\Models\Gestionnaire;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Throwable;
 
 class GestionnaireController extends Controller
 {
@@ -23,13 +28,36 @@ class GestionnaireController extends Controller
     }
 
 
-    public function index()
+    public function index(Request $request)
     {
-        $gestionnaires = Gestionnaire::with('user')->get();
+        $perPage = $request->input('per_page', 10);
+        $query = Gestionnaire::with('user', 'user.roles');
 
-        if ($gestionnaires->isEmpty()) {
-            return ApiResponse::success($gestionnaires, 'Aucun gestionnaire trouvé');
-        }
+
+        // 🔍 Recherches sur les colonnes de l'utilisateur
+        $query->whereHas('user', function ($q) use ($request) {
+            if (!empty($request->input('sexe'))) {
+                $q->where('sexe', $request->sexe);
+            }
+
+            if (!empty($request->input('est_actif'))) {
+                $q->where('est_actif', filter_var($request->est_actif, FILTER_VALIDATE_BOOLEAN));
+            }
+
+            
+
+            if (!empty($request->filled('search'))) {
+                $search = $request->search;
+                $q->where(function ($q2) use ($search) {
+                    $q2->where('nom', 'like', "%{$search}%")
+                        ->orWhere('prenoms', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            }
+        });
+
+        $gestionnaires = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
         return ApiResponse::success($gestionnaires, 'Liste des gestionnaires récupérée avec succès');
     }
 
@@ -39,58 +67,44 @@ class GestionnaireController extends Controller
         try {
             $data = $request->validated();
             $password = User::genererMotDePasse();
-            // extraire la photo et la stocker dans le dossier public/uploads/users
             $photoUrl = null;
-            // vérifier si la photo est présente dans les données
-            // et la stocker dans le dossier public/uploads/users
-            if (isset($data['photo'])) {
-                $photo = $data['photo'];
+            if (isset($data['photo_url'])) {
+                $photo = $data['photo_url'];
                 $photoUrl = ImageUploadHelper::uploadImage($photo, 'uploads/users');
             } else {
                 $photo = null;
             }
+
             // créer l'user
             $user = User::create([
                 'nom' => $data['nom'],
                 'prenoms' => $data['prenoms'] ?? null,
-                'email' => $data['email'] ?? null,
+                'email' => $data['email'],
                 'contact' => $data['contact'] ?? null,
-                'adresse' => $data['adresse'] ?? null,
+                'adresse' => $data['adresse'],
                 'date_naissance' => $data['date_naissance'] ?? null,
                 'sexe' => $data['sexe'] ?? null,
-                'photo' => $photoUrl ?? null,
-                'username' => $data['username'] ?? null,
-                'must_change_password' => true,
+                'photo_url' => $photoUrl ?? null,
+                'mot_de_passe_a_changer' => true,
                 'est_actif' => false,
-                'password' => bcrypt($password),
+                'password' => Hash::make($password),
             ]);
 
             $user->assignRole(RoleEnum::GESTIONNAIRE->value);
             $user->save();
-
-            $user_id = $user->id;
-
-            $gestionnaire = Gestionnaire::create([
-                'user_id' => $user_id,
+            Gestionnaire::create([
+                'user_id' => $user->id,
             ]);
-
-            // envoyé un mail au gestionnaire
 
             $this->notificationService->sendCredentials($user, $password);
 
-            // préparer les données à renvoyé
             $reponseData = [
-                'gestionnaire' => [
-                    'nom' => $user->nom,
-                    'prenoms' => $user->prenoms,
-                    'email' => $user->email,
-                    'must_change_password' => $user->must_change_password,
-                ],
-                'password' => $password
+                "gestionnaire" => $user,
+                "password" => $password
             ];
-            return ApiResponse::success($reponseData, 'Un email de confirmation a été envoyé à l\'adresse email fournie.');
-        } catch (\Throwable $th) {
-            ApiResponse::error('Une erreur est survenue lors de la création du gestionnaire', 500, $th->getMessage());
+            return ApiResponse::success($reponseData, 'Un email de confirmation a été envoyé à l\'adresse email fournie.', 201);
+        } catch (Throwable $th) {
+            return ApiResponse::error('Une erreur est survenue lors de la création du gestionnaire', 500, $th->getMessage());
         }
     }
 
@@ -98,51 +112,71 @@ class GestionnaireController extends Controller
 
     public function show(int $id)
     {
-        $gestionnaire = Gestionnaire::with('user')->find($id);
-        if (!$gestionnaire) {
-            return ApiResponse::error('Gestionnaire non trouvé', 404);
+        try {
+            $gestionnaire = Gestionnaire::with('user')->find($id);
+            if (!$gestionnaire) {
+                return ApiResponse::error('Gestionnaire non trouvé', 404);
+            }
+
+            $data = [
+                'id' => $gestionnaire->id,
+                'nom' => $gestionnaire->user->nom,
+                'prenoms' => $gestionnaire->user->prenoms,
+                'email' => $gestionnaire->user->email,
+                'contact' => $gestionnaire->user->contact,
+                'username' => $gestionnaire->user->username,
+                'adresse' => $gestionnaire->user->adresse,
+                'sexe' => $gestionnaire->user->sexe,
+                'date_naissance' => $gestionnaire->user->date_naissance,
+                'photo' => $gestionnaire->user->photo,
+                'est_actif' => $gestionnaire->user->est_actif,
+                'must_change_password' => $gestionnaire->user->must_change_password,
+                'role' => $gestionnaire->user->getRoleNames()->first(),
+            ];
+            return ApiResponse::success($data, 'Gestionnaire récupéré avec succès');
+        } catch (\Throwable $th) {
+            return ApiResponse::error('Une erreur est survenue lors de la récupération du gestionnaire', 500, $th->getMessage());
         }
-        return ApiResponse::success($gestionnaire, 'Gestionnaire récupéré avec succès');
     }
 
 
-    public function update(GestionnaireUpdateFormRequest $request, int $id)
-    {
-        $gestionnaire = Gestionnaire::with('user')->find($id);
-        if (!$gestionnaire) {
-            return ApiResponse::error('Gestionnaire non trouvé', 404);
-        }
+    // public function update(GestionnaireUpdateFormRequest $request, int $id)
+    // {
+    //     $gestionnaire = Gestionnaire::with('user')->find($id);
+    //     if (!$gestionnaire) {
+    //         return ApiResponse::error('Gestionnaire non trouvé', 404);
+    //     }
 
-        $data = $request->validated();
+    //     $data = $request->validated();
 
-        // Met à jour les champs user
-        if ($gestionnaire->user) {
-            $gestionnaire->user->fill($data);
-            $gestionnaire->user->save();
-        }
+    //     // Met à jour les champs user
+    //     if ($gestionnaire->user) {
+    //         $gestionnaire->user->fill($data);
+    //         $gestionnaire->user->save();
+    //     }
 
-        // Met à jour les champs gestionnaire
-        $gestionnaire->fill($data);
-        $gestionnaire->save();
+    //     // Met à jour les champs gestionnaire
+    //     $gestionnaire->fill($data);
+    //     $gestionnaire->save();
 
-        $gestionnaire->load(['user']);
-        $data = [
-            'id' => $gestionnaire->id,
-            'nom' => $gestionnaire->user->nom ?? null,
-            'prenoms' => $gestionnaire->user->prenoms ?? null,
-            'email' => $gestionnaire->user->email ?? null,
-            'contact' => $gestionnaire->user->contact ?? null,
-            'username' => $gestionnaire->user->username ?? null,
-            'adresse' => $gestionnaire->user->adresse ?? null,
-            'sexe' => $gestionnaire->user->sexe ?? null,
-            'date_naissance' => $gestionnaire->user->date_naissance ?? null,
-            'photo' => $gestionnaire->user->photo ?? null,
-            'est_actif' => $gestionnaire->user->est_actif ?? null,
-            'must_change_password' => $gestionnaire->user->must_change_password ?? null,
-            'role' => $gestionnaire->user->getRoleNames()->first(),
-        ];
-        return ApiResponse::success($data, 'Gestionnaire mis à jour avec succès');
-    }
+    //     $gestionnaire->load(['user']);
+    //     $data = [
+    //         'id' => $gestionnaire->id,
+    //         'nom' => $gestionnaire->user->nom,
+    //         'prenoms' => $gestionnaire->user->prenoms,
+    //         'email' => $gestionnaire->user->email,
+    //         'contact' => $gestionnaire->user->contact,
+    //         'username' => $gestionnaire->user->username,
+    //         'adresse' => $gestionnaire->user->adresse,
+    //         'sexe' => $gestionnaire->user->sexe,
+    //         'date_naissance' => $gestionnaire->user->date_naissance,
+    //         'photo' => $gestionnaire->user->photo,
+    //         'est_actif' => $gestionnaire->user->est_actif,
+    //         'must_change_password' => $gestionnaire->user->must_change_password,
+    //         'role' => $gestionnaire->user->getRoleNames()->first(),
+    //     ];
+    //     return ApiResponse::success($data, 'Gestionnaire mis à jour avec succès');
+    // }
 
     /**
      * Remove the specified resource from storage.
@@ -157,5 +191,6 @@ class GestionnaireController extends Controller
         return ApiResponse::success(null, 'Gestionnaire supprimé avec succès', 204);
     }
 
-    
+
+   
 }

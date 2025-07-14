@@ -6,13 +6,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class CategorieGarantie extends Model
+class CategoriesGaranties extends Model
 {
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'libelle',
         'description',
+        'medecin_controleur_id'
     ];
 
     /**
@@ -20,6 +21,6 @@ class CategorieGarantie extends Model
      */
     public function garanties()
     {
-        return $this->hasMany(Garantie::class);
+        return $this->hasMany(Garantie::class, 'categorie_garantie_id');
     }
 }

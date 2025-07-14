@@ -17,8 +17,7 @@ class QuestionsBulkInsertRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return Auth::user()->role->name === RoleEnum::PERSONNEL 
-        && Auth::user()->personnel === TypePersonnelEnum::MEDECIN_CONTROLEUR;
+        return Auth::user()->role === RoleEnum::MEDECIN_CONTROLEUR;
     }
 
 
@@ -30,7 +29,7 @@ class QuestionsBulkInsertRequest extends FormRequest
             '*.destinataire' => 'required|string|in:' . implode(',', TypeDemandeurEnum::values()),
             '*.obligatoire' => 'boolean',
             '*.est_actif' => 'boolean',
-            '*.options' => 'nullable|json',
+            '*.options' => 'nullable|string',
         ];
     }
 
@@ -42,12 +41,12 @@ class QuestionsBulkInsertRequest extends FormRequest
 
     public function messages() {
         return [
-            '*.libelle.required' => 'Le libell  est obligatoire.',
-            '*.libelle.string' => 'Le libell  doit  tre une cha ne de caract res.',
-            '*.libelle.max' => 'Le libell  ne doit pas d passer :max caract res.',
+            '*.libelle.required' => 'Le libellé est obligatoire.',
+            '*.libelle.string' => 'Le libellé doit être une chaîne de caractères.',
+            '*.libelle.max' => 'Le libellé ne doit pas dépasser :max caractères.',
 
-            '*.type_donnees.required' => 'Le type de donn es est obligatoire.',
-            '*.type_donnees.string' => 'Le type de donn es doit  tre une cha ne de caract res.',
+            '*.type_donnees.required' => 'Le type de donnée est obligatoire.',
+            '*.type_donnees.string' => 'Le type de donnée doit être une chaîne de caractères.',
             '*.type_donnees.in' => 'Le type de donn es doit  tre l\'un des suivants : ' . implode(', ', TypeDonneeEnum::values()),
 
             '*.destinataire.required' => 'Le destinataire est obligatoire.',
@@ -57,7 +56,7 @@ class QuestionsBulkInsertRequest extends FormRequest
             '*.obligatoire.boolean' => 'La valeur de champ obligatoire doit  tre un bool en.',
             '*.est_actif.boolean' => 'La valeur de champ est actif doit  tre un bool en.',
 
-            '*.options.json' => 'Le champ options doit  tre un objet JSON.',
+            '*.options.string' => 'Le champ options doit  tre un objet JSON.',
         ];
 
     }

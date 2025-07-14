@@ -12,20 +12,39 @@ class ReponsesQuestionnaire extends Model
     protected $table = "reponses_questionnaire";
 
     protected $fillable = [
-        'demande_adhesion_id',
-        'reponses',
+        'question_id',
+        'reponse_bool',
+        'reponse_text',
+        'reponse_decimal',
+        'reponse_date',
+        'reponse_fichier',
     ];
 
     protected function casts(): array
     {
         return [
-            'reponses' => 'json',
+            'reponse_bool' => 'boolean',
+            'reponse_text' => 'string',
+            'reponse_decimal' => 'decimal:2',
+            'reponse_date' => 'date',
+            'reponse_fichier' => 'string',
         ];
     }
     
     public function demandeAdhesion()
     {
         return $this->belongsTo(DemandeAdhesion::class);
+    }
+
+    public function personne()
+    {
+        return $this->morphTo();
+    }
+
+    
+    public function question()
+    {
+        return $this->belongsTo(Question::class);
     }
 
     public function isEmpty(): bool

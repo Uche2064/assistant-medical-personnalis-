@@ -16,8 +16,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
             $table->foreignId('client_id')->nullable()->constrained('clients')->onDelete('set null');
-            $table->foreignId('assure_parent_id')->nullable()->constrained('assures')->onDelete('set null');
-            $table->enum('lien_parente', LienEnum::values());
+            $table->foreignId('assure_principal_id')->nullable()->constrained('assures')->onDelete('set null');
+            $table->foreignId('contrat_id')->nullable()->constrained('contrats')->onDelete('set null');
+            $table->enum('lien_parente', LienEnum::values())->nullable(); // si bénéficiaire
+            $table->boolean('est_principal')->default(true);
             $table->timestamps();
             $table->softDeletes();
         });

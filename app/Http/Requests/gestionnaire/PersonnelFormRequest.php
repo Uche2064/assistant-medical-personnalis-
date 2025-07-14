@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\gestionnaire;
 
+use App\Enums\RoleEnum;
 use App\Enums\SexeEnum;
 use App\Enums\TypePersonnelEnum;
 use App\Helpers\ApiResponse;
@@ -26,14 +27,13 @@ class PersonnelFormRequest extends FormRequest
         $rules = [
             'nom' => ['required', 'string', 'max:255'],
             'prenoms' => ['nullable', 'string', 'max:255'],
-            'email' => ['email', 'max:255',],
-            'contact' => ['string', 'max:50', 'unique:users,contact'],
-            'username' => ['nullable', 'string', 'unique:users,username'],
-            'adresse' => ['required', 'json'],
+            'email' => ['email', 'max:255', 'unique:users,email'],
+            'contact' => ['string', 'unique:users,contact', 'regex:/^\+[0-9]+$/'],
+            'adresse' => ['required', 'string'],
             'sexe' => ['nullable', Rule::in(SexeEnum::values())],
             'date_naissance' => ['nullable', 'date'],
-            'photo' => ['nullable', 'string'],
-            'type_personnel' => ['required', Rule::in(TypePersonnelEnum::values())]
+            'photo_url' => ['nullable', 'file'],
+            'role' => ['required', array_diff(RoleEnum::values(), [RoleEnum::ADMIN_GLOBAL->value, RoleEnum::GESTIONNAIRE->value])]
         ];
 
         return $rules;
@@ -42,7 +42,7 @@ class PersonnelFormRequest extends FormRequest
     protected function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(
-            ApiResponse::error($validator->errors()->first(), 422)
+            ApiResponse::error("Erreur lors de la validation", 422, $validator->errors())
         );
     }
 
@@ -57,17 +57,15 @@ class PersonnelFormRequest extends FormRequest
             'email.max' => 'L\'adresse e-mail ne doit pas contenir plus de 255 caractères.',
             'contact.string' => 'Le champ contact doit être une chaine de caractères.',
             'contact.max' => 'Le champ contact ne doit pas contenir plus de 50 caractères.',
+            'contact.regex' => 'Le champ contact doit être un numéro de téléphone valide au format international (ex: +1234567890).',
             'contact.unique' => 'Ce contact existe déjà dans la base de données.',
-            'username.string' => 'Le champ username doit être une chaine de caractères.',
-            'username.unique' => 'Ce username existe déjà dans la base de données.',
+            'email.required' => 'Le champ email est obligatoire.',
+            'email.unique' => 'Ce email existe déjà dans la base de données.',
             'adresse.required' => 'Le champ adresse est obligatoire.',
             'adresse.json' => 'Le champ adresse doit être un objet JSON.',
             'sexe.in' => 'Le champ sexe n\'est pas dans la liste des valeurs acceptées.',
             'date_naissance.date' => 'Le champ date de naissance est invalide.',
-            'photo.string' => 'Le champ photo doit être une chaine de caractères.',
-            'type_personnel.required' => 'Le champ type de personnel est obligatoire.',
-            'type_personnel.in' => 'Le champ type de personnel n\'est pas dans la liste des valeurs acceptées.',
-
+            'photo.file' => 'Le champ photo doit être un fichier.',
         ];
     }
 }
