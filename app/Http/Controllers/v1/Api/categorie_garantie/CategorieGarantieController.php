@@ -17,33 +17,27 @@ class CategorieGarantieController extends Controller
     /**
      * Lister toutes les catégories de garantie avec filtre.
      */
-    public function index(Request $request)
-    {
-        // Récupération des paramètres
-        $search = $request->query('search');
-        $perPage = $request->query('per_page', 10);
+public function indexCategorieGarantie(Request $request)
+{
+    $search = $request->query('search');
+    $perPage = $request->query('per_page', 10);
 
-        // Requête de base avec relation "garanties"
-        $query = CategoriesGaranties::with('garanties');
+    $query = CategoriesGaranties::with('garanties')
+                ->withCount('garanties');
 
-        // Filtre par libellé
-        if ($search) {
-            $query->where('libelle', 'like', '%' . $search . '%');
-        }
-
-        // Tri par libellé (ou autre critère si besoin)
-        $query->orderBy('created_at', 'desc');
-
-        // Résultat paginé
-        $categories = $query->paginate($perPage);
-
-        return ApiResponse::success($categories, 'Liste des catégories de garanties récupérée avec succès');
+    if ($search) {
+        $query->where('libelle', 'like', '%' . $search . '%');
     }
+
+    $categories = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+    return ApiResponse::success($categories, 'Liste des catégories de garanties récupérée avec succès');
+}
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreCategorieGarantieFormRequest $request)
+    public function storeCategorieGarantie(StoreCategorieGarantieFormRequest $request)
     {
         $data = $request->validated();
         $medecinControleur = Auth::user()->personnel;
@@ -73,7 +67,7 @@ class CategorieGarantieController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function showCategorieGarantie(string $id)
     {
         $categorieGarantie = CategoriesGaranties::with('garanties')->find($id);
 
@@ -87,7 +81,7 @@ class CategorieGarantieController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateCategorieGarantieFormRequest $request, string $id)
+    public function updateCategorieGarantie(UpdateCategorieGarantieFormRequest $request, string $id)
     {
         $categorieGarantie = CategoriesGaranties::with('garanties')->find($id);
 
@@ -130,7 +124,7 @@ class CategorieGarantieController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroyCategorieGarantie(string $id)
     {
         $categorieGarantie = CategoriesGaranties::with('garanties')->find($id);
 

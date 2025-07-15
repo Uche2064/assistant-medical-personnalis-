@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests\medecin;
+namespace App\Http\Requests\medecin_controleur;
 
 use App\Enums\RoleEnum;
 use App\Enums\TypeDemandeurEnum;
@@ -12,14 +12,14 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
-class QuestionUpdateFormRequest extends FormRequest
+class UpdateQuestionRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        return Auth::check() && Auth::user()->role === RoleEnum::MEDECIN_CONTROLEUR;
+        return Auth::check() && Auth::user()->hasRole(RoleEnum::MEDECIN_CONTROLEUR->value);
     }
 
     /**
@@ -45,19 +45,19 @@ class QuestionUpdateFormRequest extends FormRequest
 
     public function messages() {
         return [
-            'libelle.string' => 'Le libell  doit  tre une cha ne de caract res.',
-            'libelle.max' => 'Le libell  ne doit pas d passer :max caract res.',
+            'libelle.string' => 'Le libellé  doit  être une chaîne de caractères.',
+            'libelle.max' => 'Le libellé  ne doit pas dépasser :max caract res.',
 
-            'type_donnees.string' => 'Le type de donn es doit  tre une cha ne de caract res.',
-            'type_donnees.in' => 'Le type de donn es doit  tre l\'un des suivants : ' . implode(', ', TypeDonneeEnum::values()),
+            'type_donnees.string' => 'Le type de donn es doit  être une cha ne de caract res.',
+            'type_donnees.in' => 'Le type de données non trouvé.',
 
             'destinataire.string' => 'Le destinataire doit  tre une cha ne de caract res.',
-            'destinataire.in' => 'Le destinataire doit  tre l\'un des suivants : ' . implode(', ', TypeDemandeurEnum::values()),
+            'destinataire.in' => 'Le destinataire non trouvé',
 
-            'obligatoire.boolean' => 'La valeur de champ obligatoire doit  tre un bool en.',
-            'est_actif.boolean' => 'La valeur de champ est actif doit  tre un bool en.',
+            'obligatoire.boolean' => 'La valeur de champ obligatoire doit  être un bool en.',
+            'est_actif.boolean' => 'La valeur de champ est actif doit être un bool en.',
 
-            'options.json' => 'Le champ options doit  tre un objet JSON.',
+            'options.json' => 'Le champ options doit être un objet JSON.',
         ];
 
     }

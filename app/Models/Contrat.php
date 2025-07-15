@@ -28,23 +28,33 @@ class Contrat extends Model
     {
         return $this->hasMany(ClientContrat::class);
     }
-    
+
     public function technicien()
     {
         return $this->belongsTo(Personnel::class, 'technicien_id');
     }
 
-    
-    public function contratCategorieGaranties() {
-        return $this->hasMany(ContratCategorieGarantie::class);
+    public function categories()
+    {
+        return $this->belongsToMany(CategoriesGaranties::class, 'contrat_categorie_garantie')
+            ->withPivot('couverture')
+            ->withTimestamps();
     }
 
-
-      public function demandeAdhesion()
+    public function clients()
     {
-        return $this->belongsTo(DemandeAdhesion::class, 'demande_adhesion_id');
- }
-    public function assures() {
+        return $this->belongsToMany(Client::class, 'client_contrat')
+            ->withPivot('numero_police', 'date_debut', 'date_fin')
+            ->withTimestamps();
+    }
+    
+
+    public function demandeAdhesion()
+    {
+        return $this->belongsTo(DemandesAdhesions::class, 'demande_adhesion_id');
+    }
+    public function assures()
+    {
         return $this->hasMany(Assure::class);
     }
 
@@ -57,5 +67,4 @@ class Contrat extends Model
 
         return $numero;
     }
-
 }

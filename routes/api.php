@@ -12,12 +12,12 @@ use App\Http\Controllers\v1\Api\gestionnaire\GestionnaireController;
 use App\Http\Controllers\v1\Api\ContratController;
 use App\Http\Controllers\v1\Api\demande_adhesion\DemandeAdhesionController;
 use App\Http\Controllers\v1\Api\garanties\GarantieController;
-use App\Http\Controllers\v1\Api\QuestionController;
+use App\Http\Controllers\v1\Api\medecin_controleur\QuestionController;
 use App\Http\Controllers\v1\Api\SoumissionEmployeController;
 
 Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
-    // Authentification et gestion des mots de passe
+    // ----------------------- Authentification et gestion des mots de passe ---------------------
     Route::prefix('auth')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/send-otp', [AuthController::class, 'sendOtp']);
@@ -29,7 +29,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/check-unique', [AuthController::class, 'checkUnique']);
     });
 
-    //  gestion des gestionnaires par l'admin global
+    // ---------------------- gestion des gestionnaires par l'admin global -------------------
 
     Route::middleware(['auth:api', 'admin'])->prefix('gestionnaires')->group(function () {
         Route::post('/', [AdminController::class, 'storeGestionnaire']);
@@ -38,6 +38,8 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::delete('/{id}', [AdminController::class, 'destroyGestionnaire']);
     });
 
+    // ---------------------- gestion des personnels par le gestionnaire --------------------
+
     Route::middleware(['auth:api', 'gestionnaire'])->prefix('personnels')->group(function () {
         Route::get('/', [GestionnaireController::class, 'indexPersonnels']);
         Route::get('/{id}', [GestionnaireController::class, 'showPersonnel']);
@@ -45,6 +47,17 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::delete('/{id}', [GestionnaireController::class, 'destroyPersonnel']);
     });
 
+    // --------------------- gestion des questions pour les prospects et prestataire par le médecin contrôleur --------------------
+
+    Route::get('/questions', [QuestionController::class, 'getQuestionsByDestinataire']);
+
+    Route::middleware(['auth:api', 'medecin_controleur'])->prefix('questions')->group(function () {
+        Route::get('/all', [QuestionController::class, 'indexQuestions']); // toutes les questions
+        Route::get('/{id}', [QuestionController::class, 'showQuestion']); // toutes les questions
+        Route::post('/', [QuestionController::class, 'bulkInsertQuestions']);
+        Route::put('/{id}', [QuestionController::class, 'updateQuestion']);
+        Route::patch('/{id}/toggle', [QuestionController::class, 'toggleQuestionStatus']);
+    });
 
 
     Route::prefix('employes/formulaire')->group(function () {
@@ -71,32 +84,20 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::delete('/{id}', [ContratController::class, 'destroy'])->middleware('technicien');
     });
 
-    Route::prefix('medecin-controleur')->group(function () {
-        Route::middleware(['auth:api', 'medecin_controleur'])->group(function () {
-            Route::get('/questions', [QuestionController::class, 'index']);
-            Route::get('/questions/{id}', [QuestionController::class, 'show']);
-            Route::post('/bulk/questions', [QuestionController::class, 'bulkInsert']);
-            Route::put('/bulk/questions', [QuestionController::class, 'bulkUpdate']);
-            Route::post('/questions', [QuestionController::class, 'store']);
-            Route::put('/questions/{id}', [QuestionController::class, 'update']);
-            Route::delete('/bulk/questions', [QuestionController::class, 'bulkDestroy']);
-            Route::delete('/questions/{id}', [QuestionController::class, 'destroy']);
-            Route::put('/questions/{id}/activate', [QuestionController::class, 'activate']);
-        });
+    // --------------- Gestion des catégories de garanties ------------------
+    // ############# Accès lecture : médecin + technicien ##############
+    Route::middleware(['auth:api', 'role:medecin_controleur|technicien'])->prefix('categories-garanties')->group(function () {
+        Route::get('/', [CategorieGarantieController::class, 'indexCategorieGarantie']);
+        Route::get('/{id}', [CategorieGarantieController::class, 'showCategorieGarantie']);
     });
 
-
-    // catégories de garanties
-    Route::prefix('categories-garanties')->group(function () {
-        Route::get('/', [CategorieGarantieController::class, 'index']);
-        Route::get('/{id}', [CategorieGarantieController::class, 'show']);
-
-        Route::middleware('medecin_controleur')->group(function () {
-            Route::post('/', [CategorieGarantieController::class, 'store']);
-            Route::put('/{id}', [CategorieGarantieController::class, 'update']);
-            Route::delete('/{id}', [CategorieGarantieController::class, 'destroy']);
-        });
+    // ############## Accès écriture : réservé au médecin contrôleur ##########
+    Route::middleware(['auth:api', 'medecin_controleur'])->prefix('categories-garanties')->group(function () {
+        Route::post('/', [CategorieGarantieController::class, 'storeCategorieGarantie']);
+        Route::put('/{id}', [CategorieGarantieController::class, 'updateCategorieGarantie']);
+        Route::delete('/{id}', [CategorieGarantieController::class, 'destroyCategorieGarantie']);
     });
+
 
     // garanties
     Route::middleware("auth:api")->prefix('garanties')->group(function () {

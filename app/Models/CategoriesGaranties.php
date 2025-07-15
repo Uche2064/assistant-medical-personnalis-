@@ -19,8 +19,20 @@ class CategoriesGaranties extends Model
     /**
      * Get the garanties for the categorie.
      */
-    public function garanties()
+     public function garanties()
     {
         return $this->hasMany(Garantie::class, 'categorie_garantie_id');
+    }
+
+    public function contrats()
+    {
+        return $this->belongsToMany(Contrat::class, 'contrat_categorie_garantie')
+                    ->withPivot('couverture')
+                    ->withTimestamps();
+    }
+
+    public function medecinControleur()
+    {
+        return $this->belongsTo(Personnel::class, 'medecin_controleur_id');
     }
 }

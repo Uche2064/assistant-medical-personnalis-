@@ -26,7 +26,7 @@ class UpdateCategorieGarantieFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            "libelle" => ['nullable', 'string', 'unique:categories_garanties,libelle'],
+            "libelle" => ['sometimes', 'string', 'unique:categories_garanties,libelle'],
             "description" => ['nullable', 'string'],
         ];
     }
@@ -43,7 +43,7 @@ class UpdateCategorieGarantieFormRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'medecin_controleur_id.exists' => 'Le medecin_controleur sélectionné n\'existe pas.',
+            'medecin_controleur_id.exists' => 'Le medecin_controleur n\'existe pas.',
             'libelle.unique' => 'Le champ libelle doit être unique.',
             'description.string' => 'La description doit être une chaîne de caractères.',
         ];

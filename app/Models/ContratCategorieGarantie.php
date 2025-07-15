@@ -12,13 +12,4 @@ class ContratCategorieGarantie extends Model
         'couverture',
     ];
 
-    public function contrat()
-    {
-        return $this->belongsTo(Contrat::class, 'contrat_id');
-    }
-
-    public function categorieGarantie()
-    {
-        return $this->belongsTo(CategoriesGaranties::class, 'categorie_garantie_id');
-    }
 }

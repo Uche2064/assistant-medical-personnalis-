@@ -39,6 +39,11 @@ class Garantie extends Model
                     ->withTimestamps();
     }
 
+    public function medecinControleur()
+    {
+        return $this->belongsTo(Personnel::class, 'medecin_controleur_id');
+    }
+
     public function calculateCoverage(float $montantReclame): float
     {
         $montantCouvert = $montantReclame * ($this->taux_couverture / 100);
