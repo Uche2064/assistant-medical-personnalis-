@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\StatutValidationEnum;
 use App\Models\Prospect;
+use Illuminate\Support\Facades\Auth;
 
 class DemandeValidatorService
 {
@@ -21,15 +22,15 @@ class DemandeValidatorService
     {
         return Prospect::where(function ($query) use ($data) {
             // On vérifie email et contact obligatoirement
-            $query->where('email', $data['email'])
-                  ->orWhere('contact', $data['contact']);
+            $query->where('email', $data['email'] ?? Auth::user()->email)
+                  ->orWhere('contact', $data['contact'] ?? Auth::user()->contact);
 
             // Si raison_sociale est présente (ex: entreprise, prestataire), on l'inclut
             if (!empty($data['raison_sociale'])) {
-                $query->orWhere('raison_sociale', $data['raison_sociale']);
+                $query->orWhere('raison_sociale', $data['raison_sociale'] ?? Auth::user()->raison_sociale);
             }
         })
-        ->whereHas('demandesAdhesions', function ($query) use ($statut) {
+        ->whereHas('demande', function ($query) use ($statut) {
             $query->where('statut', $statut);
         })
         ->exists();

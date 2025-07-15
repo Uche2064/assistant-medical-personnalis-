@@ -28,6 +28,7 @@ class RegisterProspectRequest extends FormRequest
             'prenoms' => 'required_if:type_prospect,physique|string',
             'date_naissance' => 'required_if:type_prospect,physique|date',
             'profession' => 'nullable|string',
+            'sexe' => 'required_if:type_prospect,physique|in:M,F',
 
             // Moral
             'raison_sociale' => 'required_if:type_prospect,moral|string|unique:prospects,raison_sociale',

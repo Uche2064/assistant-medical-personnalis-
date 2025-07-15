@@ -22,6 +22,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        DemandeAdhesion::observe(DemandeAdhesionObserver::class);
+        // DemandeAdhesion::observe(DemandeAdhesionObserver::class);
     }
 }

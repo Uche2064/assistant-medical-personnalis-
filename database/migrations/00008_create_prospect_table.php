@@ -31,6 +31,7 @@ return new class extends Migration
             // Commun
             $table->string('contact');
             $table->string('adresse');
+            $table->string('email')->unique();
             $table->integer('nombre_de_beneficiaires')->nullable()->default(0);
 
             $table->timestamps();

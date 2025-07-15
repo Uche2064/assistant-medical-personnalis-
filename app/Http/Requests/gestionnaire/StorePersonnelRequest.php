@@ -4,18 +4,15 @@ namespace App\Http\Requests\gestionnaire;
 
 use App\Enums\RoleEnum;
 use App\Enums\SexeEnum;
-use App\Enums\TypePersonnelEnum;
 use App\Helpers\ApiResponse;
-use App\Models\User;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
-class PersonnelFormRequest extends FormRequest
+class StorePersonnelRequest extends FormRequest
 {
-
+    
     public function authorize(): bool
     {
         return true;

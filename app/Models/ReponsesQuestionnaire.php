@@ -13,6 +13,8 @@ class ReponsesQuestionnaire extends Model
 
     protected $fillable = [
         'question_id',
+        'personne_id',
+        'personne_type',
         'reponse_bool',
         'reponse_text',
         'reponse_decimal',
@@ -33,7 +35,7 @@ class ReponsesQuestionnaire extends Model
     
     public function demandeAdhesion()
     {
-        return $this->belongsTo(DemandeAdhesion::class);
+        return $this->belongsTo(DemandesAdhesions::class);
     }
 
     public function personne()

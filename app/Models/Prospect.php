@@ -13,7 +13,8 @@ class Prospect extends Model
     protected $fillable = [
         'nom', 'prenoms', 'email', 'contact', 'date_naissance',
         'adresse', 'photo_url', 'nombre_de_beneficiaires',
-        'sexe', 'profession', 'raison_sociale'
+        'sexe', 'profession', 'raison_sociale',
+        'type_prospect', 'user_id', 'client_id'
     ];
 
     protected $casts = [
@@ -23,7 +24,7 @@ class Prospect extends Model
 
     public function demande()
     {
-        return $this->hasOne(DemandeAdhesion::class);
+        return $this->hasOne(DemandesAdhesions::class);
     }
 
 }

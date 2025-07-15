@@ -9,7 +9,6 @@ enum LienEnum: String
     case ENFANT = 'enfant';
     case PARENT = 'parent';
     case AUTRE = 'autre';  
-    case SOCIETE = 'societe';
 
 
     public static function values(): array

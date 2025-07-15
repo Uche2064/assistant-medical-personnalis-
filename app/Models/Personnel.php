@@ -29,7 +29,7 @@ class Personnel extends Model
 
     public function validations()
     {
-        return $this->hasMany(DemandeAdhesion::class, 'valide_par_id');
+        return $this->hasMany(DemandesAdhesions::class, 'valide_par_id');
     }
 
     public function clients()

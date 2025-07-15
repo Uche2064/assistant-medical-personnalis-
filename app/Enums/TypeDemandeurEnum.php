@@ -4,8 +4,8 @@ namespace App\Enums;
 
 enum TypeDemandeurEnum: String
 {
-    case PROSPECT_PHYSIQUE = 'prospect_physique';
-    case PROSPECT_MORAL = 'prospect_moral';
+    case PROSPECT_PHYSIQUE = 'physique';
+    case PROSPECT_MORAL = 'moral';
     case CENTRE_DE_SOINS = 'centre_de_soins';
     case MEDECIN_LIBERAL = "medecin_liberal";
     case PHARMACIE = 'pharmacie';

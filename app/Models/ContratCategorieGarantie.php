@@ -19,6 +19,6 @@ class ContratCategorieGarantie extends Model
 
     public function categorieGarantie()
     {
-        return $this->belongsTo(CategorieGarantie::class, 'categorie_garantie_id');
+        return $this->belongsTo(CategoriesGaranties::class, 'categorie_garantie_id');
     }
 }

@@ -2,22 +2,24 @@
 
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypePrestataireEnum;
+use App\Http\Controllers\v1\Api\admin\AdminController;
 use App\Http\Controllers\v1\Api\Assure\BeneficiaireController;
 use App\Http\Controllers\v1\Api\auth\AuthController;
 use App\Http\Controllers\v1\Api\categorie_garantie\CategorieGarantieController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\v1\Api\ClientControlleur;
-use App\Http\Controllers\v1\Api\GestionnaireController;
+use App\Http\Controllers\v1\Api\gestionnaire\GestionnaireController;
 use App\Http\Controllers\v1\Api\ContratController;
 use App\Http\Controllers\v1\Api\demande_adhesion\DemandeAdhesionController;
 use App\Http\Controllers\v1\Api\garanties\GarantieController;
-use App\Http\Controllers\v1\Api\PersonnelController;
 use App\Http\Controllers\v1\Api\QuestionController;
+use App\Http\Controllers\v1\Api\SoumissionEmployeController;
 
 Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
     // Authentification et gestion des mots de passe
     Route::prefix('auth')->group(function () {
+        Route::post('/register', [AuthController::class, 'register']);
         Route::post('/send-otp', [AuthController::class, 'sendOtp']);
         Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
         Route::post('/login', [AuthController::class, 'loginWithEmailAndPassword']);
@@ -27,45 +29,39 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/check-unique', [AuthController::class, 'checkUnique']);
     });
 
+    //  gestion des gestionnaires par l'admin global
+
     Route::middleware(['auth:api', 'admin'])->prefix('gestionnaires')->group(function () {
-        // gestionnaires
-        Route::get('/', [GestionnaireController::class, 'index']);
-        Route::post('/', [GestionnaireController::class, 'store']);
-        Route::get('/{id}', [GestionnaireController::class, 'show'])->where('id', '[0-9]+');
-        // Route::put('/{id}', [GestionnaireController::class, 'update']);
-        Route::delete('/{id}', [GestionnaireController::class, 'destroy']);
+        Route::post('/', [AdminController::class, 'storeGestionnaire']);
+        Route::get('/', [AdminController::class, 'indexGestionnaires']);
+        Route::get('/{id}', [AdminController::class, 'showGestionnaire']);
+        Route::delete('/{id}', [AdminController::class, 'destroyGestionnaire']);
     });
 
-    Route::middleware(['auth:api'])->prefix('personnels')->group(function () {
-        // Routes pour la gestion des personnels
-        Route::get('/', [PersonnelController::class, 'index']);
-        Route::post('/', [PersonnelController::class, 'store'])->middleware('gestionnaire');
-        Route::get('/{id}', [PersonnelController::class, 'show']);
-        // Route::put('/{id}', [PersonnelController::class, 'update'])->middleware('gestionnaire');
-        Route::delete('/{id}', [PersonnelController::class, 'destroy'])->middleware('gestionnaire');
+    Route::middleware(['auth:api', 'gestionnaire'])->prefix('personnels')->group(function () {
+        Route::get('/', [GestionnaireController::class, 'indexPersonnels']);
+        Route::get('/{id}', [GestionnaireController::class, 'showPersonnel']);
+        Route::post('/', [GestionnaireController::class, 'storePersonnel']);
+        Route::delete('/{id}', [GestionnaireController::class, 'destroyPersonnel']);
     });
 
 
-    Route::prefix('demandes-adhesions')->group(function () {
-        Route::post('/prestataires', [DemandeAdhesionController::class, 'storePrestataire']);
-        Route::post('/entreprises', [DemandeAdhesionController::class, 'storeEntreprise']);
-        Route::post('/clients', [DemandeAdhesionController::class, 'storeClient']);
-        Route::get('/questionnaire/{demandeur}', [DemandeAdhesionController::class, 'getQuestionsForDemandeur']);
 
-        Route::middleware(['auth:api'])->group(function () {
-            Route::get('/', [DemandeAdhesionController::class, 'index'])->middleware([
-                'medecin_controleur',
-                'technicien'
-            ]);
-            Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware([
-                'medecin_controleur',
-                'technicien'
-            ]);
-            Route::put('/{demande_id}/valider-prospect', [DemandeAdhesionController::class, 'validerProspect'])->middleware('technicien');
-            Route::put('/{demande_id}/valider-prestataire', [DemandeAdhesionController::class, 'validerClient'])->middleware('medecin_controleur');
-            Route::put('/{demande_id}/rejeter', [DemandeAdhesionController::class, 'rejeter']);
-        });
+    Route::prefix('employes/formulaire')->group(function () {
+        Route::get('{token}', [SoumissionEmployeController::class, 'showForm']);
+        Route::post('{token}', [SoumissionEmployeController::class, 'store']);
     });
+
+
+    Route::middleware(['auth:api'])->prefix('demandes-adhesions')->group(function () {
+        Route::post('/', [DemandeAdhesionController::class, 'store']);
+        Route::get('/', [DemandeAdhesionController::class, 'index'])->middleware(['medecin_controleur', 'technicien']);
+        Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware(['medecin_controleur', 'technicien']);
+        Route::put('/{demande_id}/valider-prospect', [DemandeAdhesionController::class, 'validerProspect'])->middleware('technicien');
+        Route::put('/{demande_id}/valider-prestataire', [DemandeAdhesionController::class, 'validerClient'])->middleware('medecin_controleur');
+        Route::put('/{demande_id}/rejeter', [DemandeAdhesionController::class, 'rejeter']);
+    });
+
 
     Route::middleware(['auth:api'])->prefix('contrats')->group(function () {
         Route::get('/', [ContratController::class, 'index']);
@@ -114,7 +110,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         });
     });
 
-    
+
     Route::middleware('auth:api')->prefix('contrats')->group(function () {
         Route::get('/', [ContratController::class, 'index']);
         Route::post('/', [ContratController::class, 'store']);

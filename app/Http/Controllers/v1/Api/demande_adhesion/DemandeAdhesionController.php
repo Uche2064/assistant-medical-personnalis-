@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\v1\Api\demande_adhesion;
 
 use App\Enums\EmailType;
+use App\Enums\LienEnum;
 use App\Enums\StatutValidationEnum;
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
@@ -14,10 +15,12 @@ use App\Http\Requests\DemandeAdhesionClientFormRequest;
 use App\Http\Requests\DemandeAdhesionEntrepriseFormRequest;
 use App\Http\Requests\DemandeAdhesionPrestataireFormRequest;
 use App\Http\Requests\DemandeAdhesionRejectFormRequest;
+use App\Http\Requests\demande_adhesion\StoreDemandeAdhesionRequest;
 use App\Http\Requests\ValiderProspectDemande;
 use App\Jobs\SendEmailJob;
+use App\Models\Assure;
 use App\Models\Contrat;
-use App\Models\DemandeAdhesion;
+use App\Models\DemandesAdhesions;
 use App\Models\Prospect;
 use App\Models\Question;
 use App\Models\ReponsesQuestionnaire;
@@ -43,11 +46,7 @@ class DemandeAdhesionController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $query = DemandeAdhesion::with('validePar', 'reponsesQuestionnaire');
-
-        Log::info('Recherche par ' . $request->input('search'));
-        Log::info('Statut: ' . $request->input('statut'));
-        Log::info('Type_demande: ' . $request->input('type_demande'));
+        $query = DemandesAdhesions::with('validePar', 'reponsesQuestionnaire');
 
         // 🔒 Filtrage basé sur le rôle de l'utilisateur
         if ($user->hasRole('technicien')) {
@@ -79,6 +78,101 @@ class DemandeAdhesionController extends Controller
         return ApiResponse::success($demandes, 'Liste des demandes d\'adhésion récupérée avec succès');
     }
 
+    public function show(int $id)
+    {
+        $demande = DemandesAdhesions::with([
+            'validePar',
+            'reponsesQuestionnaire'
+        ])->find($id);
+
+        if (!$demande) {
+            return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
+        }
+
+        return ApiResponse::success($demande, 'Détails de la demande d\'adhésion');
+    }
+
+    public function store(StoreDemandeAdhesionRequest $request)
+    {
+        $user = Auth::user();
+        $prospect = $user->prospect;
+        $data = $request->validated();
+
+
+        DB::beginTransaction();
+
+        try {
+            if ($this->demandeValidatorService->hasValidatedDemande($data)) {
+                return ApiResponse::error("Vous avez déjà une demande acceptée.", 422);
+            }
+
+            if ($this->demandeValidatorService->hasPendingDemande($data)) {
+                return ApiResponse::error("Vous avez déjà une demande en attente.", 422);
+            }
+            // Créer la demande
+            $demande = DemandesAdhesions::create([
+                'type_demandeur' => 'physique',
+                'statut' => 'en_attente',
+                'prospect_id' => $prospect->id,
+            ]);
+
+            // Créer l’assuré principal (le prospect lui-même)
+            $assurePrincipal = Assure::create([
+                'user_id' => $user->id,
+                'client_id' => null,
+                'contrat_id' => null,
+                'est_principal' => true,
+                'lien_parente' => LienEnum::PRINCIPAL->value,
+            ]);
+
+            // Enregistrer les réponses médicales du principal
+            foreach ($data['fiche_medicale'] as $reponse) {
+                ReponsesQuestionnaire::create([
+                    'question_id' => $reponse['question_id'],
+                    'personne_id' => $assurePrincipal->id,
+                    'personne_type' => Assure::class,
+                    'reponse_text' => $reponse['reponse_text'] ?? null,
+                    'reponse_bool' => $reponse['reponse_bool'] ?? null,
+                    'reponse_decimal' => $reponse['reponse_decimal'] ?? null,
+                    'reponse_date' => $reponse['reponse_date'] ?? null,
+                ]);
+            }
+
+
+            // Bénéficiaires (s’il y en a)
+            if (isset($data['beneficiaires']) && is_array($data['beneficiaires']) && !empty($data['beneficiaires'])) {
+                foreach ($data['beneficiaires'] as $beneficiaire) {
+                    $assureBenef = Assure::create([
+                        'user_id' => null,
+                        'client_id' => null,
+                        'contrat_id' => null,
+                        'assure_principal_id' => $assurePrincipal->id,
+                        'est_principal' => false,
+                        'lien_parente' => $beneficiaire['lien_parente'],
+                    ]);
+
+                    foreach ($beneficiaire['fiche_medicale'] as $reponse) {
+                        ReponsesQuestionnaire::create([
+                            'question_id' => $reponse['question_id'],
+                            'personne_id' => $assureBenef->id,
+                            'personne_type' => Assure::class,
+                            'reponse_text' => $reponse['reponse_text'] ?? null,
+                            'reponse_bool' => $reponse['reponse_bool'] ?? null,
+                            'reponse_decimal' => $reponse['reponse_decimal'] ?? null,
+                            'reponse_date' => $reponse['reponse_date'] ?? null,
+                        ]);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return ApiResponse::success(['demande_id' => $demande->id], 'Demande d\'adhésion enregistrée avec succès.', 201);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return ApiResponse::error('Erreur lors de la soumission de la demande.', 500, $e->getMessage());
+        }
+    }
 
 
     /**
@@ -106,7 +200,7 @@ class DemandeAdhesionController extends Controller
                 'adresse' => $data['adresse'],
             ]);
 
-            $demande = DemandeAdhesion::create([
+            $demande = DemandesAdhesions::create([
                 'type_demandeur' => $data['type_prestataire'],
                 'prospect_id' => $prospect->id,
                 'statut' => StatutValidationEnum::EN_ATTENTE->value,
@@ -156,7 +250,7 @@ class DemandeAdhesionController extends Controller
                 'adresse' => $data['adresse'],
             ]);
 
-            $demande = DemandeAdhesion::create([
+            $demande = DemandesAdhesions::create([
                 'type_demandeur' => TypeDemandeurEnum::PROSPECT_MORAL->value,
                 'prospect_id' => $prospect->id,
                 'statut' => StatutValidationEnum::EN_ATTENTE->value,
@@ -248,9 +342,9 @@ class DemandeAdhesionController extends Controller
         ]);
     }
 
-    protected function createDemandeAdhesion(Prospect $prospect, String $codeParainage): DemandeAdhesion
+    protected function createDemandeAdhesion(Prospect $prospect, String $codeParainage): DemandesAdhesions
     {
-        return DemandeAdhesion::create([
+        return DemandesAdhesions::create([
             'type_demandeur' => TypeDemandeurEnum::PROSPECT_PHYSIQUE,
             'prospect_id' => $prospect->id,
             'statut' => StatutValidationEnum::EN_ATTENTE,
@@ -258,7 +352,7 @@ class DemandeAdhesionController extends Controller
         ]);
     }
 
-    protected function storeBeneficiaires(DemandeAdhesion $demande, array $beneficiaires): void
+    protected function storeBeneficiaires(DemandesAdhesions $demande, array $beneficiaires): void
     {
         foreach ($beneficiaires as $item) {
             $photoUrl = null;
@@ -299,19 +393,7 @@ class DemandeAdhesionController extends Controller
     /**
      * Afficher les détails d'une demande d'adhésion
      */
-    public function show(int $id)
-    {
-        $demande = DemandeAdhesion::with([
-            'validePar',
-            'reponsesQuestionnaire'
-        ])->find($id);
-
-        if (!$demande) {
-            return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
-        }
-
-        return ApiResponse::success($demande, 'Détails de la demande d\'adhésion');
-    }
+    
 
     /**
      * Valider une demande d'adhésion (réservé au personnel)
@@ -322,7 +404,7 @@ class DemandeAdhesionController extends Controller
 
         $technicien = Auth::user();
 
-        $demande = DemandeAdhesion::with('prospect')->find($id);
+        $demande = DemandesAdhesions::with('prospect')->find($id);
 
 
         if (!$demande) {
@@ -362,7 +444,7 @@ class DemandeAdhesionController extends Controller
 
         $medecinControleur = Auth::user();
 
-        $demande = DemandeAdhesion::with('prospect')->find($id);
+        $demande = DemandesAdhesions::with('prospect')->find($id);
 
         if (!$demande) {
             return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
@@ -401,7 +483,7 @@ class DemandeAdhesionController extends Controller
         // Validation des données
         $validatedData = $request->validated();
 
-        $demande = DemandeAdhesion::find($id);
+        $demande = DemandesAdhesions::find($id);
 
         if (!$demande) {
             return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
@@ -460,11 +542,11 @@ class DemandeAdhesionController extends Controller
     /**
      * Stockage des réponses aux questionnaires pour une demande d'adhésion
      * 
-     * @param DemandeAdhesion $demande L'objet demande d'adhésion
+     * @param DemandesAdhesions $demande L'objet demande d'adhésion
      * @param array $reponses Les réponses à stocker
      * @return void
      */
-    private function storeReponses(DemandeAdhesion $demande, array $reponses): void
+    private function storeReponses(DemandesAdhesions $demande, array $reponses): void
     {
         if (empty($reponses)) return;
 
@@ -496,7 +578,7 @@ class DemandeAdhesionController extends Controller
         return is_object($value) && method_exists($value, 'getClientOriginalName');
     }
 
-    private function enregistrerFichier(DemandeAdhesion $demande, int $questionId, $fichier): void
+    private function enregistrerFichier(DemandesAdhesions $demande, int $questionId, $fichier): void
     {
         $mimeType = $fichier->getMimeType();
         $folder = 'demandes_adhesion/' . $demande->id . '/documents';
@@ -521,7 +603,7 @@ class DemandeAdhesionController extends Controller
         }
     }
 
-    private function enregistrerValeur(DemandeAdhesion $demande, $question, int $questionId, $valeur): void
+    private function enregistrerValeur(DemandesAdhesions $demande, $question, int $questionId, $valeur): void
     {
         $data = [
             'demande_adhesion_id' => $demande->id,

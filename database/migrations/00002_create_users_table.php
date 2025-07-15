@@ -22,8 +22,9 @@ return new class extends Migration
             $table->string('adresse')->nullable();
             $table->string('email')->unique();
             $table->string('contact')->nullable()->unique();
+            $table->date('date_naissance')->nullable();
+            $table->enum('sexe', SexeEnum::values())->nullable();
             $table->string('password')->nullable();
-            $table->enum('type_prospect', TypeDemandeurEnum::values())->nullable();
             $table->boolean('est_actif')->default(true);
             $table->timestamp('email_verified_at')->nullable();
             $table->string('photo_url')->nullable();

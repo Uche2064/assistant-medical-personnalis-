@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('personne_id');
             $table->string('personne_type'); // morph: assures ou prospects
             $table->foreignId('question_id')->nullable()->constrained('questions')->onDelete('set null');
-            $table->string('reponses_text')->nullable();
+            $table->string('reponse_text')->nullable();
             $table->boolean('reponse_bool')->nullable();
             $table->decimal('reponse_decimal', 12, 2)->nullable();
             $table->date('reponse_date')->nullable();

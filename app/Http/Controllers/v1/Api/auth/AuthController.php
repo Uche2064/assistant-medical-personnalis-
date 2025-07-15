@@ -14,6 +14,7 @@ use App\Http\Requests\auth\SendOtpFormRequest;
 use App\Http\Requests\auth\VerifyOtpFormRequest;
 use App\Jobs\SendEmailJob;
 use App\Jobs\SendLoginNotificationJob;
+use App\Models\InvitationEmployes;
 use App\Models\Otp;
 use App\Models\Prospect;
 use App\Models\User;
@@ -28,6 +29,8 @@ use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use Illuminate\Support\Str;
+
 
 class AuthController extends Controller
 {
@@ -137,18 +140,17 @@ class AuthController extends Controller
                 'nom' => $validated['nom'] ?? null,
                 'prenoms' => $validated['prenoms'] ?? null,
                 'raison_sociale' => $validated['raison_sociale'] ?? null,
-                'date_naissance' => $validated['date_naissance'] ?? null,
-                'type_prospect' => $validated['type_prospect'],
+                'mot_de_passe_a_changer' => false,
             ]);
 
             // Crée le prospect lié
-            Prospect::create([
+            $prospect = Prospect::create([
                 'user_id' => $user->id,
                 'type_prospect' => $validated['type_prospect'],
                 'nom' => $validated['nom'] ?? null,
+                'sexe' => $validated['sexe'] ?? null,
                 'prenoms' => $validated['prenoms'] ?? null,
                 'date_naissance' => $validated['date_naissance'] ?? null,
-                'sexe' => $request->sexe ?? null,
                 'profession' => $validated['profession'] ?? null,
                 'raison_sociale' => $validated['raison_sociale'] ?? null,
                 'contact' => $validated['contact'],
@@ -160,11 +162,32 @@ class AuthController extends Controller
             // Tu peux assigner le rôle "client" ici si tu utilises Spatie
             $user->assignRole('client');
 
+            // Envoi d'un email de confirmation
+            SendEmailJob::dispatch(
+                $user->email,
+                'Compte créé',
+                EmailType::REGISTERED->value,
+                ['user' => $user]
+            );
+
+
             DB::commit();
+            $inviteLink = null;
+            if ($validated['type_prospect'] === 'moral') {
+                $token = Str::uuid()->toString();
+
+                InvitationEmployes::create([
+                    'prospect_id' => $prospect->id,
+                    'token' => $token,
+                    'expire_at' => now()->addDays(30)
+                ]);
+
+                $inviteLink = url("v1/Api/employes/formulaire/{$token}");
+            }
 
             return ApiResponse::success([
                 'user' => $user,
-                'password' => $validated['password'],
+                'invite_link' => $inviteLink
             ], 'Compte créé avec succès');
         } catch (\Exception $e) {
             DB::rollBack();
