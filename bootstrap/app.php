@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\AssurePrincipalMiddleware;
+use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\GestionnaireMiddleware;
 use App\Http\Middleware\MedecinControleurMiddleware;
 use App\Http\Middleware\TechnicienMiddleware;
@@ -19,7 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware): void {
+    ->withMiddleware(function (Middleware  $middleware): void {
         $middleware->alias([
             'verifyApiKey' => VerifyApiKey::class,
             'admin' => AdminMiddleware::class,
@@ -27,7 +28,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'medecin_controleur' => MedecinControleurMiddleware::class,
             'assure_principal' => AssurePrincipalMiddleware::class,
             'technicien' => TechnicienMiddleware::class,
-            'role' => RoleMiddleware::class
+            'role' => RoleMiddleware::class,
+            'checkRole' => CheckRole::class
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

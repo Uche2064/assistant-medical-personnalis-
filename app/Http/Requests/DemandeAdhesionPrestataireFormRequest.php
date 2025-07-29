@@ -56,7 +56,7 @@ class DemandeAdhesionPrestataireFormRequest extends FormRequest
     {
         $messages = [];
 
-        $questions = Question::forDestinataire(TypeDemandeurEnum::PROSPECT_PHYSIQUE->value)->get();
+        $questions = Question::forDestinataire(TypeDemandeurEnum::PHYSIQUE->value)->get();
 
         foreach ($questions as $question) {
             $label = $question->libelle;

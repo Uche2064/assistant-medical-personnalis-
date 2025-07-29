@@ -27,13 +27,13 @@ class StoreGestionnaireRequest extends FormRequest
     {
         return [
             'nom' => 'required|string',
-            'prenoms' => 'required|string|max:255',
+            'prenoms' => 'nullable|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'contact' => 'required|string|unique:users,contact|regex:/^\+[0-9]+$/',
+            'contact' => 'required|string|unique:users,contact|regex:/^[0-9]+$/',
             'adresse' => 'nullable|string|max:255',
             'sexe' => 'nullable|in:M,F',
             'date_naissance' => 'nullable|date',
-            'photo_url' => 'nullable|file|mimes:jpg,jpeg,png',
+            'photo_url' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp|max:2048',
         ];
     }
 
@@ -61,9 +61,6 @@ class StoreGestionnaireRequest extends FormRequest
             'sexe.in' => 'Le champ sexe doit  être l\'un des suivants : M, F',
 
             'date_naissance.date' => 'Le champ date de naissance doit  être une date valide.',
-
-            'photo_url.file' => 'Le champ photo doit être un fichier.',
-            'photo_url.mimes' => 'Le champ photo doit être un fichier de type jpg, jpeg ou png.',
         ];
     }
 

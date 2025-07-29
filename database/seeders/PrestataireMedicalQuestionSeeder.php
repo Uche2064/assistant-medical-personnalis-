@@ -191,28 +191,10 @@ class PrestataireMedicalQuestionSeeder extends Seeder
             ],
         ];
         
-        // Questions pour les médecins libéraux (adaptation similaire)
-        $questionsMedecinLiberal = [
-            [
-                'libelle' => 'Autorisation officielle d\'exercice',
-                'type_donnee' => TypeDonneeEnum::FILE,
-                'destinataire' => TypeDemandeurEnum::MEDECIN_LIBERAL,
-                'obligatoire' => true,
-                'est_actif' => true,
-            ],
-            [
-                'libelle' => 'Diplôme',
-                'type_donnee' => TypeDonneeEnum::FILE,
-                'destinataire' => TypeDemandeurEnum::MEDECIN_LIBERAL,
-                'obligatoire' => true,
-                'est_actif' => true,
-            ],
-        ];
 
         // Fusionner toutes les questions et les créer
         $allQuestions = array_merge(
             $questionsCentreSoins, 
-            $questionsMedecinLiberal, 
             $questionsPharmacie, 
             $questionsLaboratoire, 
             $questionsOptique

@@ -7,6 +7,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class StoreGarantieFormRequest extends FormRequest
 {
@@ -23,14 +24,20 @@ class StoreGarantieFormRequest extends FormRequest
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
-    public function rules(): array
+    public function rules()
     {
         return [
-            'libelle' => ['required', 'string', 'unique:garanties,libelle'],
-            'prix_standard' => ['required', 'numeric', 'min:0'],
+            'libelle' => [
+                'required',
+                'string',
+                Rule::unique('garanties', 'libelle')
+                    ->whereNull('deleted_at') 
+            ],
             'plafond' => ['required', 'numeric', 'min:0'],
             'taux_couverture' => ['required', 'numeric', 'min:0', 'max:100'],
-            'categorie_garantie_id' => ['required', 'integer'],
+            'prix_standard' => ['required', 'numeric', 'min:0'],
+            'categorie_garantie_id' => ['required', 'exists:categories_garanties,id'],
+            'description' => ['nullable', 'string'],
         ];
     }
 
@@ -62,6 +69,13 @@ class StoreGarantieFormRequest extends FormRequest
             'prix_standard.required' => 'Le champ prix_standard est obligatoire.',
             'prix_standard.numeric' => 'Le prix_standard doit être un nombre.',
             'prix_standard.min' => 'Le prix_standard doit être supérieur ou égale à 0.',
+            'categorie_garantie_id.exists' => 'La catégorie de garantie sélectionnée n\'existe pas.',
+            'categorie_garantie_id.required' => 'La catégorie de garantie est obligatoire.',
+            'pourcentage.required' => 'Le champ pourcentage est requis',
+            'pourcentage.numeric' => 'Le pourcentage doit être un nombre.',
+            'pourcentage.min' => 'Le pourcentage doit être supérieur ou égale à 0.',
+            'pourcentage.max' => 'Le pourcentage doit être inférieur ou égale à 100.',
+            'description.string' => 'La description doit être une chaîne de caractères.',
         ];
     }
 }

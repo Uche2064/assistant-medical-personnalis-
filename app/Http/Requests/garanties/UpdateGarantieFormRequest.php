@@ -3,10 +3,13 @@
 namespace App\Http\Requests\garanties;
 
 use App\Helpers\ApiResponse;
+use App\Models\Garantie;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class UpdateGarantieFormRequest extends FormRequest
 {
@@ -23,16 +26,27 @@ class UpdateGarantieFormRequest extends FormRequest
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
-    public function rules(): array
+    public function rules()
     {
+        $garantieId = $this->route('garantie') instanceof Garantie 
+            ? $this->route('garantie')->id 
+            : $this->route('garantie');
+        
         return [
-            'libelle' => ['sometimes', 'string', 'unique:garanties,libelle'],
+            'libelle' => [
+                'sometimes',
+                'string',
+                Rule::unique('garanties', 'libelle')
+                    ->ignore($garantieId)
+                    ->whereNull('deleted_at')
+            ],
             'plafond' => ['sometimes', 'numeric', 'min:0'],
             'taux_couverture' => ['sometimes', 'numeric', 'min:0', 'max:100'],
-            'categorie_garantie_id' => ['sometimes', 'integer'],
+            'prix_standard' => ['sometimes', 'numeric', 'min:0'],
+            'categorie_garantie_id' => ['sometimes', 'exists:categories_garanties,id'],
+            'description' => ['nullable', 'string'],
         ];
     }
-
     public function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(ApiResponse::error(

@@ -8,6 +8,7 @@ use App\Http\Requests\demande_adhesion\SoumissionEmployeFormRequest;
 use App\Models\BeneficiaireTemp;
 use App\Models\EmployesTemp;
 use App\Models\InvitationEmployes;
+use App\Models\Personnes;
 use App\Models\Question;
 use App\Models\ReponsesQuestionnaire;
 use App\Services\DemandeValidatorService;
@@ -62,18 +63,20 @@ class SoumissionEmployeController extends Controller
       
         $prospect_id = $invitation->prospect_id;
 
-        $employe = EmployesTemp::create([
+        $employe = Personnes::create([
             'prospect_id' => $prospect_id,
             'nom' => $data['nom'],
-            'prenoms' => $data['prenoms'],
-            'date_naissance' => $data['date_naissance'],
+            'prenoms' => $data['prenoms'] ?? null,
+            'date_naissance' => $data['date_naissance'] ?? null,
             'sexe' => $data['sexe'],
+            'type_personne' => $data['type_personne'],
+            'type_personne' => $data['type_personne'],
         ]);
 
-        foreach ($data['fiche_medicale'] as $r) {
+        foreach ($data['reponses'] as $r) {
             ReponsesQuestionnaire::create([
                 'question_id' => $r['question_id'],
-                'personne_type' => EmployesTemp::class,
+                'personne_type' => Personnes::class,
                 'personne_id' => $employe->id,
                 'reponses_text' => $r['reponses_text'] ?? null,
                 'reponse_bool' => $r['reponse_bool'] ?? null,
@@ -84,7 +87,7 @@ class SoumissionEmployeController extends Controller
 
         if ($data->filled('beneficiaires')) {
             foreach ($data['beneficiaires'] as $b) {
-                $bene = BeneficiaireTemp::create([
+                $bene = Personnes::create([
                     'employe_temp_id' => $employe->id,
                     'nom' => $b['nom'],
                     'prenoms' => $b['prenoms'],
@@ -93,10 +96,10 @@ class SoumissionEmployeController extends Controller
                     'lien_parente' => $b['lien_parente'],
                 ]);
 
-                foreach ($b['fiche_medicale'] as $r) {
+                foreach ($b['reponses'] as $r) {
                     ReponsesQuestionnaire::create([
                         'question_id' => $r['question_id'],
-                        'personne_type' => BeneficiaireTemp::class,
+                        'personne_type' => Personnes::class,
                         'personne_id' => $bene->id,
                         'reponses_text' => $r['reponses_text'] ?? null,
                         'reponse_bool' => $r['reponse_bool'] ?? null,

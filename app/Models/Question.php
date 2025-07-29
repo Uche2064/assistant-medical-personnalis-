@@ -2,10 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\TypeDonneesEnum;
-use App\Enums\DestinataireEnum;
-use App\Enums\TypeDemandeurEnum;
-use App\Enums\TypeDonneeEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -17,65 +13,94 @@ class Question extends Model
     protected $fillable = [
         'libelle',
         'type_donnee',
+        'options',
         'destinataire',
         'obligatoire',
         'est_actif',
         'cree_par_id',
-        'options'
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'type_donnee' => TypeDonneeEnum::class,
-            'destinataire' => TypeDemandeurEnum::class,
-            'obligatoire' => 'boolean',
-            'est_actif' => 'boolean',
-            'options' => 'array'
-        ];
-    }
+    protected $casts = [
+        'options' => 'array',
+        'obligatoire' => 'boolean',
+        'est_actif' => 'boolean',
+        'type_donnee' => \App\Enums\TypeDonneeEnum::class,
+        'destinataire' => \App\Enums\TypeDemandeurEnum::class,
+    ];
 
-
+    /**
+     * Get the personnel that created this question.
+     */
     public function creePar()
     {
         return $this->belongsTo(Personnel::class, 'cree_par_id');
     }
 
-
+    /**
+     * Get the reponses for this question.
+     */
     public function reponses()
     {
-        return $this->hasMany(ReponsesQuestionnaire::class);
+        return $this->hasMany(ReponseQuestionnaire::class);
     }
 
-    
-    public function isActive(): bool
-    {
-        return $this->est_actif;
-    }
-
-   
-    public function isRequired(): bool
-    {
-        return $this->obligatoire;
-    }
-
-   
+    /**
+     * Scope to get active questions.
+     */
     public function scopeActive($query)
     {
         return $query->where('est_actif', true);
     }
 
-
-    static public function scopeForDestinataire($query, String $destinataire)
+    /**
+     * Scope to get questions by destinataire.
+     */
+    public function scopeByDestinataire($query, $destinataire)
     {
-        $destinataire = TypeDemandeurEnum::from($destinataire);
-        return $query->where('destinataire', $destinataire)
-        ->where('est_actif', true)
-        ->orderBy('id', 'asc');
+        return $query->where('destinataire', $destinataire);
     }
 
+    /**
+     * Scope to get required questions.
+     */
     public function scopeRequired($query)
     {
         return $query->where('obligatoire', true);
+    }
+
+    /**
+     * Check if question is active.
+     */
+    public function isActive()
+    {
+        return $this->est_actif;
+    }
+
+    /**
+     * Check if question is required.
+     */
+    public function isRequired()
+    {
+        return $this->obligatoire;
+    }
+
+    public function scopeForDestinataire($query, string $destinataire) {
+        return $query->where('destinataire', $destinataire)->where('est_actif', true);
+    }
+
+    /**
+     * Get the question type in French.
+     */
+    public function getTypeDonneeFrancaisAttribute()
+    {
+        return $this->type_donnee->getLabel();
+    }
+
+    /**
+     * Get the destinataire in French.
+     */
+    public function getDestinataireFrancaisAttribute()
+    {
+        return $this->destinataire->getLabel();
     }
 }

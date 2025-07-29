@@ -4,9 +4,9 @@ namespace Database\Seeders;
 
 use App\Enums\RoleEnum;
 use App\Jobs\SendCredentialsJob;
-use App\Models\Gestionnaire;
+use App\Models\Personnel;
 use App\Models\User;
-use App\Services\NotificationService;
+// use App\Services\NotificationService; // Commenté car service non vérifié
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -20,7 +20,7 @@ class GestionnaireSeeder extends Seeder
     public function run(): void
     {
         
-        $notificationService = resolve(NotificationService::class);
+        // $notificationService = resolve(NotificationService::class); // Commenté car service non vérifié
 
         $gestionnaireEmail = 'gestionnaire@gmail.com';
         $plainPassword = User::genererMotDePasse();
@@ -28,20 +28,21 @@ class GestionnaireSeeder extends Seeder
         $user = User::updateOrCreate(
             ['email' => $gestionnaireEmail],
             [
-                'nom' => 'gestionnaire',
-                'prenoms' => 'gest',
                 'password' => Hash::make($plainPassword),
                 'adresse' => 'nyekonakpoè',
-                'est_actif' => true
-                
+                'est_actif' => false,
             ]
         );
 
-        Gestionnaire::updateOrCreate(
+        Personnel::updateOrCreate(
             ['user_id' => $user->id],
+            [
+                'nom' => 'gestionnaire',
+                'prenoms' => 'gest',
+            ]
         );
 
-        Log::info($plainPassword);
+        Log::info("Gestionnaire created with password: " . $plainPassword);
         $user->assignRole(RoleEnum::GESTIONNAIRE->value);
 
         dispatch(new SendCredentialsJob($user, $plainPassword));

@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum TypeDonneeEnum: String
+enum TypeDonneeEnum: string
 {
     case TEXT = 'text';
     case NUMBER = 'number';
@@ -15,5 +15,19 @@ enum TypeDonneeEnum: String
 
     public static function values() : array {
         return array_column(self::cases(), 'value');
+    }
+
+    public function getLabel(): string
+    {
+        return match($this) {
+            self::TEXT => 'Texte',
+            self::NUMBER => 'Nombre',
+            self::BOOLEAN => 'Oui/Non',
+            self::DATE => 'Date',
+            self::SELECT => 'Sélection',
+            self::CHECKBOX => 'Case à cocher',
+            self::RADIO => 'Bouton radio',
+            self::FILE => 'Fichier',
+        };
     }
 }

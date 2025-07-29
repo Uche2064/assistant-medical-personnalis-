@@ -22,7 +22,7 @@ public function indexCategorieGarantie(Request $request)
     $search = $request->query('search');
     $perPage = $request->query('per_page', 10);
 
-    $query = CategoriesGaranties::with('garanties')
+    $query = CategoriesGaranties::with('garanties', 'medecinControleur')
                 ->withCount('garanties');
 
     if ($search) {
@@ -37,30 +37,50 @@ public function indexCategorieGarantie(Request $request)
     /**
      * Store a newly created resource in storage.
      */
-    public function storeCategorieGarantie(StoreCategorieGarantieFormRequest $request)
+    public function store(StoreCategorieGarantieFormRequest $request)
     {
-        $data = $request->validated();
-        $medecinControleur = Auth::user()->personnel;
-
         try {
             DB::beginTransaction();
+            
+            $medecinControleur = Auth::user();
+            $data = $request->validated();
+            $libelle = strtolower(trim($data['libelle']));
+    
+            // Vérifier si une catégorie supprimée existe avec le même libellé
+            $categorieExistante = CategoriesGaranties::withTrashed()
+                ->where('libelle', $libelle)
+                ->first();
 
-            $categorieGarantie = CategoriesGaranties::create([
-                'libelle' => strtolower(trim($data['libelle'])),
-                'description' => strtolower(trim($data['description'])) ?? null,
-                'medecin_controleur_id' => $medecinControleur->id,
-            ]);
-
+            if ($categorieExistante) {
+                if ($categorieExistante->trashed()) {
+                    // Restaurer la catégorie existante
+                    $categorieExistante->restore();
+                    $categorieExistante->update([
+                        'description' => strtolower(trim($data['description'] ?? null)),
+                        'medecin_controleur_id' => $medecinControleur->id,
+                    ]);
+                    $categorieGarantie = $categorieExistante;
+                } else {
+                    // Catégorie existante non supprimée
+                    return ApiResponse::error('Cette catégorie existe déjà', 422);
+                }
+            } else {
+                // Créer une nouvelle catégorie
+                $categorieGarantie = CategoriesGaranties::create([
+                    'libelle' => $libelle,
+                    'description' => strtolower(trim($data['description'] ?? null)),
+                    'medecin_controleur_id' => $medecinControleur->id,
+                ]);
+            }
+    
             DB::commit();
-
+    
             return ApiResponse::success([
-                'id' => $categorieGarantie->id,
-                'libelle' => $categorieGarantie->libelle,
-                'description' => $categorieGarantie->description,
+                "categorie_garantie" => $categorieGarantie->load('garanties', 'medecinControleur')
             ], 'Catégorie de garantie créée avec succès', 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            return ApiResponse::error('Erreur lors de la création de la catégorie de garantie', 400, $e->getMessage());
+            return ApiResponse::error($e->getMessage(), 500);
         }
     }
 
@@ -81,7 +101,7 @@ public function indexCategorieGarantie(Request $request)
     /**
      * Update the specified resource in storage.
      */
-    public function updateCategorieGarantie(UpdateCategorieGarantieFormRequest $request, string $id)
+    public function updateCategorieGarantie(UpdateCategorieGarantieFormRequest $request, int $id)
     {
         $categorieGarantie = CategoriesGaranties::with('garanties')->find($id);
 
@@ -111,7 +131,7 @@ public function indexCategorieGarantie(Request $request)
             DB::commit();
 
             return ApiResponse::success([
-                'id' => $categorieGarantie->id,
+                "categorie_garantie" => $categorieGarantie->load('garanties', 'medecinControleur')
             ], 'Catégorie de garantie mise à jour avec succès');
         } catch (\Exception $e) {
             DB::rollBack();

@@ -19,9 +19,9 @@ class ChangePasswordFormRequest extends FormRequest
     {
         return [
             'email' => ['required', 'email', 'string', 'exists:users,email'],
-            'current_password' => ['required', 'min:8'],
-            'new_password' => ['required', 'string', 'confirmed', 'min:8', 'different:current_password', 'regex:/.*[!@#$&].*/'],
-            'new_password_confirmation' => ['required', 'min:8'],
+            'current_password' => ['required'],
+            'new_password' => ['required', 'string', 'confirmed', 'different:current_password', 'regex:/.*[!@#$&].*/'],
+            'new_password_confirmation' => ['required',],
         ];
     }
 

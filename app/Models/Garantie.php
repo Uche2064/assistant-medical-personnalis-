@@ -13,50 +13,47 @@ class Garantie extends Model
     protected $fillable = [
         'libelle',
         'categorie_garantie_id',
-        'plafond',
-        'taux_couverture',
-        'prix_standard',
         'medecin_controleur_id',
+        'plafond',
+        'prix_standard',
+        'taux_couverture',
     ];
 
-    protected function casts(): array
+    protected $casts = [
+        'plafond' => 'decimal:2',
+        'prix_standard' => 'decimal:2',
+        'taux_couverture' => 'decimal:2',
+    ];
+
+    /**
+     * Get the categorie garantie that owns this garantie.
+     */
+    public function categorieGarantie()
     {
-        return [
-            'plafond' => 'decimal:2',
-            'taux_couverture' => 'decimal:2',
-        ];
+        return $this->belongsTo(CategorieGarantie::class);
     }
 
-    public function categorie()
-    {
-        return $this->belongsTo(CategoriesGaranties::class, 'categorie_garantie_id');
-    }
-
-    public function assures()
-    {
-        return $this->belongsToMany(Assure::class, 'assure_garantie')
-                    ->withPivot('date_debut', 'date_fin', 'est_actif')
-                    ->withTimestamps();
-    }
-
+    /**
+     * Get the medecin controleur that manages this garantie.
+     */
     public function medecinControleur()
     {
         return $this->belongsTo(Personnel::class, 'medecin_controleur_id');
     }
 
-    public function calculateCoverage(float $montantReclame): float
+    /**
+     * Calculate the coverage amount based on the standard price.
+     */
+    public function getCoverageAmountAttribute()
     {
-        $montantCouvert = $montantReclame * ($this->taux_couverture / 100);
-        
-        return min($montantCouvert, $this->plafond);
-    }
-    public function isWithinLimits(float $montant): bool
-    {
-        return $montant <= $this->plafond;
+        return $this->prix_standard * ($this->taux_couverture / 100);
     }
 
-    public function scopeByCategory($query, $categorieId)
+    /**
+     * Check if garantie is within the limit.
+     */
+    public function isWithinLimit($amount)
     {
-        return $query->where('categorie_garantie_id', $categorieId);
+        return $amount <= $this->plafond;
     }
 }

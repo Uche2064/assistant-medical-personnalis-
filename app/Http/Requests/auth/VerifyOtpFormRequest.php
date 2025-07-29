@@ -17,7 +17,7 @@ class VerifyOtpFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'phone' => ['string', 'required'],
+            'email' => ['string', 'required'],
             'otp' => ['string', 'required']
         ];
     }
@@ -28,7 +28,7 @@ class VerifyOtpFormRequest extends FormRequest
 
     public function messages(): array {
         return [
-            'phone' => 'Le numéro est requis',
+            'email' => 'L\'email est requis',
             'otp' => 'Le code est requis'
         ];
     }

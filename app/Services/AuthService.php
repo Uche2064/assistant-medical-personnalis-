@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Helpers\ApiResponse;
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -23,7 +24,7 @@ class AuthService
     {
         return ApiResponse::success([
             'access_token' => $token,
-            'user' => $user,
+            'user' => new UserResource($user->load(['roles', 'client', 'entreprise', 'assure', 'personnel', 'prestataire'])),
             'expires_in' => JWTAuth::factory()->getTTL() * 60,
         ], 'Authentification réussie');
     }

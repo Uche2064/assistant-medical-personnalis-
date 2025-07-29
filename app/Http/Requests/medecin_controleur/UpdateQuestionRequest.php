@@ -31,34 +31,35 @@ class UpdateQuestionRequest extends FormRequest
     {
         return [
             'libelle' =>  ['sometimes', 'string', 'max:255'],
-            'type_donnees' => ['sometimes', 'string', Rule::in(TypeDonneeEnum::values())],
+            'type_donnee' => ['sometimes', 'string', Rule::in(TypeDonneeEnum::values())],
             'destinataire' => ['sometimes', 'string', Rule::in(TypeDemandeurEnum::values())],
             'obligatoire' => ['sometimes', 'boolean'],
             'est_actif' => ['sometimes', 'boolean'],
-            'options' => ['nullable', 'json'],
+            // options doit être un tableau si type_donnee est select, checkbox ou radio
+            'options' => ['nullable', 'array', 'required_if:type_donnee,select,checkbox,radio'],
         ];
     }
 
     public function failedValidation(Validator $validator) {
-        throw new HttpResponseException(ApiResponse::error('Error de validation', 422, $validator->errors()));
+        throw new HttpResponseException(ApiResponse::error('Erreur de validation', 422, $validator->errors()));
     }
 
     public function messages() {
         return [
-            'libelle.string' => 'Le libellé  doit  être une chaîne de caractères.',
-            'libelle.max' => 'Le libellé  ne doit pas dépasser :max caract res.',
+            'libelle.string' => 'Le libellé doit être une chaîne de caractères.',
+            'libelle.max' => 'Le libellé ne doit pas dépasser :max caractères.',
 
-            'type_donnees.string' => 'Le type de donn es doit  être une cha ne de caract res.',
-            'type_donnees.in' => 'Le type de données non trouvé.',
+            'type_donnee.string' => 'Le type de donnée doit être une chaîne de caractères.',
+            'type_donnee.in' => 'Le type de donnée non trouvé.',
 
-            'destinataire.string' => 'Le destinataire doit  tre une cha ne de caract res.',
+            'destinataire.string' => 'Le destinataire doit être une chaîne de caractères.',
             'destinataire.in' => 'Le destinataire non trouvé',
 
-            'obligatoire.boolean' => 'La valeur de champ obligatoire doit  être un bool en.',
-            'est_actif.boolean' => 'La valeur de champ est actif doit être un bool en.',
+            'obligatoire.boolean' => 'La valeur du champ obligatoire doit être un booléen.',
+            'est_actif.boolean' => 'La valeur du champ est actif doit être un booléen.',
 
-            'options.json' => 'Le champ options doit être un objet JSON.',
+            'options.array' => 'Le champ options doit être un tableau ou un objet JSON.',
+            'options.required_if' => 'Le champ options est obligatoire pour les types select, checkbox ou radio.',
         ];
-
     }
 }

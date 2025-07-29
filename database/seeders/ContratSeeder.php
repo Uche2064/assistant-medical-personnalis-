@@ -16,7 +16,7 @@ class ContratSeeder extends Seeder
     {
     //     Contrat::create([
     //         'technicien_id' => 1,
-    //         'type_contrat' => TypeContratEnum::BASCI,
+    //         'type_contrat' => TypeContratEnum::BASIC,
     //         'prime_standard' => 200000,
     //     ]);
 

@@ -14,32 +14,30 @@ class ProspectPhysiqueMedicalQuestionSeeder extends Seeder
         // Questions du questionnaire médical SUNU pour les prospects physiques
         $questions = [
             [
-                'libelle' => 'Présentez-vous ou avez-vous présenté un des symptômes suivants: Éruption cutanée, présence de ganglions anormaux, diarrhée chronique, fièvre prolongée?',
+                'libelle' => 'Souffrez vous du diabète',
                 'type_donnee' => TypeDonneeEnum::BOOLEAN,
-                'destinataire' => TypeDemandeurEnum::PROSPECT_PHYSIQUE,
+                'destinataire' => TypeDemandeurEnum::PHYSIQUE,
                 'obligatoire' => true,
                 'est_actif' => true,
-                'options' => ['precision' => 'Lesquels'],
             ],
             [
-                'libelle' => 'Présentez-vous ou avez-vous présenté une des maladies suivantes: Méningite, hépatite B, verrues fréquentes, mycoses, affections génitales?',
+                'libelle' => 'Mangez vous le porc ?',
                 'type_donnee' => TypeDonneeEnum::BOOLEAN,
-                'destinataire' => TypeDemandeurEnum::PROSPECT_PHYSIQUE,
+                'destinataire' => TypeDemandeurEnum::PHYSIQUE,
                 'obligatoire' => true,
                 'est_actif' => true,
-                'options' => ['precision' => 'Lesquelles'],
             ],
             [
                 'libelle' => 'Quel sport pratiquez-vous?',
                 'type_donnee' => TypeDonneeEnum::TEXT,
-                'destinataire' => TypeDemandeurEnum::PROSPECT_PHYSIQUE,
+                'destinataire' => TypeDemandeurEnum::PHYSIQUE,
                 'obligatoire' => true,
                 'est_actif' => true,
             ],
             [
                 'libelle' => 'Consommation du tabac',
                 'type_donnee' => TypeDonneeEnum::RADIO,
-                'destinataire' => TypeDemandeurEnum::PROSPECT_PHYSIQUE,
+                'destinataire' => TypeDemandeurEnum::PHYSIQUE,
                 'obligatoire' => true,
                 'est_actif' => true,
                 'options' => ['pas du tout', 'un peu', 'modérément', 'beaucoup'],
@@ -47,7 +45,7 @@ class ProspectPhysiqueMedicalQuestionSeeder extends Seeder
             [
                 'libelle' => 'Consommation d\'alcool',
                 'type_donnee' => TypeDonneeEnum::RADIO,
-                'destinataire' => TypeDemandeurEnum::PROSPECT_PHYSIQUE,
+                'destinataire' => TypeDemandeurEnum::PHYSIQUE,
                 'obligatoire' => true,
                 'est_actif' => true,
                 'options' => ['pas du tout', 'un peu', 'modérément', 'beaucoup'],
@@ -55,7 +53,7 @@ class ProspectPhysiqueMedicalQuestionSeeder extends Seeder
             [
                 'libelle' => 'Nom et Adresse de votre médecin traitant',
                 'type_donnee' => TypeDonneeEnum::TEXT,
-                'destinataire' => TypeDemandeurEnum::PROSPECT_PHYSIQUE,
+                'destinataire' => TypeDemandeurEnum::PHYSIQUE,
                 'obligatoire' => true,
                 'est_actif' => true,
             ],

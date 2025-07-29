@@ -47,4 +47,26 @@ class NotificationService
 
         $this->sendEmail($user->email, $subject, $view, $data);
     }
+
+    /**
+     * Crée une notification in-app pour un utilisateur.
+     *
+     * @param int $userId L'ID de l'utilisateur.
+     * @param string $titre Le titre de la notification.
+     * @param string $message Le message de la notification.
+     * @param string $type Le type de notification.
+     * @param array|null $data Les données supplémentaires.
+     * @return \App\Models\Notification
+     */
+    public function createNotification(int $userId, string $titre, string $message, string $type = 'info', array $data = null)
+    {
+        return \App\Models\Notification::create([
+            'user_id' => $userId,
+            'type' => $type,
+            'titre' => $titre,
+            'message' => $message,
+            'data' => $data,
+            'lu' => false,
+        ]);
+    }
 }

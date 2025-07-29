@@ -2,10 +2,17 @@
 
 namespace App\Http\Requests\demande_adhesion;
 
+use App\Enums\TypeDemandeurEnum;
+use App\Enums\TypeDonneeEnum;
+use App\Enums\TypePersonneEnum;
 use App\Helpers\ApiResponse;
+use App\Models\Question;
+use App\Utils\QuestionValidatorBuilder;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class StoreDemandeAdhesionRequest extends FormRequest
 {
@@ -16,34 +23,53 @@ class StoreDemandeAdhesionRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
-            'type_demandeur' => 'required|in:physique',
+        $typeDemandeur = Auth::user()->personne->type_personne;
+        if (!$typeDemandeur) {
+            return ['type_demandeur' => 'required|in:' . implode(',', TypeDemandeurEnum::values())];
+        }
 
-            // Fiche médicale du prospect
-            'fiche_medicale' => 'required|array|min:1',
-            'fiche_medicale.*.question_id' => 'required|exists:questions,id',
-            'fiche_medicale.*.reponse_text' => 'nullable|string',
-            'fiche_medicale.*.reponse_bool' => 'nullable|boolean',
-            'fiche_medicale.*.reponse_decimal' => 'nullable|numeric',
-            'fiche_medicale.*.reponse_date' => 'nullable|date',
-            'fiche_medicale.*.reponse_fichier' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-            'fiche_medicale.*' => 'array',
+        $questions = Question::forDestinataire($typeDemandeur)->get()->keyBy('id');
+        $questionIds = $questions->pluck('id')->toArray();
 
-            // Bénéficiaires (facultatif)
-            'beneficiaires' => 'nullable|array',
-            'beneficiaires.*.nom' => 'required|string',
-            'beneficiaires.*.prenoms' => 'required|string',
-            'beneficiaires.*.date_naissance' => 'required|date',
-            'beneficiaires.*.sexe' => 'required|in:masculin,feminin',
-            'beneficiaires.*.lien_parente' => 'required|in:parent,conjoint,enfant,autre',
-            'beneficiaires.*.fiche_medicale' => 'required|array|min:1',
-            'beneficiaires.*.fiche_medicale.*.question_id' => 'required|exists:questions,id',
-            'beneficiaires.*.fiche_medicale.*.reponse_text' => 'nullable|string',
-            'beneficiaires.*.fiche_medicale.*.reponse_bool' => 'nullable|boolean',
-            'beneficiaires.*.fiche_medicale.*.reponse_decimal' => 'nullable|numeric',
-            'beneficiaires.*.fiche_medicale.*.reponse_date' => 'nullable|date',
-            'beneficiaires.*.fiche_medicale.*.reponse_fichier' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+
+        $rules = [
+            'reponses' => ['required', 'array'],
+            'reponses.*.question_id' => ['required', 'integer', Rule::in($questionIds)],
         ];
+
+
+        foreach ($this->input('reponses', []) as $index => $reponse) {
+            $questionId = $reponse['question_id'] ?? null;
+            if (!$questionId || !$questions->has($questionId)) {
+                continue;
+            }
+
+            $question = $questions->get($questionId);
+            $ruleKey = 'reponses.' . $index;
+
+            $required = $question->isRequired() ? 'required' : 'nullable';
+
+            switch ($question->type_donnee) {
+                case TypeDonneeEnum::TEXT:
+                case TypeDonneeEnum::RADIO:
+                    $rules[$ruleKey . '.reponse_text'] = [$required, 'string'];
+                    break;
+                case TypeDonneeEnum::NUMBER:
+                    $rules[$ruleKey . '.reponse_decimal'] = [$required, 'numeric'];
+                    break;
+                case TypeDonneeEnum::BOOLEAN:
+                    $rules[$ruleKey . '.reponse_bool'] = [$required, 'boolean'];
+                    break;
+                case TypeDonneeEnum::DATE:
+                    $rules[$ruleKey . '.reponse_date'] = [$required, 'date'];
+                    break;
+                case TypeDonneeEnum::FILE:
+                    $rules[$ruleKey . '.reponse_fichier'] = [$required, 'file', 'mimes:jpeg,png,pdf,jpg', 'max:2048'];
+                    break;
+            }
+        }
+
+        return $rules;
     }
 
 
@@ -55,17 +81,7 @@ class StoreDemandeAdhesionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'fiche_medicale.required' => 'La fiche médicale est obligatoire.',
-            'fiche_medicale.*.question_id.required' => 'La question est obligatoire.',
             'type_demandeur.required' => 'Le champ type_demandeur est obligatoire.',
-            'beneficiaires.*.nom.required' => 'Le nom du bénéficiaire est obligatoire.',
-            'beneficiaires.*.prenoms.required' => 'Les prénoms du bénéficiaire sont obligatoires.',
-            'beneficiaires.*.sexe.required' => 'Le sexe du bénéficiaire est obligatoire.',
-            'beneficiaires.*.email.required' => 'L\'adresse e-mail du bénéficiaire est obligatoire.',
-            'beneficiaires.*.lien_parente.required' => 'Le lien parente du bénéficiaire est obligatoire.',
-            'beneficiaires.*.lien_parente.in' => 'Le lien parente du bénéficiaire doit être parente, conjoint ou conjointe, enfant ou autre.',
-            'beneficiaires.*.reponses.*.question_id.required' => 'La question est obligatoire.',
-            'beneficiaires.*.reponses.*.required' => 'La réponse est obligatoire.',
         ];
     }
 }

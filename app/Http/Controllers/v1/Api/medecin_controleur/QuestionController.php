@@ -3,18 +3,18 @@
 namespace App\Http\Controllers\v1\Api\medecin_controleur;
 
 use App\Enums\TypeDemandeurEnum;
-use App\Enums\TypeDonneeEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\medecin_controleur\QuestionsBulkInsertRequest;
-use App\Http\Requests\medecin_controleur\QuestionUpdateFormRequest;
 use App\Http\Requests\medecin_controleur\UpdateQuestionRequest;
 use App\Models\Question;
+use App\Http\Resources\QuestionResource;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class QuestionController extends Controller
@@ -24,18 +24,9 @@ class QuestionController extends Controller
      */
     public function indexQuestions(Request $request)
     {
-        $request->validate([
-            'type_donnee' => 'sometimes|in:boolean,text,date,decimal,radio,file',
-            'destinataire' => 'sometimes|string',
-            'obligatoire' => 'sometimes|boolean',
-            'est_actif' => 'sometimes|boolean',
-        ]);
 
         $query = Question::query();
         $perPage = $request->input('per_page', 10);
-
-        // 🔒 Restreindre à l’auteur actuel (médecin contrôleur)
-        $query->where('cree_par_id', Auth::user()->personnel->id);
 
         if ($request->has('type_donnee')) {
             $query->where('type_donnee', $request->type_donnee);
@@ -55,24 +46,19 @@ class QuestionController extends Controller
 
         $questions = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
-        return ApiResponse::success($questions, 'Questions récupérées avec succès');
+        return ApiResponse::success(QuestionResource::collection($questions), 'Questions récupérées avec succès');
     }
 
-    /**
-     * Récupère les questions pour les prospects physiques.
-     */ public function getQuestionsByDestinataire(Request $request)
+    public function getQuestionsByDestinataire(Request $request)
     {
-        $request->validate([
-            'destinataire' => ['required', Rule::in(TypeDemandeurEnum::values())] // ou une liste custom
-        ]);
 
-        $destinataire = $request->input('destinataire');
+        $destinataire = $request->query('destinataire');
 
         $questions = Question::where('destinataire', $destinataire)
             ->where('est_actif', true)
             ->get();
 
-        return ApiResponse::success($questions, "Questions pour le type [$destinataire] récupérées avec succès");
+        return ApiResponse::success(QuestionResource::collection($questions), "Questions pour le type $destinataire récupérées avec succès");
     }
 
 
@@ -85,7 +71,7 @@ class QuestionController extends Controller
         if (!$question) {
             return ApiResponse::error('Question non trouvée', 404);
         }
-        return ApiResponse::success($question, 'Question récupérée avec succès');
+        return ApiResponse::success(new QuestionResource($question), 'Question récupérée avec succès');
     }
 
 
@@ -107,11 +93,11 @@ class QuestionController extends Controller
             foreach ($data as $questionData) {
                 $questionsToInsert[] = [
                     'libelle' => $questionData['libelle'],
-                    'type_donnees' => $questionData['type_donnees'],
+                    'type_donnee' => $questionData['type_donnee'],
                     'destinataire' => $questionData['destinataire'],
                     'obligatoire' => $questionData['obligatoire'] ?? false,
                     'est_actif' => $questionData['est_actif'] ?? true,
-                    'options' => $questionData['options'] ?? null,
+                    'options' => isset($questionData['options']) ? json_encode($questionData['options']) : null,
                     'cree_par_id' => $personnelId,
                     'created_at' => $now,
                     'updated_at' => $now
@@ -129,10 +115,10 @@ class QuestionController extends Controller
                 ->get();
 
             DB::commit();
-            return ApiResponse::success($createdQuestions, count($createdQuestions) . ' questions créées avec succès', 201);
+            return ApiResponse::success(QuestionResource::collection($createdQuestions), count($createdQuestions) . ' questions créées avec succès', 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            return ApiResponse::error('Erreur lors de la création des questions: ' . $e->getMessage(), 500);
+            return ApiResponse::error('Erreur lors de la création des questions: ', 500, $e->getMessage());
         }
     }
 
@@ -147,7 +133,7 @@ class QuestionController extends Controller
 
         $etat = $question->est_actif ? 'activée' : 'désactivée';
 
-        return ApiResponse::success($question, "Question $etat avec succès.");
+        return ApiResponse::success(new QuestionResource($question), "Question $etat avec succès.");
     }
 
 
@@ -170,11 +156,43 @@ class QuestionController extends Controller
             $question->update($data);
 
             DB::commit();
-            return ApiResponse::success($question, 'Question mise à jour avec succès');
+            return ApiResponse::success(new QuestionResource($question), 'Question mise à jour avec succès');
         } catch (\Exception $e) {
             DB::rollBack();
             return ApiResponse::error('Erreur lors de la mise à jour de la question: ' . $e->getMessage(), 500);
         }
     }
 
+    /**
+     * Supprimer une question (hard delete)
+     */
+    public function destroyQuestion($id)
+    {
+        $question = Question::find($id);
+        if (!$question) {
+            return ApiResponse::error('Question non trouvée', 404);
+        }
+        $question->delete();
+        Log::info("Question supprimée - ID: {$id}");
+        return ApiResponse::success(null, 'Question supprimée avec succès', 204);
+    }
+
+    /**
+     * Suppression en masse de questions
+     * @param Request $request (attend un tableau d'ids)
+     */
+    public function bulkDestroyQuestions(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:questions,id',
+        ]);
+        if ($validator->fails()) {
+            return ApiResponse::error('Erreur de validation', 422, $validator->errors());
+        }
+        $ids = $request->input('ids');
+        $deleted = Question::whereIn('id', $ids)->delete();
+        Log::info("Suppression en masse de questions - IDs: [" . implode(',', $ids) . "]");
+        return ApiResponse::success(['deleted' => $deleted], "$deleted questions supprimées avec succès");
+    }
 }

@@ -16,21 +16,76 @@ class Conversation extends Model
         'dernier_message',
     ];
 
-    // Relation vers le premier user
-    public function utilisateur1()
+    /**
+     * Get the first user in the conversation.
+     */
+    public function user1()
     {
         return $this->belongsTo(User::class, 'user_id_1');
     }
 
-    // Relation vers le second user
-    public function utilisateur2()
+    /**
+     * Get the second user in the conversation.
+     */
+    public function user2()
     {
         return $this->belongsTo(User::class, 'user_id_2');
     }
 
-    // Ajoute ici la relation messages() si tu as bien une table messages liée à conversation_id
+    /**
+     * Get the messages for this conversation.
+     */
     public function messages()
     {
         return $this->hasMany(Message::class);
+    }
+
+    /**
+     * Get the latest message for this conversation.
+     */
+    public function latestMessage()
+    {
+        return $this->hasOne(Message::class)->latest();
+    }
+
+    /**
+     * Get the other user in the conversation.
+     */
+    public function getOtherUser($currentUserId)
+    {
+        if ($this->user_id_1 == $currentUserId) {
+            return $this->user2;
+        }
+        return $this->user1;
+    }
+
+    /**
+     * Check if a user is part of this conversation.
+     */
+    public function hasUser($userId)
+    {
+        return $this->user_id_1 == $userId || $this->user_id_2 == $userId;
+    }
+
+    /**
+     * Get unread messages count for a user.
+     */
+    public function getUnreadCount($userId)
+    {
+        return $this->messages()
+                    ->where('expediteur_id', '!=', $userId)
+                    ->where('lu', false)
+                    ->count();
+    }
+
+    /**
+     * Mark all messages as read for a user.
+     */
+    public function markAsRead($userId)
+    {
+        $this->messages()
+             ->where('expediteur_id', '!=', $userId)
+             ->where('lu', false)
+             ->update(['lu' => true]);
     }
 }

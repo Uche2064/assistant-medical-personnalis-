@@ -6,10 +6,11 @@ use App\Enums\StatutValidationEnum;
 use App\Enums\TypeClientEnum;
 use App\Enums\TypeDemandeurEnum;
 use App\Models\Client;
-use App\Models\DemandeAdhesion;
+use App\Models\DemandesAdhesions;
 use App\Models\Entreprise;
+use App\Models\Personnel;
+use App\Models\Personnes;
 use App\Models\Prestataire;
-use App\Models\Prospect;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -18,14 +19,14 @@ use Illuminate\Support\Facades\Log;
 class DemandeAdhesionObserver
 {
     /**
-     * Handle the DemandeAdhesion "created" event.
+     * Handle the DemandesAdhesions "created" event.
      */
-    public function created(DemandeAdhesion $demandeAdhesion): void
+    public function created(DemandesAdhesions $demandeAdhesion): void
     {
         //
     }
 
-    public function updated(DemandeAdhesion $demandeAdhesion): void
+    public function updated(DemandesAdhesions $demandeAdhesion): void
     {
         // Si la demande vient d'être validée
         if ($demandeAdhesion->isDirty('statut') && $demandeAdhesion->statut === StatutValidationEnum::VALIDEE) {
@@ -33,7 +34,7 @@ class DemandeAdhesionObserver
                 DB::beginTransaction();
                 
                 // Vérifier si un utilisateur avec cet email ou contact existe déjà
-                $user = Prospect::where('email', $demandeAdhesion->prospect->email)
+                $user = Personnes::where('email', $demandeAdhesion->prospect->email)
                     ->orWhere('contact', $demandeAdhesion->prospect->contact)
                     ->first();
                     
@@ -46,7 +47,7 @@ class DemandeAdhesionObserver
                     ];
                     
                     // Ajouter les champs spécifiques selon le type de demandeur
-                    if ($demandeAdhesion->type_demandeur === TypeDemandeurEnum::PROSPECT_PHYSIQUE) {
+                    if ($demandeAdhesion->type_demandeur === TypeDemandeurEnum::PHYSIQUE) {
                         // Pour un client individuel (humain)
                         $userData['nom'] = $demandeAdhesion->prospect->nom_demandeur;
                         $userData['prenoms'] = $demandeAdhesion->prospect->prenoms_demandeur;
@@ -61,7 +62,7 @@ class DemandeAdhesionObserver
                 }
                 
                 // Créer l'entité appropriée selon le type de demandeur
-                if ($demandeAdhesion->type_demandeur === TypeDemandeurEnum::PROSPECT_PHYSIQUE) {
+                if ($demandeAdhesion->type_demandeur === TypeDemandeurEnum::PHYSIQUE) {
                     // Pour un client physique (individu)
                     $existingClient = Client::where('user_id', $user->id)->first();
                     
@@ -72,7 +73,7 @@ class DemandeAdhesionObserver
                             'type_client' => TypeClientEnum::PHYSIQUE,
                         ]);
                     }
-                } elseif ($demandeAdhesion->type_demandeur === TypeDemandeurEnum::PROSPECT_MORAL) {
+                } elseif ($demandeAdhesion->type_demandeur === TypeDemandeurEnum::MORAL) {
                     // Pour un client moral (entreprise)
                     $existingClient = Client::where('user_id', $user->id)->first();
                     
@@ -106,25 +107,25 @@ class DemandeAdhesionObserver
     }
 
     /**
-     * Handle the DemandeAdhesion "deleted" event.
+     * Handle the DemandesAdhesions "deleted" event.
      */
-    public function deleted(DemandeAdhesion $demandeAdhesion): void
+    public function deleted(DemandesAdhesions $demandeAdhesion): void
     {
         //
     }
 
     /**
-     * Handle the DemandeAdhesion "restored" event.
+     * Handle the DemandesAdhesions "restored" event.
      */
-    public function restored(DemandeAdhesion $demandeAdhesion): void
+    public function restored(DemandesAdhesions $demandeAdhesion): void
     {
         //
     }
 
     /**
-     * Handle the DemandeAdhesion "force deleted" event.
+     * Handle the DemandesAdhesions "force deleted" event.
      */
-    public function forceDeleted(DemandeAdhesion $demandeAdhesion): void
+    public function forceDeleted(DemandesAdhesions $demandeAdhesion): void
     {
         //
     }

@@ -3,13 +3,21 @@
 namespace App\Http\Controllers\v1\Api\demande_adhesion;
 
 use App\Enums\EmailType;
-use App\Enums\LienEnum;
-use App\Enums\StatutValidationEnum;
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
+use App\Enums\TypePrestataireEnum;
+use App\Enums\StatutDemandeAdhesionEnum;
+use App\Enums\LienParenteEnum;
+use App\Enums\RoleEnum;
+use App\Enums\StatutClientEnum;
+use App\Enums\StatutContratEnum;
+use App\Enums\StatutPrestataireEnum;
+use App\Enums\StatutPropositionContratEnum;
+use App\Enums\TypeClientEnum;
 use App\Helpers\ApiResponse;
 use App\Helpers\ImageUploadHelper;
 use App\Helpers\PdfUploadHelper;
+use App\Helpers\PrestataireDocumentHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DemandeAdhesionClientFormRequest;
 use App\Http\Requests\DemandeAdhesionEntrepriseFormRequest;
@@ -17,19 +25,40 @@ use App\Http\Requests\DemandeAdhesionPrestataireFormRequest;
 use App\Http\Requests\DemandeAdhesionRejectFormRequest;
 use App\Http\Requests\demande_adhesion\StoreDemandeAdhesionRequest;
 use App\Http\Requests\ValiderProspectDemande;
+use App\Http\Requests\demande_adhesion\SoumissionEmployeFormRequest;
+use App\Http\Requests\demande_adhesion\StoreDemandeAdhesionPhysiqueRequest;
+use App\Http\Requests\demande_adhesion\StoreDemandeAdhesionPrestataireRequest;
+use App\Http\Requests\demande_adhesion\ValiderProspectRequest;
+use App\Http\Requests\demande_adhesion\ValiderPrestataireRequest;
+use App\Http\Requests\demande_adhesion\ProposerContratRequest;
+use App\Http\Resources\DemandeAdhesionResource;
+use App\Http\Resources\DemandeAdhesionEntrepriseResource;
+use App\Http\Resources\DemandeAdhesionPrestataireResource;
+use App\Http\Resources\QuestionResource;
 use App\Jobs\SendEmailJob;
 use App\Models\Assure;
+use App\Models\Client;
+use App\Models\ClientContrat;
 use App\Models\Contrat;
-use App\Models\DemandesAdhesions;
-use App\Models\Prospect;
+use App\Models\DemandeAdhesion;
+use App\Models\InvitationEmploye;
+use App\Models\Personnel;
+use App\Models\Prestataire;
 use App\Models\Question;
-use App\Models\ReponsesQuestionnaire;
+use App\Models\ReponseQuestionnaire;
+use App\Models\User;
+use App\Models\Entreprise;
+use App\Models\PropositionContrat;
 use App\Services\DemandeValidatorService;
+use App\Services\DemandeReponseValidatorService;
 use App\Services\NotificationService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class DemandeAdhesionController extends Controller
 {
@@ -46,22 +75,33 @@ class DemandeAdhesionController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $query = DemandesAdhesions::with('validePar', 'reponsesQuestionnaire');
+        $query = DemandeAdhesion::with([
+            'user', // Charger l'utilisateur
+            'user.client', // Charger les données client si existantes
+            'user.entreprise', // Charger les données entreprise si existantes
+            'user.prestataire', // Charger les données prestataire si existantes
+            'reponsesQuestionnaire.question' // Charger les réponses avec leurs questions
+        ]);
 
-        // 🔒 Filtrage basé sur le rôle de l'utilisateur
+        // Filtrage basé sur le rôle de l'utilisateur
         if ($user->hasRole('technicien')) {
-            $query->whereIn('type_demandeur', ['physique', 'moral']);
+            $query->whereIn('type_demandeur', ['physique', 'autre']);
         } elseif ($user->hasRole('medecin_controleur')) {
-            $query->where('type_demandeur', 'prestataire');
+            $query->whereIn('type_demandeur', [
+                TypeDemandeurEnum::CENTRE_DE_SOINS->value,
+                TypeDemandeurEnum::LABORATOIRE_CENTRE_DIAGNOSTIC->value,
+                TypeDemandeurEnum::PHARMACIE->value,
+                TypeDemandeurEnum::OPTIQUE->value,
+            ]);
         }
 
-        //  Filtrage par statut si fourni
+        // Filtrage par statut si fourni
         $status = $request->input('statut');
         if ($status) {
             $query->where('statut', match ($status) {
-                'en_attente' => StatutValidationEnum::EN_ATTENTE->value,
-                'validee'    => StatutValidationEnum::VALIDEE->value,
-                'rejetee'    => StatutValidationEnum::REJETEE->value,
+                'en_attente' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
+                'validee'    => StatutDemandeAdhesionEnum::VALIDEE->value,
+                'rejetee'    => StatutDemandeAdhesionEnum::REJETEE->value,
                 default      => null
             });
         }
@@ -71,16 +111,32 @@ class DemandeAdhesionController extends Controller
             $query->where('type_demandeur', $request->input('type_demandeur'));
         }
 
-        // 🔁 Pagination
+        // Pagination
         $perPage = $request->query('per_page', 10);
         $demandes = $query->orderByDesc('created_at')->paginate($perPage);
+
+        // Utilisation de la ressource avec pagination
+        $demandes->getCollection()->transform(function ($demande) {
+            return new DemandeAdhesionResource($demande);
+        });
 
         return ApiResponse::success($demandes, 'Liste des demandes d\'adhésion récupérée avec succès');
     }
 
+    public function hasDemande()
+    {
+        $demande = DemandeAdhesion::with('reponsesQuestionnaire')->where('user_id', Auth::user()->id)->first();
+        $prospect = Personnel::where('user_id', Auth::user()->id)->first();
+        return ApiResponse::success([
+            'existing' => !!$demande,
+            'demande' => $demande,
+            'prospect' => $prospect,
+        ], 'Demande d\'adhésion récupérée avec succès');
+    }
+
     public function show(int $id)
     {
-        $demande = DemandesAdhesions::with([
+        $demande = DemandeAdhesion::with([
             'validePar',
             'reponsesQuestionnaire'
         ])->find($id);
@@ -92,379 +148,259 @@ class DemandeAdhesionController extends Controller
         return ApiResponse::success($demande, 'Détails de la demande d\'adhésion');
     }
 
-    public function store(StoreDemandeAdhesionRequest $request)
+
+
+    public function download($id)
+    {
+        $demande = DemandeAdhesion::with(['reponsesQuestionnaire', 'reponsesQuestionnaire.question'])->find($id);
+
+        // Générez le PDF
+        $pdf = Pdf::loadView('pdf.demande-adhesion', [
+            'demande' => $demande
+        ]);
+
+        // Retournez le PDF en téléchargement
+        return $pdf->download("demande-adhesion-{$id}.pdf");
+    }
+
+    /**
+     * Soumission d'une demande d'adhésion pour une personne physique
+     */
+    public function store(StoreDemandeAdhesionPhysiqueRequest $request)
     {
         $user = Auth::user();
-        $prospect = $user->prospect;
         $data = $request->validated();
-
-
+        
+        // Vérifier si l'utilisateur a déjà une demande en cours ou validée
+        if ($this->demandeValidatorService->hasPendingDemande($data)) {
+            return ApiResponse::error('Vous avez déjà une demande d\'adhésion en cours de traitement. Veuillez attendre la réponse.', 400);
+        }
+        
+        if ($this->demandeValidatorService->hasValidatedDemande($data)) {
+            return ApiResponse::error('Vous avez déjà une demande d\'adhésion validée. Vous ne pouvez plus soumettre une nouvelle demande.', 400);
+        }
+        
         DB::beginTransaction();
-
         try {
-            if ($this->demandeValidatorService->hasValidatedDemande($data)) {
-                return ApiResponse::error("Vous avez déjà une demande acceptée.", 422);
-            }
-
-            if ($this->demandeValidatorService->hasPendingDemande($data)) {
-                return ApiResponse::error("Vous avez déjà une demande en attente.", 422);
-            }
-            // Créer la demande
-            $demande = DemandesAdhesions::create([
-                'type_demandeur' => 'physique',
-                'statut' => 'en_attente',
-                'prospect_id' => $prospect->id,
-            ]);
-
-            // Créer l’assuré principal (le prospect lui-même)
-            $assurePrincipal = Assure::create([
+            // Créer la demande d'adhésion
+            $demande = DemandeAdhesion::create([
+                'type_demandeur' => TypeDemandeurEnum::PHYSIQUE->value,
+                'statut' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
                 'user_id' => $user->id,
-                'client_id' => null,
-                'contrat_id' => null,
-                'est_principal' => true,
-                'lien_parente' => LienEnum::PRINCIPAL->value,
             ]);
+            // Enregistrer les réponses au questionnaire principal
+            foreach ($data['reponses'] as $reponse) {
+                $this->enregistrerReponseDemande($demande, $reponse);
+            }
+            // Enregistrer les bénéficiaires
+            if (!empty($data['beneficiaires'])) {
+                foreach ($data['beneficiaires'] as $beneficiaire) {
+                    $this->enregistrerBeneficiaire($demande, $beneficiaire);
+                }
+            }
+            // Notifier les techniciens
+            // $techniciens = User::whereHas('roles', function($q) {
+            //     $q->where('name', RoleEnum::TECHNICIEN->value);
+            // })->get();
+            // foreach ($techniciens as $technicien) {
+            //     $this->notificationService->sendEmail(
+            //         $technicien->email,
+            //         'Nouvelle demande d\'adhésion personne physique',
+            //         'emails.demande_adhesion_physique',
+            //         [
+            //             'demande' => $demande,
+            //             'user' => $user,
+            //         ]
+            //     );
+            // }
+            DB::commit();
+            return ApiResponse::success(new DemandeAdhesionResource($demande->load('user', 'reponsesQuestionnaire')), 'Demande d\'adhésion soumise avec succès.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ApiResponse::error('Erreur lors de la soumission de la demande d\'adhésion : ' . $e->getMessage(), 500);
+        }
+    }
 
-            // Enregistrer les réponses médicales du principal
-            foreach ($data['fiche_medicale'] as $reponse) {
-                ReponsesQuestionnaire::create([
-                    'question_id' => $reponse['question_id'],
-                    'personne_id' => $assurePrincipal->id,
-                    'personne_type' => Assure::class,
-                    'reponse_text' => $reponse['reponse_text'] ?? null,
-                    'reponse_bool' => $reponse['reponse_bool'] ?? null,
-                    'reponse_decimal' => $reponse['reponse_decimal'] ?? null,
-                    'reponse_date' => $reponse['reponse_date'] ?? null,
-                ]);
+    /**
+     * Proposer un contrat à un prospect (client physique ou entreprise) par un technicien
+     */
+    public function proposerContrat(ProposerContratRequest $request, int $id)
+    {
+        try {
+            $validatedData = $request->validated();
+            $technicien = Auth::user();
+            $demande = DemandeAdhesion::with(['demandeur'])->find($id);
+
+            if (!$demande) {
+                return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
             }
 
+            // Vérifier que la demande est en attente
+            if (!$demande->isPending()) {
+                return ApiResponse::error('Cette demande a déjà été traitée', 400);
+            }
 
-            // Bénéficiaires (s’il y en a)
-            if (isset($data['beneficiaires']) && is_array($data['beneficiaires']) && !empty($data['beneficiaires'])) {
-                foreach ($data['beneficiaires'] as $beneficiaire) {
-                    $assureBenef = Assure::create([
-                        'user_id' => null,
-                        'client_id' => null,
-                        'contrat_id' => null,
-                        'assure_principal_id' => $assurePrincipal->id,
-                        'est_principal' => false,
-                        'lien_parente' => $beneficiaire['lien_parente'],
-                    ]);
+            // Vérifier que le contrat existe et est actif
+            $contrat = Contrat::with(['garanties'])->find($validatedData['contrat_id']);
+            if (!$contrat || !$contrat->est_actif) {
+                return ApiResponse::error('Contrat non valide ou introuvable', 400);
+            }
 
-                    foreach ($beneficiaire['fiche_medicale'] as $reponse) {
-                        ReponsesQuestionnaire::create([
-                            'question_id' => $reponse['question_id'],
-                            'personne_id' => $assureBenef->id,
-                            'personne_type' => Assure::class,
-                            'reponse_text' => $reponse['reponse_text'] ?? null,
-                            'reponse_bool' => $reponse['reponse_bool'] ?? null,
-                            'reponse_decimal' => $reponse['reponse_decimal'] ?? null,
-                            'reponse_date' => $reponse['reponse_date'] ?? null,
-                        ]);
-                    }
+            DB::beginTransaction();
+
+            // Créer la proposition de contrat
+            $propositionContrat = PropositionContrat::create([
+                'demande_adhesion_id' => $demande->id,
+                'contrat_id' => $contrat->id,
+                'prime_proposee' => $validatedData['prime_proposee'],
+                'taux_couverture' => $validatedData['taux_couverture'] ?? 80,
+                'frais_gestion' => $validatedData['frais_gestion'] ?? 20,
+                'commentaires_technicien' => $validatedData['commentaires'],
+                'technicien_id' => $technicien->personnel->id,
+                'statut' => StatutPropositionContratEnum::PROPOSEE->value,
+                'date_proposition' => now(),
+            ]);
+
+            // Associer les garanties si fournies
+            if (!empty($validatedData['garanties_incluses'])) {
+                foreach ($validatedData['garanties_incluses'] as $garantieId) {
+                    $propositionContrat->garanties()->attach($garantieId);
+                }
+            } else {
+                // Associer toutes les garanties du contrat par défaut
+                foreach ($contrat->garanties as $garantie) {
+                    $propositionContrat->garanties()->attach($garantie->id);
                 }
             }
 
-            DB::commit();
+            // Générer un token pour l'acceptation du contrat
+            $token = Str::random(60);
+            $tokenExpiration = now()->addDays(7); // Lien valable 7 jours
 
-            return ApiResponse::success(['demande_id' => $demande->id], 'Demande d\'adhésion enregistrée avec succès.', 201);
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return ApiResponse::error('Erreur lors de la soumission de la demande.', 500, $e->getMessage());
-        }
-    }
+            // Stocker le token
+            Cache::put("proposition_contrat_{$propositionContrat->id}", [
+                'proposition_id' => $propositionContrat->id,
+                'demande_id' => $demande->id,
+                'user_id' => $demande->demandeur->id,
+                'expires_at' => $tokenExpiration,
+            ], $tokenExpiration);
 
+            // Notifier le prospect via l'application
+            $this->notificationService->createNotification(
+                $demande->demandeur->id,
+                'Proposition de contrat reçue',
+                "Un technicien a analysé votre demande et vous propose un contrat d'assurance. Consultez votre email pour les détails.",
+                'contrat_propose'
+            );
 
-    /**
-     * Soumettre une nouvelle demande d'adhésion de prestataire
-     */
-    public function storePrestataire(DemandeAdhesionPrestataireFormRequest $request)
-    {
-        $data = $request->validated();
-        if ($this->demandeValidatorService->hasValidatedDemande($data)) {
-            return ApiResponse::error("Vous avez déjà une demande acceptée.", 422);
-        }
-
-        if ($this->demandeValidatorService->hasPendingDemande($data)) {
-            return ApiResponse::error("Vous avez déjà une demande en attente.", 422);
-        }
-        try {
-            DB::beginTransaction();
-
-            $prospect = Prospect::create([
-                'nom' => $data['nom'] ?? null,
-                'prenoms' => $data['prenoms'] ?? null,
-                'raison_sociale' => $data['raison_sociale'] ?? null,
-                'email' => $data['email'],
-                'contact' => $data['contact'],
-                'adresse' => $data['adresse'],
-            ]);
-
-            $demande = DemandesAdhesions::create([
-                'type_demandeur' => $data['type_prestataire'],
-                'prospect_id' => $prospect->id,
-                'statut' => StatutValidationEnum::EN_ATTENTE->value,
-            ]);
-
-            if (isset($data['reponses']) && is_array($data['reponses'])) {
-                $this->storeReponses($demande, $data['reponses']);
-            }
+            // Envoyer l'email avec le lien d'acceptation
+            $acceptationUrl = config('app.frontend_url', 'http://localhost:3000') . "/contrat/accepter/" . $token;
+            
+            dispatch(new SendEmailJob(
+                $demande->demandeur->email, 
+                'Votre proposition de contrat d\'assurance', 
+                EmailType::CONTRAT_PRET->value, 
+                [
+                    'demande' => $demande,
+                    'proposition' => $propositionContrat,
+                    'contrat' => $contrat,
+                    'acceptationUrl' => $acceptationUrl,
+                    'technicien' => $technicien->personnel,
+                ]
+            ));
 
             DB::commit();
 
-            $this->notificationService->sendEmail($data['email'], 'Demande d\'adhésion enregistrée', EmailType::EN_ATTENTE->value, [
-                'demande' => $demande,
+            Log::info('Proposition de contrat créée', [
+                'demande_id' => $demande->id,
+                'proposition_id' => $propositionContrat->id,
+                'contrat_id' => $contrat->id,
+                'technicien_id' => $technicien->id,
+                'type_demandeur' => $demande->type_demandeur->value,
             ]);
 
             return ApiResponse::success([
-                'demande_id' => $demande->id,
-                'statut' => $demande->statut->value
-            ], 'Demande d\'adhésion de prestataire enregistrée avec succès', 201);
+                'proposition_id' => $propositionContrat->id,
+                'contrat_id' => $contrat->id,
+                'type_contrat' => $contrat->type_contrat,
+                'prime_proposee' => $propositionContrat->prime_proposee,
+                'token_acceptation' => $token,
+                'expiration_token' => $tokenExpiration,
+                'statut' => $propositionContrat->statut->value,
+                'propose_par' => $technicien->personnel->nom . ' ' . ($technicien->personnel->prenoms ?? ''),
+            ], 'Proposition de contrat envoyée avec succès. Le client doit maintenant accepter ou refuser.');
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return ApiResponse::error($e->getMessage(), 500);
+            Log::error('Erreur lors de la proposition de contrat', [
+                'error' => $e->getMessage(),
+                'demande_id' => $id,
+                'technicien_id' => Auth::id(),
+            ]);
+
+            return ApiResponse::error('Erreur lors de la proposition de contrat: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Soumettre une nouvelle demande d'adhésion pour une entreprise
-     */
-    public function storeEntreprise(DemandeAdhesionEntrepriseFormRequest $request)
-    {
-        $data = $request->validated();
-        if ($this->demandeValidatorService->hasValidatedDemande($data)) {
-            return ApiResponse::error("Vous avez déjà une demande acceptée.", 422);
-        }
 
-        if ($this->demandeValidatorService->hasPendingDemande($data)) {
-            return ApiResponse::error("Vous avez déjà une demande en attente.", 422);
-        }
+    /**
+     * Valider une demande d'adhésion prestataire par un médecin contrôleur
+     */
+    public function validerPrestataire(int $id)
+    {
         try {
+            $medecinControleur = Auth::user();
+            $demande = DemandeAdhesion::with(['demandeur.prestataire'])->find($id);
+
+            if (!$demande) {
+                return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
+            }
+
+            // Vérifier que la demande est en attente
+            if (!$demande->isPending()) {
+                return ApiResponse::error('Cette demande a déjà été traitée', 400);
+            }
+
             DB::beginTransaction();
 
-            // Création de la demande d'adhésion
-            $prospect = Prospect::create([
-                'raison_sociale' => $data['raison_sociale'],
-                'email' => $data['email'],
-                'contact' => $data['contact'],
-                'adresse' => $data['adresse'],
-            ]);
+            // Valider la demande
+            $demande->validate($medecinControleur->personnel->id);
 
-            $demande = DemandesAdhesions::create([
-                'type_demandeur' => TypeDemandeurEnum::PROSPECT_MORAL->value,
-                'prospect_id' => $prospect->id,
-                'statut' => StatutValidationEnum::EN_ATTENTE->value,
-                'code_parainage' => $data['code_parainage'] ?? null,
-            ]);
+            // Notifier le prestataire
+            $this->notificationService->createNotification(
+                $demande->demandeur->id,
+                'Demande d\'adhésion validée',
+                "Votre demande d'adhésion en tant que prestataire de soins a été validée par notre médecin contrôleur.",
+                'demande_validee'
+            );
 
-            // Traitement des réponses au questionnaire si présentes
-            if (isset($data['reponses']) && is_array($data['reponses'])) {
-                $this->storeReponses($demande, $data['reponses']);
-            }
+            dispatch(new SendEmailJob($demande->demandeur->email, 'Demande d\'adhésion prestataire validée', EmailType::ACCEPTED->value, [
+                'demande' => $demande,
+                'medecin_controleur' => $medecinControleur->personnel,
+            ]));
 
             DB::commit();
 
-
-            return ApiResponse::success([
+            Log::info('Demande d\'adhésion prestataire validée', [
                 'demande_id' => $demande->id,
-                'statut' => $demande->statut->value
-            ], 'Demande d\'adhésion d\'entreprise enregistrée avec succès', 201);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return ApiResponse::error($e->getMessage(), 500);
-        }
-    }
-
-    /**
-     * Soumettre une nouvelle demande d'adhésion pour un prospect physique
-     */
-    public function storeProspectPhysique(DemandeAdhesionClientFormRequest $request)
-    {
-        $data = $request->validated();
-        if ($this->demandeValidatorService->hasValidatedDemande($data)) {
-            return ApiResponse::error("Vous avez déjà une demande acceptée.", 422);
-        }
-
-        if ($this->demandeValidatorService->hasPendingDemande($data)) {
-            return ApiResponse::error("Vous avez déjà une demande en attente.", 422);
-        }
-
-        try {
-            DB::beginTransaction();
-            // Création du prospect physique
-            $prospect = $this->createProspectData($data);
-
-
-            // stockage de la demande d'adhésion
-            $demande = $this->createDemandeAdhesion($prospect, $data['code_parainage']);
-
-
-            // traitement des réponses au questionnaire si présentes
-            if (isset($data['reponses']) && is_array($data['reponses'])) {
-                $this->storeReponses($demande, $data['reponses']);
-            }
-
-            if (!empty($data['beneficiaires']) && is_array($data['beneficiaires'])) {
-                $this->storeBeneficiaires($demande, $data['beneficiaires']);
-            }
-
-
-            // envoyer un email de confirmation
-            $this->notificationService->sendEmail($data['email'], 'Demande d\'adhésion enregistrée', EmailType::EN_ATTENTE->value, [
-                'demande' => $demande,
+                'medecin_controleur_id' => $medecinControleur->id,
             ]);
-
-            DB::commit();
-
-            return ApiResponse::success([
-                'demande_id' => $demande->id,
-                'statut' => $demande->statut->value
-            ], 'Demande d\'adhésion d\'entreprise enregistrée avec succès', 201);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return ApiResponse::error($e->getMessage(), 500);
-        }
-    }
-
-    protected function createProspectData(Prospect $data): Prospect
-    {
-        return Prospect::create([
-            'nom' => $data['nom'],
-            'prenoms' => $data['prenoms'],
-            'email' => $data['email'],
-            'contact' => $data['contact'],
-            'profession' => $data['profession'] ?? null,
-            'adresse' => $data['adresse'],
-            'date_naissance' => $data['date_naissance'],
-            'sexe' => $data['sexe'],
-            'photo_url' => $data['photo_url'],
-            'nombre_de_beneficaire' => $data['nombre_de_beneficaire'] ?? 0,
-        ]);
-    }
-
-    protected function createDemandeAdhesion(Prospect $prospect, String $codeParainage): DemandesAdhesions
-    {
-        return DemandesAdhesions::create([
-            'type_demandeur' => TypeDemandeurEnum::PROSPECT_PHYSIQUE,
-            'prospect_id' => $prospect->id,
-            'statut' => StatutValidationEnum::EN_ATTENTE,
-            'code_parainage' => $codeParainage,
-        ]);
-    }
-
-    protected function storeBeneficiaires(DemandesAdhesions $demande, array $beneficiaires): void
-    {
-        foreach ($beneficiaires as $item) {
-            $photoUrl = null;
-
-            if (isset($item['photo']) && $item['photo']->isValid()) {
-                $photoUrl = $item['photo']->store("beneficiaires/{$demande->id}", 'public');
-            }
-
-            $demande->beneficiaires()->create([
-                'nom' => $item['nom'],
-                'prenoms' => $item['prenoms'],
-                'date_naissance' => $item['date_naissance'],
-                'lien_parente' => $item['lien_parente'],
-                'photo_url' => $photoUrl,
-            ]);
-        }
-    }
-
-
-
-    public function getQuestionsForDemandeur($typePrestataire)
-    {
-
-        $result = [
-            "champs_de_base" => $this->getFieldsForDemandeur($typePrestataire),
-            "questions" => Question::forDestinataire($typePrestataire)->get(),
-        ];
-
-
-        if ($result) {
-            return ApiResponse::success($result, 'Questions pour ' . $typePrestataire . ' récupérées avec succès');
-        } else {
-            return ApiResponse::error('Aucune question trouvée pour les prestataires', 404);
-        }
-    }
-
-
-    /**
-     * Afficher les détails d'une demande d'adhésion
-     */
-    
-
-    /**
-     * Valider une demande d'adhésion (réservé au personnel)
-     */
-    public function validerProspect(ValiderProspectDemande $request, int $id)
-    {
-        $data = $request->validated();
-
-        $technicien = Auth::user();
-
-        $demande = DemandesAdhesions::with('prospect')->find($id);
-
-
-        if (!$demande) {
-            return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
-        }
-
-        if (!$demande->isPending()) {
-            return ApiResponse::error('Cette demande a été validé', 400);
-        }
-
-        try {
-            // Validation de la demande
-            $demande->validate($technicien->personnel);
-            $this->notificationService->sendEmail($demande->prospect->email, 'Demande d\'adhésion validée', EmailType::ACCEPTED->value, [
-                'demande' => $demande,
-                'technicien' => $technicien,
-                'contrat' => Contrat::where('type_contrat', $data['type_contrat'])
-                    ->first()
-            ]);
-
-            // TODO: Créer l'utilisateur et le prestataire/client correspondant
-            // Cette partie sera implémentée selon le type de demande
 
             return ApiResponse::success([
                 'demande_id' => $demande->id,
                 'statut' => $demande->statut->value,
-                'validee_par' => $technicien->nom . ' ' . ($technicien->prenoms ?? '')
-            ], 'Demande d\'adhésion validée avec succès');
+                'valide_par' => $medecinControleur->personnel->nom . ' ' . ($medecinControleur->personnel->prenoms ?? ''),
+            ], 'Demande d\'adhésion prestataire validée avec succès.');
+
         } catch (\Exception $e) {
-            return ApiResponse::error($e->getMessage(), 500);
-        }
-    }
-
-
-    public function validerPrestataire(Request $request, int $id)
-    {
-
-        $medecinControleur = Auth::user();
-
-        $demande = DemandesAdhesions::with('prospect')->find($id);
-
-        if (!$demande) {
-            return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
-        }
-
-        if (!$demande->isPending()) {
-            return ApiResponse::error('Cette demande a été validée', 400);
-        }
-
-        try {
-            // Validation de la demande
-            $demande->validate($medecinControleur->personnel);
-            $this->notificationService->sendEmail($demande->prospect->email, 'Demande d\'adhésion validée', EmailType::ACCEPTED->value, [
-                'demande' => $demande,
-                'medecin_controleur' => $medecinControleur,
-                'contrat' => Contrat::where('type_contrat', $request->input('type_contrat'))
-                    ->first()
+            DB::rollBack();
+            Log::error('Erreur lors de la validation de la demande prestataire', [
+                'error' => $e->getMessage(),
+                'demande_id' => $id,
+                'medecin_controleur_id' => Auth::id(),
             ]);
-        } catch (\Exception $e) {
-            return ApiResponse::error($e->getMessage(), 500);
+
+            return ApiResponse::error('Erreur lors de la validation de la demande: ' . $e->getMessage(), 500);
         }
     }
 
@@ -476,14 +412,10 @@ class DemandeAdhesionController extends Controller
         // Récupérer le personnel connecté
         $personnel = Auth::user()->personnel;
 
-        if (!$personnel) {
-            return ApiResponse::error('Seul le personnel autorisé peut rejeter une demande', 403);
-        }
-
         // Validation des données
         $validatedData = $request->validated();
 
-        $demande = DemandesAdhesions::find($id);
+        $demande = DemandeAdhesion::find($id);
 
         if (!$demande) {
             return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
@@ -509,122 +441,477 @@ class DemandeAdhesionController extends Controller
         }
     }
 
-    // méthode privée
-
-    private function getFieldsForDemandeur($typePrestataire)
-    {
-        $champsDeBase = [
-            "email",
-            "contact",
-            "adresse"
-        ];
-
-        if ($typePrestataire == TypeDemandeurEnum::PROSPECT_PHYSIQUE->value) {
-            $champsDeBase = array_merge($champsDeBase, [
-                "nom",
-                "prenoms",
-                "date_naissance",
-                "sexe",
-                "photo_url",
-                "profession",
-            ]);
-        } elseif ($typePrestataire == TypeDemandeurEnum::PROSPECT_MORAL->value) {
-            $champsDeBase = array_merge($champsDeBase, [
-                "raison_sociale",
-                "nombre_employes",
-                "fiches_medicales_employes",
-            ]);
-        }
-
-        return $champsDeBase;
-    }
-
-    /**
-     * Stockage des réponses aux questionnaires pour une demande d'adhésion
-     * 
-     * @param DemandesAdhesions $demande L'objet demande d'adhésion
-     * @param array $reponses Les réponses à stocker
-     * @return void
-     */
-    private function storeReponses(DemandesAdhesions $demande, array $reponses): void
-    {
-        if (empty($reponses)) return;
-
-        $questions = Question::whereIn('id', array_keys($reponses))->get()->keyBy('id');
-
-        foreach ($reponses as $questionId => $valeur) {
-            $question = $questions[$questionId] ?? null;
-            if (!$question) continue;
-
-            // Liste de fichiers
-            if (is_array($valeur) && isset($valeur[0]) && $this->isUploadedFile($valeur[0])) {
-                foreach ($valeur as $fichier) {
-                    $this->enregistrerFichier($demande, $questionId, $fichier);
-                }
-            }
-            // Fichier unique
-            elseif ($this->isUploadedFile($valeur)) {
-                $this->enregistrerFichier($demande, $questionId, $valeur);
-            }
-            // Valeur simple
-            else {
-                $this->enregistrerValeur($demande, $question, $questionId, $valeur);
-            }
-        }
-    }
 
     private function isUploadedFile($value): bool
     {
         return is_object($value) && method_exists($value, 'getClientOriginalName');
     }
 
-    private function enregistrerFichier(DemandesAdhesions $demande, int $questionId, $fichier): void
+
+
+   
+    /**
+     * Récupérer les contrats disponibles pour proposition
+     */
+    public function getContratsDisponibles()
     {
-        $mimeType = $fichier->getMimeType();
-        $folder = 'demandes_adhesion/' . $demande->id . '/documents';
+        try {
+            $contrats = Contrat::with(['garanties.categorieGarantie'])
+                ->where('est_actif', true)
+                ->get()
+                ->map(function ($contrat) {
+                    return [
+                        'id' => $contrat->id,
+                        'nom' => $contrat->nom,
+                        'type_contrat' => $contrat->type_contrat,
+                        'description' => $contrat->description,
+                        'prime_de_base' => $contrat->prime_de_base,
+                        'garanties' => $contrat->garanties->map(function ($garantie) {
+                            return [
+                                'id' => $garantie->id,
+                                'nom' => $garantie->nom,
+                                'description' => $garantie->description,
+                                'taux_couverture' => $garantie->taux_couverture,
+                                'categorie' => [
+                                    'id' => $garantie->categorieGarantie->id,
+                                    'nom' => $garantie->categorieGarantie->nom,
+                                ],
+                            ];
+                        }),
+                    ];
+                });
 
-        if (str_starts_with($mimeType, 'image/')) {
-            $url = ImageUploadHelper::uploadImage($fichier, $folder);
-        } elseif ($mimeType === 'application/pdf') {
-            $result = PdfUploadHelper::storePdf(file_get_contents($fichier->getRealPath()), $folder, $fichier->getClientOriginalName());
-            $url = $result['url'] ?? null;
-        } else {
-            $filename = uniqid('doc_') . '_' . time() . '.' . $fichier->getClientOriginalExtension();
-            $path = $fichier->storeAs($folder, $filename, 'public');
-            $url = asset('storage/' . $path);
-        }
-
-        if ($url) {
-            ReponsesQuestionnaire::create([
-                'demande_adhesion_id' => $demande->id,
-                'question_id' => $questionId,
-                'reponse_fichier' => $url
+            return ApiResponse::success($contrats, 'Contrats disponibles récupérés avec succès');
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des contrats disponibles', [
+                'error' => $e->getMessage(),
             ]);
+
+            return ApiResponse::error('Erreur lors de la récupération des contrats: ' . $e->getMessage(), 500);
         }
     }
 
-    private function enregistrerValeur(DemandesAdhesions $demande, $question, int $questionId, $valeur): void
+    /**
+     * Générer un lien d'invitation unique pour qu'un employé remplisse sa fiche d'adhésion (un seul lien actif par entreprise)
+     */
+    public function genererLienInvitationEmploye(Request $request)
     {
+        $user = Auth::user();
+        // Vérifier que l'utilisateur est une entreprise
+        if (!$user->hasRole('user') || !$user->entreprise) {
+            return ApiResponse::error('Seules les entreprises peuvent générer un lien d\'invitation.', 403);
+        }
+        $entrepriseId = $user->entreprise->id;
+        // Chercher un lien actif existant
+        $invitation = InvitationEmploye::where('entreprise_id', $entrepriseId)
+            ->where('expire_at', '>', now())
+            ->first();
+        if ($invitation) {
+            $url = url("/employes/formulaire/{$invitation->token}");
+            return ApiResponse::success([
+                'invitation_id' => $invitation->id,
+                'url' => $url,
+                'expire_at' => $invitation->expire_at,
+            ], 'Lien d\'invitation déjà existant.');
+        }
+        // Sinon, générer un nouveau lien
+        $token = Str::uuid()->toString();
+        $invitation = InvitationEmploye::create([
+            'entreprise_id' => $entrepriseId,
+            'token' => $token,
+            'expire_at' => now()->addDays(7),
+        ]);
+        $url = url("/employes/formulaire/{$token}");
+        return ApiResponse::success([
+            'invitation_id' => $invitation->id,
+            'url' => $url,
+            'expire_at' => $invitation->expire_at,
+        ], 'Nouveau lien d\'invitation généré avec succès.');
+    }
+
+    /**
+     * Afficher le formulaire d'adhésion employé via le token d'invitation
+     */
+    public function showFormulaireEmploye($token)
+    {
+        $invitation = InvitationEmploye::where('token', $token)
+            ->where('expire_at', '>', now())
+            ->first();
+        if (!$invitation) {
+            return ApiResponse::error('Lien d\'invitation invalide ou expiré.', 404);
+        }
+        // Récupérer les questions actives pour le type PHYSIQUE
+        $questions = Question::active()->byDestinataire(TypeDemandeurEnum::PHYSIQUE->value)->get();
+        return ApiResponse::success([
+            'entreprise' => $invitation->entreprise,
+            'token' => $token,
+            'questions' => QuestionResource::collection($questions),
+            'fields' => [
+                'nom', 'prenoms', 'email', 'date_naissance', 'sexe', 'contact', 'profession', 'adresse', 'photo_url'
+            ],
+        ], 'Formulaire employé prêt à être rempli.');
+    }
+
+    /**
+     * Soumettre la fiche employé via le lien d'invitation
+     */
+    public function soumettreFicheEmploye(SoumissionEmployeFormRequest $request, $token)
+    {
+        $invitation = InvitationEmploye::where('token', $token)
+            ->where('expire_at', '>', now())
+            ->first();
+        if (!$invitation) {
+            return ApiResponse::error('Lien d\'invitation invalide ou expiré.', 404);
+        }
+        $data = $request->validated();
+        DB::beginTransaction();
+        try {
+            // Créer l'utilisateur employé
+            $user = User::create([
+                'email' => $data['email'],
+                'password' => bcrypt(Str::random(12)),
+                'contact' => $data['contact'] ?? null,
+                'adresse' => $data['adresse'] ?? null,
+                'est_actif' => true,
+                'email_verified_at' => now(),
+            ]);
+            // Créer l'assuré principal (employé)
+            $assure = Assure::create([
+                'user_id' => $user->id,
+                'entreprise_id' => $invitation->entreprise_id,
+                'nom' => $data['nom'],
+                'prenoms' => $data['prenoms'],
+                'date_naissance' => $data['date_naissance'],
+                'sexe' => $data['sexe'],
+                'profession' => $data['profession'] ?? null,
+                'photo_url' => isset($data['photo_url']) ? ImageUploadHelper::uploadImage($data['photo_url'], 'uploads/employes') : null,
+            ]);
+            // Enregistrer les réponses au questionnaire
+            foreach ($data['reponses'] as $reponse) {
+                $this->enregistrerReponsePersonne(Assure::class, $assure->id, $reponse, null);
+            }
+            // Notifier l'entreprise
+            $entreprise = $invitation->entreprise;
+            if ($entreprise && $entreprise->user && $entreprise->user->email) {
+                $this->notificationService->sendEmail(
+                    $entreprise->user->email,
+                    'Nouvelle fiche employé soumise',
+                    'emails.nouvelle_fiche_employe',
+                    [
+                        'assure' => $assure,
+                        'entreprise' => $entreprise,
+                    ]
+                );
+            }
+            DB::commit();
+            return ApiResponse::success(null, 'Fiche employé soumise avec succès.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ApiResponse::error('Erreur lors de la soumission de la fiche employé : ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Soumission groupée de la demande d'adhésion entreprise
+     */
+    public function soumettreDemandeAdhesionEntreprise(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->hasRole('user') || !$user->entreprise) {
+            return ApiResponse::error('Seules les entreprises peuvent soumettre une demande groupée.', 403);
+        }
+        $entreprise = $user->entreprise;
+        $employes = Assure::where('entreprise_id', $entreprise->id)->get();
+        if ($employes->isEmpty()) {
+            return ApiResponse::error('Aucun employé n\'a encore soumis sa fiche.', 422);
+        }
+        DB::beginTransaction();
+        try {
+            // Créer la demande d'adhésion entreprise
+            $demande = DemandeAdhesion::create([
+                'type_demandeur' => TypeDemandeurEnum::AUTRE->value,
+                'statut' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
+                'user_id' => $user->id,
+                'entreprise_id' => $entreprise->id,
+            ]);
+            // Associer les employés à la demande (si relation many-to-many, sinon ignorer)
+            // $demande->employes()->sync($employes->pluck('id'));
+            // Notifier SUNU (technicien)
+            $techniciens = User::whereHas('roles', function($q) {
+                $q->where('name', RoleEnum::TECHNICIEN->value);
+            })->get();
+            foreach ($techniciens as $technicien) {
+                $this->notificationService->sendEmail(
+                    $technicien->email,
+                    'Nouvelle demande d\'adhésion entreprise',
+                    'emails.demande_adhesion_entreprise',
+                    [
+                        'demande' => $demande,
+                        'entreprise' => $entreprise,
+                        'employes' => $employes,
+                    ]
+                );
+            }
+            DB::commit();
+            return ApiResponse::success(new DemandeAdhesionEntrepriseResource($demande), 'Demande d\'adhésion entreprise soumise avec succès.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ApiResponse::error('Erreur lors de la soumission de la demande d\'adhésion entreprise : ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Enregistrer une réponse au questionnaire pour un employé
+     */
+    private function enregistrerValeurEmploye(Assure $assure, array $reponseData): void
+    {
+        $question = Question::find($reponseData['question_id']);
+        if (!$question) return;
         $data = [
-            'demande_adhesion_id' => $demande->id,
-            'question_id' => $questionId,
+            'question_id' => $question->id,
+            'personne_type' => Assure::class,
+            'personne_id' => $assure->id,
+        ];
+        switch ($question->type_donnee) {
+            case TypeDonneeEnum::BOOLEAN:
+                $data['reponse_bool'] = filter_var($reponseData['reponse_bool'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                break;
+            case TypeDonneeEnum::NUMBER:
+                $data['reponse_number'] = floatval($reponseData['reponse_number'] ?? 0);
+                break;
+            case TypeDonneeEnum::DATE:
+                $data['reponse_date'] = $reponseData['reponse_date'] ?? null;
+                break;
+            case TypeDonneeEnum::TEXT:
+            case TypeDonneeEnum::RADIO:
+            default:
+                $data['reponse_text'] = $reponseData['reponse_text'] ?? null;
+                break;
+        }
+        ReponseQuestionnaire::create($data);
+    }
+
+    /**
+     * Enregistrer une réponse au questionnaire pour une personne (assuré principal ou bénéficiaire)
+     */
+    private function enregistrerReponsePersonne($personneType, $personneId, array $reponseData, $demandeId = null)
+    {
+        $question = Question::find($reponseData['question_id']);
+        if (!$question) return;
+
+        $data = [
+            'question_id' => $question->id,
+            'personne_type' => $personneType,
+            'personne_id' => $personneId,
         ];
 
         switch ($question->type_donnee) {
-            case 'boolean':
-                $data['reponse_bool'] = filter_var($valeur, FILTER_VALIDATE_BOOLEAN);
+            case TypeDonneeEnum::BOOLEAN:
+                $data['reponse_bool'] = filter_var($reponseData['reponse_bool'] ?? false, FILTER_VALIDATE_BOOLEAN);
                 break;
-            case 'decimal':
-                $data['reponse_decimal'] = floatval($valeur);
+            case TypeDonneeEnum::NUMBER:
+                $data['reponse_number'] = floatval($reponseData['reponse_number'] ?? 0);
                 break;
-            case 'date':
-                $data['reponse_date'] = $valeur;
+            case TypeDonneeEnum::DATE:
+                $data['reponse_date'] = $reponseData['reponse_date'] ?? null;
                 break;
+            case TypeDonneeEnum::FILE:
+                if (isset($reponseData['reponse_fichier']) && $this->isUploadedFile($reponseData['reponse_fichier'])) {
+                    $data['reponse_fichier'] = ImageUploadHelper::uploadImage($reponseData['reponse_fichier'], 'uploads/demandes_adhesion/' . $demandeId);
+                }
+                break;
+            case TypeDonneeEnum::TEXT:
+            case TypeDonneeEnum::RADIO:
             default:
-                $data['reponses_text'] = $valeur;
+                $data['reponse_text'] = $reponseData['reponse_text'] ?? null;
                 break;
         }
-
-        ReponsesQuestionnaire::create($data);
+        ReponseQuestionnaire::create($data);
     }
+
+    /**
+     * Enregistrer une réponse au questionnaire pour la demande principale
+     */
+    private function enregistrerReponseDemande(DemandeAdhesion $demande, array $reponseData): void
+    {
+        $this->enregistrerReponsePersonne(User::class, $demande->user_id, $reponseData, $demande->id);
+    }
+
+    /**
+     * Enregistrer un bénéficiaire et ses réponses
+     */
+    private function enregistrerBeneficiaire(DemandeAdhesion $demande, array $beneficiaire): void
+    {
+        // Créer le bénéficiaire dans la table assures (PAS de compte utilisateur)
+        $benefAssure = Assure::create([
+            'user_id' => null, // ❌ Bénéficiaires n'ont PAS de compte
+            'client_id' => $demande->user->client->id, // Même client que l'assuré principal
+            'assure_principal_id' => null, // Sera mis à jour quand l'assuré principal sera créé
+            'nom' => $beneficiaire['nom'], // ✅ Informations personnelles
+            'prenoms' => $beneficiaire['prenoms'], // ✅ Informations personnelles
+            'date_naissance' => $beneficiaire['date_naissance'], // ✅ Informations personnelles
+            'sexe' => $beneficiaire['sexe'], // ✅ Informations personnelles
+            'lien_parente' => $beneficiaire['lien_parente'],
+            'est_principal' => false, // ✅ Bénéficiaire = pas principal
+            'statut' => \App\Enums\StatutAssureEnum::INACTIF->value, // Inactif jusqu'à validation
+        ]);
+
+        // Enregistrer les réponses du bénéficiaire
+        foreach ($beneficiaire['reponses'] as $reponse) {
+            $this->enregistrerReponsePersonne(Assure::class, $benefAssure->id, $reponse, $demande->id);
+        }
+    }
+
+    /**
+     * Soumettre une demande d'adhésion pour un prestataire de soins
+     */
+    public function soumettreDemandeAdhesionPrestataire(StoreDemandeAdhesionPrestataireRequest $request)
+    {
+        try {
+            DB::beginTransaction();
+
+            $user = Auth::user();
+            
+            // Vérifier que l'utilisateur est un prestataire
+            if (!$user->prestataire) {
+                return ApiResponse::error('Utilisateur non autorisé', 403);
+            }
+
+            // Récupérer les données validées
+            $validatedData = $request->validated();
+
+            // Créer ou mettre à jour le prestataire avec les données du formulaire
+            $prestataire = $user->prestataire;
+            $prestataire->update([
+                'raison_sociale' => $validatedData['raison_sociale'],
+                'email' => $validatedData['email'],
+                'contact' => $validatedData['contact'],
+                'adresse' => $validatedData['adresse'],
+                'type_prestataire' => $validatedData['type_prestataire'],
+            ]);
+
+            // Upload et gestion des documents selon le type de prestataire
+            $typePrestataire = TypePrestataireEnum::from($validatedData['type_prestataire']);
+            $documentsRequis = PrestataireDocumentHelper::getDocumentsObligatoires($typePrestataire);
+            $documentsUploades = [];
+
+            foreach ($documentsRequis as $documentKey) {
+                if ($request->hasFile($documentKey)) {
+                    $documentUrl = PdfUploadHelper::uploadFile(
+                        $request->file($documentKey), 
+                        "documents/prestataires/{$documentKey}"
+                    );
+                    $documentsUploades[$documentKey] = $documentUrl;
+                }
+            }
+
+            // Valider que tous les documents requis sont présents
+            $validation = PrestataireDocumentHelper::validerDocuments($typePrestataire, $documentsUploades);
+            if (!$validation['valide']) {
+                return ApiResponse::error(
+                    'Documents manquants: ' . implode(', ', $validation['manquants']), 
+                    422
+                );
+            }
+
+            $prestataire->update(['documents_requis' => $documentsUploades]);
+
+            // Créer la demande d'adhésion
+            $demande = DemandeAdhesion::create([
+                'user_id' => $user->id,
+                'type_demandeur' => $validatedData['type_prestataire'],
+                'statut' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
+                'commentaires' => 'Demande d\'adhésion prestataire de soins',
+            ]);
+
+            // Enregistrer les réponses au questionnaire
+            foreach ($validatedData['reponses_questionnaire'] as $reponseData) {
+                $question = Question::find($reponseData['question_id']);
+                if (!$question) continue;
+
+                $data = [
+                    'question_id' => $question->id,
+                    'personne_type' => User::class,
+                    'personne_id' => $user->id,
+                ];
+
+                // Gérer les différents types de réponses selon le type de question
+                switch ($question->type_donnee) {
+                    case TypeDonneeEnum::BOOLEAN:
+                        $data['reponse_bool'] = filter_var($reponseData['valeur'], FILTER_VALIDATE_BOOLEAN);
+                        break;
+                    case TypeDonneeEnum::NUMBER:
+                        $data['reponse_number'] = floatval($reponseData['valeur']);
+                        break;
+                    case TypeDonneeEnum::DATE:
+                        $data['reponse_date'] = $reponseData['valeur'];
+                        break;
+                    case TypeDonneeEnum::TEXT:
+                    case TypeDonneeEnum::RADIO:
+                    default:
+                        $data['reponse_text'] = $reponseData['valeur'];
+                        break;
+                }
+
+                // Upload du fichier si fourni
+                if (isset($reponseData['fichier']) && $reponseData['fichier']) {
+                    $fichierUrl = PdfUploadHelper::uploadFile($reponseData['fichier'], 'documents/prestataires/questionnaire');
+                    $data['reponse_fichier'] = $fichierUrl;
+                }
+
+                ReponseQuestionnaire::create($data);
+            }
+
+            // Notifier le médecin contrôleur
+            $medecinsControleurs = Personnel::whereHas('user', function ($query) {
+                $query->whereHas('roles', function ($q) {
+                    $q->where('name', 'medecin_controleur');
+                });
+            })->get();
+
+            foreach ($medecinsControleurs as $medecin) {
+                $this->notificationService->createNotification(
+                    $medecin->user_id,
+                    'Nouvelle demande d\'adhésion prestataire',
+                    "Un nouveau prestataire de soins ({$prestataire->raison_sociale}) a soumis sa demande d'adhésion.",
+                    'demande_adhesion'
+                );
+
+                // Envoyer un email de notification
+                $this->notificationService->sendEmail(
+                    $medecin->user->email,
+                    'Nouvelle demande d\'adhésion prestataire',
+                    'emails.nouvelle_demande_prestataire',
+                    [
+                        'medecin' => $medecin,
+                        'prestataire' => $prestataire,
+                        'demande' => $demande,
+                    ]
+                );
+            }
+
+            DB::commit();
+
+            Log::info('Demande d\'adhésion prestataire créée', [
+                'prestataire_id' => $prestataire->id,
+                'demande_id' => $demande->id,
+                'user_id' => $user->id,
+            ]);
+
+            return ApiResponse::success(
+                new DemandeAdhesionPrestataireResource($demande),
+                'Demande d\'adhésion prestataire soumise avec succès'
+            );
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Erreur lors de la soumission de la demande d\'adhésion prestataire', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+            ]);
+
+            return ApiResponse::error('Erreur lors de la soumission de la demande: ' . $e->getMessage(), 500);
+        }
+    }
+
 }

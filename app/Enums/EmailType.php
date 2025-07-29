@@ -12,4 +12,5 @@ enum EmailType: String
     case CREDENTIALS = 'emails.credentials';
     case EN_ATTENTE = 'emails.en_attente';
     case REGISTERED = 'emails.registered';
+    case CONTRAT_PRET = 'emails.contrat_pret';
 }

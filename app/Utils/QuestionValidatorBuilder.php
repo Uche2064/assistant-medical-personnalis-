@@ -11,6 +11,7 @@ class QuestionValidatorBuilder
     public static function buildRules(string|int $destinataire): array
     {
         $rules = [];
+        
 
         $questions = Question::forDestinataire($destinataire)->get();
 
@@ -20,10 +21,10 @@ class QuestionValidatorBuilder
             $rules['reponses'] = [
                 'required',
                 'array',
-                function ($attribute, $value, $fail) use ($questionIds) {
-                    $submittedKeys = array_keys($value);
-                    $extraKeys = array_diff($submittedKeys, $questionIds);
-                    if (!empty($extraKeys)) {
+                function ($attribut, $value, $fail) use ($questionIds) {
+                    $submittedIds = array_column($value, 'question_id');
+                    $extraIds = array_diff($submittedIds, $questionIds);
+                    if (!empty($extraIds)) {
                         $fail("Les réponses contiennent des questions non attendues.");
                     }
                 },
@@ -31,11 +32,10 @@ class QuestionValidatorBuilder
 
             foreach ($questions as $question) {
                 $required = $question->isRequired() ? 'required' : 'nullable';
-
                 $validation = match ($question->type_donnee) {
                     TypeDonneeEnum::TEXT => 'string',
                     TypeDonneeEnum::NUMBER => 'numeric',
-                    TypeDonneeEnum::BOOLEAN => Rule::in(['oui', 'non', true, false]),
+                    TypeDonneeEnum::BOOLEAN => 'boolean',
                     TypeDonneeEnum::DATE => 'date',
                     TypeDonneeEnum::FILE => 'file|mimes:jpeg,png,pdf,jpg|max:2048',
                     TypeDonneeEnum::RADIO => Rule::in($question->options ?? []),
@@ -46,6 +46,7 @@ class QuestionValidatorBuilder
                 $rules['reponses.' . $question->id] = array_merge([$required], is_string($validation) ? explode('|', $validation) : [$validation]);
             }
         }
+
 
         return $rules;
     }

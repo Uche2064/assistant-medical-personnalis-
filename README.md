@@ -74,3 +74,67 @@ Dans le cadre de l'obtention du diplôme de licence professionnelle en génie lo
 - Base de Données: PostgreSQL
 - Gestion de Projet: Méthodologie Agile SCRUM
 - Modélisation: UML
+
+# Documentation du Processus de Création de Compte
+
+Ce document détaille le fonctionnement du processus d'inscription des utilisateurs dans l'application.
+
+## Endpoint
+
+- **URL** : `/api/v1/auth/register`
+- **Méthode** : `POST`
+- **Description** : Permet à un nouvel utilisateur de créer un compte. Le processus gère différents types de personnes (physiques et morales) et inclut la création de l'utilisateur, de son profil détaillé, l'assignation de rôle, et l'envoi d'email de confirmation.
+
+## Flux de Travail (Workflow)
+
+Le processus de création de compte suit les étapes suivantes :
+
+1.  **Validation des Données**
+    -   Le système valide d'abord les données reçues en utilisant la `RegisterRequest`. Toutes les règles de validation (champs obligatoires, format de l'email, etc.) sont appliquées à ce stade.
+
+2.  **Gestion de la Photo de Profil (Optionnel)**
+    -   Si une `photo_url` est fournie, l'image est téléchargée sur le serveur via le `ImageUploadHelper` et son chemin d'accès est stocké.
+
+3.  **Début de la Transaction**
+    -   Pour garantir l'intégrité des données, toutes les opérations de base de données sont encapsulées dans une transaction (`DB::beginTransaction()`). En cas d'erreur à n'importe quelle étape, toutes les modifications sont annulées (`DB::rollBack()`).
+
+4.  **Création de l'Entité `User`**
+    -   Un nouvel enregistrement est créé dans la table `users` avec les informations de base :
+        -   `email`
+        -   `password` (qui est haché)
+        -   `contact`
+        -   `adresse`
+        -   `photo_url` (le cas échéant)
+        -   `profession`
+        -   `email_verified_at` est défini à la date actuelle, marquant l'email comme vérifié.
+
+5.  **Création de l'Entité `Personnes`**
+    -   Un enregistrement associé est créé dans la table `personnes` pour stocker les détails du profil :
+        -   `user_id` (lien vers l'utilisateur)
+        -   `type_personne` (ex: `MORALE`, `PHYSIQUE`, `AUTRE`)
+        -   `raison_sociale` (pour les personnes morales)
+        -   `nom` et `prenoms` (pour les personnes physiques)
+        -   `date_naissance`
+        -   `sexe`
+
+6.  **Assignation de Rôle**
+    -   L'utilisateur se voit attribuer le rôle par défaut `user` (`RoleEnum::USER->value`).
+
+7.  **Cas Spécifique : Création d'un Lien d'Invitation pour les Entreprises**
+    -   Si le `type_personne` est `AUTRE` (correspondant à une entreprise), le système génère un lien d'invitation unique pour que l'entreprise puisse inviter ses employés.
+    -   Un token `UUID` est généré et stocké dans la table `invitation_employes` avec une date d'expiration (7 jours).
+    -   Le lien d'invitation est formaté (`/v1/Api/employes/formulaire/{token}`).
+
+8.  **Envoi d'un Email de Confirmation**
+    -   Une tâche (`SendEmailJob`) est ajoutée à la file d'attente pour envoyer un email de bienvenue et de confirmation à l'utilisateur.
+
+9.  **Fin de la Transaction**
+    -   Si toutes les étapes précédentes réussissent, la transaction est validée (`DB::commit()`).
+
+10. **Réponse**
+    -   Le système retourne une réponse JSON avec un statut de succès et les informations de l'utilisateur créé.
+
+## Gestion des Erreurs
+
+-   En cas d'échec d'une des opérations en base de données, la transaction est annulée, garantissant qu'aucune donnée partielle n'est sauvegardée.
+-   Une réponse d'erreur standardisée est retournée, indiquant la nature du problème.

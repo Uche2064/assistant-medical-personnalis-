@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Http\Controllers\Assure;
+namespace App\Http\Controllers\v1\Api\Assure;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 
 class EspaceSanteController extends Controller
 {

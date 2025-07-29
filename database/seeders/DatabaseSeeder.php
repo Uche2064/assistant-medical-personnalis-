@@ -18,12 +18,11 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleSeeder::class,
             AdminSeeder::class,
+            GestionnaireSeeder::class,
+            PersonnelSeeder::class,
             ProspectPhysiqueMedicalQuestionSeeder::class,
             PrestataireMedicalQuestionSeeder::class,
-            // GestionnaireSeeder::class,
-            // PersonnelSeeder::class,
-            // ContratSeeder::class,
-
+            // ContratSeeder::class, // Commenté car nécessite des données de test
         ]); 
     }
 }

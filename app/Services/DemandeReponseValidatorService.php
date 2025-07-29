@@ -14,11 +14,19 @@ class DemandeReponseValidatorService
     public function validate(array $reponses, int|string $destinataire, string $prefix = 'reponses')
     {
         $questions = Question::forDestinataire($destinataire)->get()->keyBy('id');
-
         $errors = [];
 
+        // Convertir le format des réponses
+        $reponsesFormatees = [];
+        foreach ($reponses as $reponse) {
+            if (isset($reponse['question_id'])) {
+                $questionId = $reponse['question_id'];
+                $reponsesFormatees[$questionId] = $this->extraireValeurReponse($reponse);
+            }
+        }
+
         foreach ($questions as $questionId => $question) {
-            $value = $reponses[$questionId] ?? null;
+            $value = $reponsesFormatees[$questionId] ?? null;
             $fieldKey = "$prefix.$questionId";
 
             // Vérification obligatoire
@@ -33,7 +41,7 @@ class DemandeReponseValidatorService
             // Vérifications par type
             switch ($question->type_donnee) {
                 case TypeDonneeEnum::BOOLEAN:
-                    if (!in_array($value, ['oui', 'non', true, false, 1, 0], true)) {
+                    if (!in_array($value, ['oui', 'non', true, false, 1, 0, 'true', 'false'], true)) {
                         $errors[$fieldKey] = ["La réponse à la question « {$question->libelle} » doit être Oui ou Non."];
                     }
                     break;
@@ -81,5 +89,35 @@ class DemandeReponseValidatorService
         if (!empty($errors)) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /**
+     * Extraire la valeur de la réponse selon le format envoyé
+     */
+    private function extraireValeurReponse(array $reponse)
+    {
+        // Chercher la valeur dans les différents champs possibles
+        $champs = ['reponse_text', 'reponse_bool', 'reponse_number', 'reponse_date', 'reponse_fichier'];
+        
+        foreach ($champs as $champ) {
+            if (isset($reponse[$champ])) {
+                $value = $reponse[$champ];
+                
+                // Conversion pour les booléens
+                if ($champ === 'reponse_bool') {
+                    if (is_bool($value)) return $value;
+                    if (is_string($value)) {
+                        return in_array(strtolower($value), ['true', 'oui', 'yes', '1']);
+                    }
+                    if (is_numeric($value)) {
+                        return (bool) $value;
+                    }
+                }
+                
+                return $value;
+            }
+        }
+        
+        return null;
     }
 }

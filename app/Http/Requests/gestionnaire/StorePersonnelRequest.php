@@ -24,13 +24,13 @@ class StorePersonnelRequest extends FormRequest
         $rules = [
             'nom' => ['required', 'string', 'max:255'],
             'prenoms' => ['nullable', 'string', 'max:255'],
-            'email' => ['email', 'max:255', 'unique:users,email'],
-            'contact' => ['string', 'unique:users,contact', 'regex:/^\+[0-9]+$/'],
-            'adresse' => ['required', 'string'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'contact' => ['nullable', 'string', 'unique:users,contact', 'regex:/^[0-9]+$/'],
+            'adresse' => ['required', 'string', 'max:500'],
             'sexe' => ['nullable', Rule::in(SexeEnum::values())],
-            'date_naissance' => ['nullable', 'date'],
-            'photo_url' => ['nullable', 'file'],
-            'role' => ['required', array_diff(RoleEnum::values(), [RoleEnum::ADMIN_GLOBAL->value, RoleEnum::GESTIONNAIRE->value])]
+            'date_naissance' => ['nullable', 'date', 'before:today'],
+            'photo_url' => ['nullable', 'file', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'],
+            'role' => ['required', Rule::in(array_diff(RoleEnum::values(), [RoleEnum::ADMIN_GLOBAL->value, RoleEnum::GESTIONNAIRE->value]))]
         ];
 
         return $rules;
@@ -52,17 +52,23 @@ class StorePersonnelRequest extends FormRequest
             'prenoms.max' => 'Le champ prenom ne doit pas contenir plus de 255 caractères.',
             'email.email' => 'L\'adresse e-mail est invalide.',
             'email.max' => 'L\'adresse e-mail ne doit pas contenir plus de 255 caractères.',
-            'contact.string' => 'Le champ contact doit être une chaine de caractères.',
-            'contact.max' => 'Le champ contact ne doit pas contenir plus de 50 caractères.',
-            'contact.regex' => 'Le champ contact doit être un numéro de téléphone valide au format international (ex: +1234567890).',
-            'contact.unique' => 'Ce contact existe déjà dans la base de données.',
             'email.required' => 'Le champ email est obligatoire.',
-            'email.unique' => 'Ce email existe déjà dans la base de données.',
+            'email.email' => 'L\'adresse e-mail est invalide.',
+            'email.max' => 'L\'adresse e-mail ne doit pas contenir plus de 255 caractères.',
+            'email.unique' => 'Cet email existe déjà dans la base de données.',
+            'contact.string' => 'Le champ contact doit être une chaîne de caractères.',
+            'contact.regex' => 'Le champ contact doit être un numéro de téléphone valide.',
+            'contact.unique' => 'Ce contact existe déjà dans la base de données.',
             'adresse.required' => 'Le champ adresse est obligatoire.',
-            'adresse.json' => 'Le champ adresse doit être un objet JSON.',
+            'adresse.max' => 'L\'adresse ne peut pas dépasser 500 caractères.',
             'sexe.in' => 'Le champ sexe n\'est pas dans la liste des valeurs acceptées.',
             'date_naissance.date' => 'Le champ date de naissance est invalide.',
-            'photo.file' => 'Le champ photo doit être un fichier.',
+            'date_naissance.before' => 'La date de naissance doit être antérieure à aujourd\'hui.',
+            'photo_url.file' => 'Le champ photo doit être un fichier.',
+            'photo_url.mimes' => 'Le champ photo doit être un fichier de type jpg, jpeg, png, gif ou webp.',
+            'photo_url.max' => 'Le fichier photo ne peut pas dépasser 2MB.',
+            'role.required' => 'Le rôle est obligatoire.',
+            'role.in' => 'Le rôle sélectionné n\'est pas autorisé.',
         ];
     }
 }

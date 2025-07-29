@@ -15,170 +15,59 @@
         }
         .container {
             max-width: 600px;
-            margin: 0 auto;
+            margin: auto;
             background-color: #ffffff;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             overflow: hidden;
         }
         .header {
-            background: linear-gradient(135deg, #28a745, #20c997);
+            background: #28a745;
             color: white;
             padding: 25px;
             text-align: center;
-            position: relative;
-        }
-        .header::before {
-            content: "✓";
-            position: absolute;
-            top: 10px;
-            right: 20px;
-            font-size: 24px;
-            background-color: rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
         }
         .header h2 {
             margin: 0;
             font-size: 28px;
-            font-weight: bold;
-        }
-        .header .subtitle {
-            margin: 5px 0 0 0;
-            font-size: 14px;
-            opacity: 0.9;
         }
         .content {
             padding: 30px;
         }
         .success-banner {
-            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            background: #d4edda;
             border: 2px solid #28a745;
             border-radius: 8px;
             padding: 20px;
-            margin: 20px 0;
             text-align: center;
-            position: relative;
-        }
-        .success-banner::before {
-            content: "🎉";
-            font-size: 32px;
-            position: absolute;
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #28a745;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            margin: 20px 0;
         }
         .success-banner h1 {
             color: #155724;
-            margin: 15px 0 10px 0;
+            margin: 15px 0;
             font-size: 24px;
         }
-        .success-banner .message {
-            color: #155724;
-            font-size: 16px;
-            font-weight: 500;
-        }
-        .demande-details {
+        .demande-details, .contrat-details {
             background-color: #f8f9fa;
-            border-left: 6px solid #28a745;
             padding: 20px;
             margin: 25px 0;
             border-radius: 4px;
         }
-        .demande-details h3 {
+        .demande-details h3, .contrat-details h3 {
             color: #28a745;
             margin-top: 0;
-            margin-bottom: 15px;
-            font-size: 18px;
         }
-        .demande-details table {
+        .demande-details table, .contrat-details table {
             width: 100%;
             border-collapse: collapse;
         }
-        .demande-details td {
+        .demande-details td, .contrat-details td {
             padding: 8px 0;
             border-bottom: 1px solid #e9ecef;
         }
-        .demande-details td:first-child {
+        .demande-details td:first-child, .contrat-details td:first-child {
             font-weight: bold;
-            width: 40%;
             color: #495057;
-        }
-        .demande-details td:last-child {
-            color: #28a745;
-            font-weight: 500;
-        }
-        .status-approved {
-            display: inline-block;
-            background-color: #28a745;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 15px;
-            font-size: 12px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-        .contrat-details {
-            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-            border-left: 6px solid #2196f3;
-            padding: 20px;
-            margin: 25px 0;
-            border-radius: 4px;
-        }
-        .contrat-details h3 {
-            color: #1976d2;
-            margin-top: 0;
-            margin-bottom: 15px;
-            font-size: 18px;
-        }
-        .contrat-details table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .contrat-details td {
-            padding: 8px 0;
-            border-bottom: 1px solid #e1f5fe;
-        }
-        .contrat-details td:first-child {
-            font-weight: bold;
-            width: 40%;
-            color: #1976d2;
-        }
-        .contrat-details td:last-child {
-            color: #2196f3;
-            font-weight: 500;
-        }
-        .next-steps {
-            background: linear-gradient(135deg, #fff8e1, #ffecb3);
-            border-left: 6px solid #ffc107;
-            padding: 20px;
-            margin: 25px 0;
-            border-radius: 4px;
-        }
-        .next-steps h3 {
-            color: #856404;
-            margin-top: 0;
-            margin-bottom: 15px;
-        }
-        .next-steps ul {
-            color: #856404;
-            padding-left: 20px;
-            margin: 0;
-        }
-        .next-steps li {
-            margin-bottom: 8px;
         }
         .button-container {
             text-align: center;
@@ -186,34 +75,17 @@
         }
         .button {
             display: inline-block;
-            background: linear-gradient(135deg, #28a745, #20c997);
+            background: #28a745;
             color: white;
             padding: 15px 30px;
-            text-align: center;
             text-decoration: none;
-            font-weight: bold;
             border-radius: 25px;
             font-size: 16px;
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-            transition: all 0.3s ease;
+            transition: background 0.3s;
         }
         .button:hover {
-            background: linear-gradient(135deg, #218838, #1c7d6d);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+            background: #218838;
         }
-        .welcome-message {
-            background-color: #e7f3ff;
-            border-left: 6px solid #007bff;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
-        .welcome-message p {
-            margin: 0;
-            color: #084298;
-        }
-       
         .footer {
             background-color: #f8f9fa;
             padding: 20px;
@@ -225,30 +97,22 @@
             font-size: 12px;
             color: #6c757d;
         }
-        .divider {
-            height: 2px;
-            background: linear-gradient(90deg, #28a745, #20c997, #28a745);
-            margin: 25px 0;
-            border-radius: 1px;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h2>SUNU SANTÉ</h2>
-            <p class="subtitle">Votre partenaire santé de confiance</p>
         </div>
         
         <div class="content">
             <div class="success-banner">
                 <h1>🎊 FÉLICITATIONS ! 🎊</h1>
-                <p class="message">Votre demande d'adhésion a été approuvée avec succès</p>
+                <p>Votre demande d'adhésion a été approuvée avec succès</p>
             </div>
             
-            <p>Cher(e) <strong>{{ $demande->type_demande === 'prestataire' ? $demande->raison_sociale : $demande->nom_demandeur . ' ' . $demande->prenoms_demandeur }}</strong>,</p>
-            
-            <p>Nous avons l'immense plaisir de vous informer que votre demande d'adhésion à la plateforme SUNU Santé a été <strong style="color: #28a745;">APPROUVÉE</strong> ! 🎉</p>
+            <p>Cher(e) <strong>{{ $demande->type_demandeur !== 'physique' ? $demande->raison_sociale : $demande->personne->nom . ' ' . $demande->personne->prenoms }}</strong>,</p>
+            <p>Nous avons le plaisir de vous informer que votre demande d'adhésion à SUNU Santé a été <strong style="color: #28a745;">APPROUVÉE</strong> ! 🎉</p>
             
             <div class="demande-details">
                 <h3>📋 Détails de votre demande</h3>
@@ -262,7 +126,7 @@
 
             @if(isset($contrat) && $contrat)
             <div class="contrat-details">
-                <h3>📋 Détails du contrat proposer selon les analyses</h3>
+                <h3>📋 Détails du contrat</h3>
                 <table>
                     <tr>
                         <td>ID du contrat :</td>
@@ -270,30 +134,20 @@
                     </tr>
                     <tr>
                         <td>Type de contrat :</td>
-                        <td><strong class="uppercase">{{ $contrat->type_contrat ?? 'N/A' }}</strong></td>
+                        <td><strong>{{ $contrat->type_contrat ?? 'N/A' }}</strong></td>
                     </tr>
                     <tr>
-                        <td>Prime standard de base a payé :</td>
+                        <td>Prime standard :</td>
                         <td><strong>{{ number_format($contrat->prime_standard, 2, ',', ' ') }} FCFA</strong></td>
                     </tr>
                 </table>
             </div>
             @endif
 
-            <div class="divider"></div>
-
             <div class="button-container">
-                <a href="https://app.sunusante.sn/login" class="button">
-                    🚀 Accéder à ma plateforme
-                </a>
+                <a href="https://app.sunusante.sn/login" class="button">🚀 Accéder à ma plateforme</a>
             </div>
 
-            <div class="welcome-message">
-                <p><strong>Bienvenue dans la famille SUNU Santé !</strong> Toute notre équipe vous souhaite une excellente expérience sur notre plateforme et reste à votre disposition pour vous accompagner.</p>
-            </div>
-
-            <div class="divider"></div>
-            
             <p style="text-align: center; color: #dc3545; font-weight: bold;">
                 Nous restons à votre disposition,<br>
                 L'équipe SUNU Santé 🏥
