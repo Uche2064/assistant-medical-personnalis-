@@ -69,4 +69,22 @@ class NotificationService
             'lu' => false,
         ]);
     }
+
+    /**
+     * Envoie un email de confirmation de demande d'adhésion
+     *
+     * @param \App\Models\DemandeAdhesion $demande La demande d'adhésion
+     * @return void
+     */
+    public function sendDemandeAdhesionConfirmation(\App\Models\DemandeAdhesion $demande): void
+    {
+        $subject = 'Confirmation de votre demande d\'adhésion - SUNU Santé';
+        $view = 'emails.demande_adhesion_physique';
+        $data = [
+            'demande' => $demande,
+            'user' => $demande->user,
+        ];
+
+        $this->sendEmail($demande->user->email, $subject, $view, $data);
+    }
 }

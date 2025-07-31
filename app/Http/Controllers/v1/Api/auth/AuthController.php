@@ -82,22 +82,22 @@ class AuthController extends Controller
             switch ($validated['type_demandeur']) {
                 case TypeDemandeurEnum::PHYSIQUE->value:
                     $this->createClientPhysique($user, $validated);
-                    $user->assignRole(RoleEnum::USER->value);
+                    $user->assignRole(RoleEnum::PHYSIQUE->value);
                     break;
 
-                case TypeDemandeurEnum::AUTRE->value: // Client moral (entreprise)
+                case TypeDemandeurEnum::ENTREPRISE->value: // Client moral (entreprise)
                     $this->createEntreprise($user, $validated);
-                    $user->assignRole(RoleEnum::USER->value);
+                    $user->assignRole(RoleEnum::ENTREPRISE->value);
                     break;
 
                 default: // Prestataires de soins
                     $this->createPrestataire($user, $validated);
-                    $user->assignRole(RoleEnum::USER->value);
+                    $user->assignRole(RoleEnum::PRESTATAIRE->value);
                     break;
             }
 
             // Générer et envoyer l'OTP
-            $otp = Otp::generateOtp($validated['email']);
+            $otp = Otp::generateOtp($validated['email'], 10, 'register');
 
 
             // Envoyer l'OTP par email
@@ -122,7 +122,7 @@ class AuthController extends Controller
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('Erreur lors de l\'inscription: ' . $e->getMessage());
-            return ApiResponse::error('Erreur lors de l\'inscription', 500);
+            return ApiResponse::error('Erreur lors de l\'inscription', 500, $e->getMessage());
         }
     }
 
@@ -142,7 +142,7 @@ class AuthController extends Controller
         }
 
         // Générer un nouveau OTP
-        $otp = Otp::generateOtp($validated['email']);
+        $otp = Otp::generateOtp($validated['email'], 10, 'forgot_password');
 
         // Envoyer l'OTP par email
         dispatch(new SendEmailJob(
@@ -393,8 +393,6 @@ class AuthController extends Controller
         Entreprise::create([
             'user_id' => $user->id,
             'raison_sociale' => $validated['raison_sociale'],
-            'statut' => StatutClientEnum::PROSPECT,
-            'code_parrainage' => $validated['code_parrainage'] ?? null,
         ]);
     }
 
@@ -414,8 +412,7 @@ class AuthController extends Controller
         Prestataire::create([
             'user_id' => $user->id,
             'type_prestataire' => $typePrestataire,
-            'documents_requis' => $validated['documents_requis'],
-            'code_parrainage' => $validated['code_parrainage'] ?? null,
+            'raison_sociale' => $validated['raison_sociale'],
         ]);
     }
 

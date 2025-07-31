@@ -195,4 +195,49 @@ class QuestionController extends Controller
         Log::info("Suppression en masse de questions - IDs: [" . implode(',', $ids) . "]");
         return ApiResponse::success(['deleted' => $deleted], "$deleted questions supprimées avec succès");
     }
+
+    /**
+     * Statistiques des questions
+     */
+    public function questionStats()
+    {
+        $stats = [
+            'total' => Question::count(),
+            
+            'actives' => Question::where('est_actif', true)->count(),
+            
+            'inactives' => Question::where('est_actif', false)->count(),
+            
+            'obligatoires' => Question::where('obligatoire', true)->count(),
+            
+            'optionnelles' => Question::where('obligatoire', false)->count(),
+            
+            // Gestion des valeurs nulles
+            'repartition_par_destinataire' => Question::selectRaw('destinataire, COUNT(*) as count')
+                ->groupBy('destinataire')
+                ->get()
+                ->mapWithKeys(function ($item) {
+                    return [$item->destinataire ?? 'Non spécifié' => $item->count];
+                }),
+            
+            'repartition_par_type_donnee' => Question::selectRaw('type_donnee, COUNT(*) as count')
+                ->groupBy('type_donnee')
+                ->get()
+                ->mapWithKeys(function ($item) {
+                    return [$item->type_donnee ?? 'Non spécifié' => $item->count];
+                }),
+            
+            'repartition_obligatoire_par_destinataire' => Question::selectRaw('destinataire, obligatoire, COUNT(*) as count')
+                ->groupBy('destinataire', 'obligatoire')
+                ->get()
+                ->groupBy('destinataire')
+                ->map(function ($group) {
+                    return $group->mapWithKeys(function ($item) {
+                        return [$item->obligatoire ? 'obligatoires' : 'optionnelles' => $item->count];
+                    });
+                }),
+        ];
+
+        return ApiResponse::success($stats, 'Statistiques des questions récupérées avec succès');
+    }
 }

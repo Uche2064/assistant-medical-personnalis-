@@ -7,6 +7,7 @@ use App\Helpers\ApiResponse;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class RegisterRequest extends FormRequest
@@ -26,7 +27,7 @@ class RegisterRequest extends FormRequest
             'adresse' => 'required|string|max:500',
 
             // Données communes pour tous les types
-            'nom' => 'required|string|max:255',
+            'nom' => 'required_if:type_demandeur,physique|string|max:255',
             'code_parrainage' => 'nullable|string|exists:personnels,code_parainage',
 
             // Données pour demandeur physique
@@ -36,13 +37,7 @@ class RegisterRequest extends FormRequest
             'sexe' => 'required_if:type_demandeur,physique|in:M,F',
 
             // Données pour demandeur moral (entreprise)
-            'raison_sociale' => 'required_if:type_demandeur,autre|string|max:255|unique:entreprises,raison_sociale',
-            'nombre_employes' => 'required_if:type_demandeur,autre|integer|min:1',
-            'secteur_activite' => 'required_if:type_demandeur,autre|string|max:255',
-
-            // Données pour prestataires de soins
-            'prenoms_prestataire' => 'nullable|string|max:255', // Pour prestataires individuels
-            'raison_sociale_prestataire' => 'nullable|string|max:255', // Pour prestataires moraux
+            'raison_sociale' => 'required_if:type_demandeur,autre,pharmacie,centre_de_soins,laboratoire_de_biologie_medicale,optique|string|max:255|unique:entreprises,raison_sociale',
 
             'photo_url' => 'required_if:type_demandeur,physique|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ];
@@ -67,7 +62,7 @@ class RegisterRequest extends FormRequest
             'adresse.required' => 'Le champ adresse est obligatoire.',
             'adresse.max' => 'L\'adresse ne peut pas dépasser 500 caractères.',
             
-            'nom.required' => 'Le champ nom est obligatoire.',
+            'nom.required_if' => 'Le champ nom est obligatoire.',
             'nom.string' => 'Le nom doit être une chaîne de caractères.',
             'nom.max' => 'Le nom ne peut pas dépasser 255 caractères.',
             'photo_url.required_if' => 'La photo est obligatoire pour un demandeur physique.',

@@ -275,21 +275,37 @@ class GestionnaireController extends Controller
         $currentGestionnaire = Auth::user();
 
         $stats = [
-            'total' => Personnel::where('gestionnaire_id', $currentGestionnaire->personnel->id)
-                ->where('id', '!=', $currentGestionnaire->personnel->id)
+            'total' => Personnel::where('id', '!=', $currentGestionnaire->personnel->id)
                 ->count(),
             
-            'actifs' => Personnel::where('gestionnaire_id', $currentGestionnaire->personnel->id)
-                ->where('id', '!=', $currentGestionnaire->personnel->id)
+            'actifs' => Personnel::where('id', '!=', $currentGestionnaire->personnel->id)
                 ->whereHas('user', function ($q) {
                     $q->where('est_actif', true);
                 })->count(),
             
-            'suspendus' => Personnel::where('gestionnaire_id', $currentGestionnaire->personnel->id)
-                ->where('id', '!=', $currentGestionnaire->personnel->id)
+            'inactifs' => Personnel::where('id', '!=', $currentGestionnaire->personnel->id)
                 ->whereHas('user', function ($q) {
                     $q->where('est_actif', false);
                 })->count(),
+            
+            'repartition_par_role' => Personnel::where('id', '!=', $currentGestionnaire->personnel->id)
+                ->whereHas('user.roles')
+                ->with('user.roles')
+                ->get()
+                ->groupBy(function ($personnel) {
+                    return $personnel->user->roles->first()->name ?? 'Aucun rôle';
+                })
+                ->map(function ($group) {
+                    return $group->count();
+                }),
+            
+            'repartition_par_sexe' => Personnel::where('id', '!=', $currentGestionnaire->personnel->id)
+                ->selectRaw('sexe, COUNT(*) as count')
+                ->groupBy('sexe')
+                ->get()
+                ->mapWithKeys(function ($item) {
+                    return [$item->sexe ?? 'Non spécifié' => $item->count];
+                }),
         ];
 
         return ApiResponse::success($stats, 'Statistiques des personnels récupérées avec succès');

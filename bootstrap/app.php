@@ -26,7 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => AdminMiddleware::class,
             'gestionnaire' => GestionnaireMiddleware::class,
             'medecin_controleur' => MedecinControleurMiddleware::class,
-            'assure_principal' => AssurePrincipalMiddleware::class,
+            'physique' => AssurePrincipalMiddleware::class,
             'technicien' => TechnicienMiddleware::class,
             'role' => RoleMiddleware::class,
             'checkRole' => CheckRole::class

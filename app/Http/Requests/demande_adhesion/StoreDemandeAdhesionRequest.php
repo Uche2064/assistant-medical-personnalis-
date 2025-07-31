@@ -4,10 +4,8 @@ namespace App\Http\Requests\demande_adhesion;
 
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
-use App\Enums\TypePersonneEnum;
 use App\Helpers\ApiResponse;
 use App\Models\Question;
-use App\Utils\QuestionValidatorBuilder;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -23,7 +21,7 @@ class StoreDemandeAdhesionRequest extends FormRequest
 
     public function rules(): array
     {
-        $typeDemandeur = Auth::user()->personne->type_personne;
+        $typeDemandeur = $this->input('type_demandeur');
         if (!$typeDemandeur) {
             return ['type_demandeur' => 'required|in:' . implode(',', TypeDemandeurEnum::values())];
         }
@@ -33,29 +31,25 @@ class StoreDemandeAdhesionRequest extends FormRequest
 
 
         $rules = [
+            'type_demandeur' => 'required|in:' . implode(',', TypeDemandeurEnum::values()),
             'reponses' => ['required', 'array'],
-            'reponses.*.question_id' => ['required', 'integer', Rule::in($questionIds)],
+            'reponses.*.question_id' => ['required', Rule::in($questionIds)],
         ];
-
 
         foreach ($this->input('reponses', []) as $index => $reponse) {
             $questionId = $reponse['question_id'] ?? null;
-            if (!$questionId || !$questions->has($questionId)) {
-                continue;
-            }
-
+            if (!$questionId || !$questions->has($questionId)) continue;
             $question = $questions->get($questionId);
             $ruleKey = 'reponses.' . $index;
-
             $required = $question->isRequired() ? 'required' : 'nullable';
-
+            dd($required);
             switch ($question->type_donnee) {
                 case TypeDonneeEnum::TEXT:
                 case TypeDonneeEnum::RADIO:
                     $rules[$ruleKey . '.reponse_text'] = [$required, 'string'];
                     break;
                 case TypeDonneeEnum::NUMBER:
-                    $rules[$ruleKey . '.reponse_decimal'] = [$required, 'numeric'];
+                    $rules[$ruleKey . '.reponse_number'] = [$required, 'numeric'];
                     break;
                 case TypeDonneeEnum::BOOLEAN:
                     $rules[$ruleKey . '.reponse_bool'] = [$required, 'boolean'];
@@ -68,6 +62,8 @@ class StoreDemandeAdhesionRequest extends FormRequest
                     break;
             }
         }
+
+        // dd($rules);
 
         return $rules;
     }
@@ -82,6 +78,13 @@ class StoreDemandeAdhesionRequest extends FormRequest
     {
         return [
             'type_demandeur.required' => 'Le champ type_demandeur est obligatoire.',
+            'reponses.required' => 'Les réponses au questionnaire sont requises.',
+            'reponses.array' => 'Les réponses au questionnaire doivent être un tableau.',
+            'reponses.*.question_id.required' => 'L\'ID de la question est requis.',
+            'reponses.*.question_id.integer' => 'L\'ID de la question doit être un entier.',
+            'reponses.*.question_id.in' => 'L\'ID de la question doit être un ID valide.',
+            'reponses.*.reponse_text.string' => 'La réponse doit être une chaîne de caractères.',
+            'reponses.*.reponse_number.numeric' => 'La réponse doit être un nombre.',
         ];
     }
 }

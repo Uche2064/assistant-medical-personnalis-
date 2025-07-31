@@ -32,11 +32,8 @@ class DemandeAdhesionPrestataireResource extends JsonResource
                 'statut_prestataire' => $this->prestataire->statut ?? null,
             ],
             
-            // Documents requis
-            'documents_requis' => $this->prestataire->documents_requis ?? [],
-            
             // Réponses au questionnaire
-            'reponses_questionnaire' => $this->reponsesQuestionnaire->map(function ($reponse) {
+            'reponses' => $this->reponsesQuestionnaire->map(function ($reponse) {
                 return [
                     'id' => $reponse->id,
                     'question_id' => $reponse->question_id,
@@ -57,17 +54,7 @@ class DemandeAdhesionPrestataireResource extends JsonResource
                 'date_traitement' => $this->date_traitement,
                 'commentaires' => $this->commentaires,
             ],
-            
-            // Notifications
-            'notifications' => $this->notifications->map(function ($notification) {
-                return [
-                    'id' => $notification->id,
-                    'type' => $notification->type,
-                    'message' => $notification->message,
-                    'lu' => $notification->lu,
-                    'date_creation' => $notification->created_at,
-                ];
-            }),
+        
         ];
     }
 } 

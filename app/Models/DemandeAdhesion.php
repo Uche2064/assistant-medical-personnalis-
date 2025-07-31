@@ -57,6 +57,93 @@ class DemandeAdhesion extends Model
     }
 
     /**
+     * Get the entreprise associated with this demande (if type_demandeur is entreprise)
+     */
+    public function entreprise()
+    {
+        return $this->hasOneThrough(
+            Entreprise::class,
+            User::class,
+            'id', // Clé étrangère sur users
+            'user_id', // Clé étrangère sur entreprises
+            'user_id', // Clé locale sur demandes_adhesions
+            'id' // Clé locale sur users
+        );
+    }
+
+    /**
+     * Get the client associated with this demande
+     */
+    public function client()
+    {
+        return $this->hasOneThrough(
+            Client::class,
+            User::class,
+            'id', // Clé étrangère sur users
+            'user_id', // Clé étrangère sur clients
+            'user_id', // Clé locale sur demandes_adhesions
+            'id' // Clé locale sur users
+        );
+    }
+
+    /**
+     * Get the assures (employees) associated with this demande
+     */
+    public function assures()
+    {
+        return $this->hasManyThrough(
+            Assure::class,
+            User::class,
+            'id', // Clé étrangère sur users
+            'user_id', // Clé étrangère sur assures
+            'user_id', // Clé locale sur demandes_adhesions
+            'id' // Clé locale sur users
+        );
+    }
+
+    /**
+     * Get the beneficiaires associated with this demande
+     */
+    public function beneficiaires()
+    {
+        return $this->hasManyThrough(
+            Assure::class,
+            User::class,
+            'id', // Clé étrangère sur users
+            'user_id', // Clé étrangère sur assures
+            'user_id', // Clé locale sur demandes_adhesions
+            'id' // Clé locale sur users
+        )->where('est_principal', false);
+    }
+
+    /**
+     * Get the employes (assures principaux) associated with this demande
+     */
+    public function employes()
+    {
+        return $this->hasManyThrough(
+            Assure::class,
+            User::class,
+            'id', // Clé étrangère sur users
+            'user_id', // Clé étrangère sur assures
+            'user_id', // Clé locale sur demandes_adhesions
+            'id' // Clé locale sur users
+        )->where('est_principal', true);
+    }
+
+    /**
+     * Get all reponses questionnaire for this demande (including beneficiaires and employes)
+     */
+    public function allReponsesQuestionnaire()
+    {
+        return $this->hasMany(ReponseQuestionnaire::class, 'personne_id', 'user_id')
+            ->orWhere(function($query) {
+                $query->whereIn('personne_id', $this->assures()->pluck('assures.id'))
+                    ->where('personne_type', Assure::class);
+            });
+    }
+
+    /**
      * Check if demande is pending.
      */
     public function isPending()

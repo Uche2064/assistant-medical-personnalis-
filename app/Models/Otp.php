@@ -16,12 +16,13 @@ class Otp extends Model
         'otp',
         'expire_at',
         'verifier_a',
+        'type',
     ];
 
     protected $casts = [
         'expire_at' => 'datetime',
         'verifier_a' => 'datetime',
-
+        'type' => 'string',
     ];
 
     /**
@@ -43,7 +44,7 @@ class Otp extends Model
     /**
      * Generate a new OTP.
      */
-    public static function generateOtp($email, $minutes = 10)
+    public static function generateOtp($email, $minutes = 10, $type)
     {
         // Delete existing OTPs for this email
         self::where('email', $email)->delete();
@@ -54,6 +55,7 @@ class Otp extends Model
         return self::create([
             'email' => $email,
             'otp' => $otp,
+            'type' => $type,
             'expire_at' => now()->addMinutes($minutes),
         ]);
     }

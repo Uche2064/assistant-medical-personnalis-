@@ -288,11 +288,23 @@ class AdminController extends Controller
                 })->where('est_actif', true);
             })->count(),
             
-            'suspendus' => Personnel::whereHas('user', function ($q) {
+            'inactifs' => Personnel::whereHas('user', function ($q) {
                 $q->whereHas('roles', function ($roleQuery) {
                     $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
                 })->where('est_actif', false);
             })->count(),
+            
+            'repartition_par_sexe' => Personnel::whereHas('user', function ($q) {
+                $q->whereHas('roles', function ($roleQuery) {
+                    $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
+                });
+            })
+            ->selectRaw('sexe, COUNT(*) as count')
+            ->groupBy('sexe')
+            ->get()
+            ->mapWithKeys(function ($item) {
+                return [$item->sexe ?? 'Non spécifié' => $item->count];
+            }),
         ];
 
         return ApiResponse::success($stats, 'Statistiques des gestionnaires récupérées avec succès');

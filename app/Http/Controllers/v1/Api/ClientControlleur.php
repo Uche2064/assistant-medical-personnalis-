@@ -77,4 +77,53 @@ class ClientControlleur extends Controller
 
         return ApiResponse::success($client, "Client supprimé avec succès");
     }
+
+    /**
+     * Statistiques des clients
+     */
+    public function clientStats()
+    {
+        $stats = [
+            'total' => Client::count(),
+            
+            'prospects' => Client::where('statut', 'prospect')->count(),
+            
+            'clients' => Client::where('statut', 'client')->count(),
+            
+            'assures' => Client::where('statut', 'assure')->count(),
+            
+            'physiques' => Client::where('type_client', 'physique')->count(),
+            
+            'moraux' => Client::where('type_client', 'moral')->count(),
+            
+            'repartition_par_sexe' => Client::selectRaw('sexe, COUNT(*) as count')
+                ->groupBy('sexe')
+                ->get()
+                ->mapWithKeys(function ($item) {
+                    return [$item->sexe ?? 'Non spécifié' => $item->count];
+                }),
+            
+            'repartition_par_profession' => Client::selectRaw('profession, COUNT(*) as count')
+                ->whereNotNull('profession')
+                ->groupBy('profession')
+                ->orderBy('count', 'desc')
+                ->limit(10)
+                ->get()
+                ->mapWithKeys(function ($item) {
+                    return [$item->profession => $item->count];
+                }),
+            
+            'repartition_statut_par_type' => Client::selectRaw('type_client, statut, COUNT(*) as count')
+                ->groupBy('type_client', 'statut')
+                ->get()
+                ->groupBy('type_client')
+                ->map(function ($group) {
+                    return $group->mapWithKeys(function ($item) {
+                        return [$item->statut => $item->count];
+                    });
+                }),
+        ];
+
+        return ApiResponse::success($stats, 'Statistiques des clients récupérées avec succès');
+    }
 }

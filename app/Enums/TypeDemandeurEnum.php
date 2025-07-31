@@ -9,7 +9,7 @@ enum TypeDemandeurEnum: string
     case LABORATOIRE_CENTRE_DIAGNOSTIC = 'laboratoire_centre_diagnostic';
     case PHARMACIE = 'pharmacie';
     case OPTIQUE = 'optique';
-    case AUTRE = 'autre';
+    case ENTREPRISE = 'entreprise';
 
     public static function values(): array
     {
@@ -24,7 +24,7 @@ enum TypeDemandeurEnum: string
             self::LABORATOIRE_CENTRE_DIAGNOSTIC => 'Laboratoire/Centre de Diagnostic',
             self::PHARMACIE => 'Pharmacie',
             self::OPTIQUE => 'Optique',
-            self::AUTRE => 'Autre',
+            self::ENTREPRISE => 'Entreprise',
         };
     }
 } 
