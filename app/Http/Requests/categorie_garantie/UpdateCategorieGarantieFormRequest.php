@@ -28,7 +28,7 @@ class UpdateCategorieGarantieFormRequest extends FormRequest
     // Dans UpdateCategorieGarantieFormRequest
     public function rules()
     {
-        $categorieId = $this->route('categorie_garantie')->id;
+        $categorieId = $this->route('id');
 
         return [
             'libelle' => [

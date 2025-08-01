@@ -28,9 +28,7 @@ class UpdateGarantieFormRequest extends FormRequest
      */
     public function rules()
     {
-        $garantieId = $this->route('garantie') instanceof Garantie 
-            ? $this->route('garantie')->id 
-            : $this->route('garantie');
+        $garantieId = $this->route('id');
         
         return [
             'libelle' => [

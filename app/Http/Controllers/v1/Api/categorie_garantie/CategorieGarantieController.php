@@ -6,8 +6,11 @@ use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\categorie_garantie\StoreCategorieGarantieFormRequest;
 use App\Http\Requests\categorie_garantie\UpdateCategorieGarantieFormRequest;
-use App\Models\CategoriesGaranties;
+use App\Http\Resources\CategorieGarantieResource;
+use App\Models\CategorieGarantie;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,7 +25,7 @@ public function indexCategorieGarantie(Request $request)
     $search = $request->query('search');
     $perPage = $request->query('per_page', 10);
 
-    $query = CategoriesGaranties::with('garanties', 'medecinControleur')
+    $query = CategorieGarantie::with('garanties', 'medecinControleur')
                 ->withCount('garanties');
 
     if ($search) {
@@ -31,13 +34,20 @@ public function indexCategorieGarantie(Request $request)
 
     $categories = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
-    return ApiResponse::success($categories, 'Liste des catégories de garanties récupérée avec succès');
-}
+    $paginatedData = new LengthAwarePaginator(
+        CategorieGarantieResource::collection($categories),
+        $categories->total(),
+        $categories->perPage(),
+        $categories->currentPage(),
+        ['path' => Paginator::resolveCurrentPath()]
+    );
+    return ApiResponse::success($paginatedData, 'Liste des catégories de garanties récupérée avec succès', 200);
+    }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreCategorieGarantieFormRequest $request)
+    public function storeCategorieGarantie(StoreCategorieGarantieFormRequest $request)
     {
         try {
             DB::beginTransaction();
@@ -47,7 +57,7 @@ public function indexCategorieGarantie(Request $request)
             $libelle = strtolower(trim($data['libelle']));
     
             // Vérifier si une catégorie supprimée existe avec le même libellé
-            $categorieExistante = CategoriesGaranties::withTrashed()
+            $categorieExistante = CategorieGarantie::withTrashed()
                 ->where('libelle', $libelle)
                 ->first();
 
@@ -66,7 +76,7 @@ public function indexCategorieGarantie(Request $request)
                 }
             } else {
                 // Créer une nouvelle catégorie
-                $categorieGarantie = CategoriesGaranties::create([
+                $categorieGarantie = CategorieGarantie::create([
                     'libelle' => $libelle,
                     'description' => strtolower(trim($data['description'] ?? null)),
                     'medecin_controleur_id' => $medecinControleur->id,
@@ -89,7 +99,7 @@ public function indexCategorieGarantie(Request $request)
      */
     public function showCategorieGarantie(string $id)
     {
-        $categorieGarantie = CategoriesGaranties::with('garanties')->find($id);
+        $categorieGarantie = CategorieGarantie::with('garanties')->find($id);
 
         if (!$categorieGarantie) {
             return ApiResponse::error('Catégorie de garantie non trouvée', 404);
@@ -103,7 +113,7 @@ public function indexCategorieGarantie(Request $request)
      */
     public function updateCategorieGarantie(UpdateCategorieGarantieFormRequest $request, int $id)
     {
-        $categorieGarantie = CategoriesGaranties::with('garanties')->find($id);
+        $categorieGarantie = CategorieGarantie::with('garanties')->find($id);
 
         if (!$categorieGarantie) {
             return ApiResponse::error('Catégorie de garantie non trouvée', 404);
@@ -121,7 +131,7 @@ public function indexCategorieGarantie(Request $request)
             }
 
             if (isset($data['description'])) {
-                $updates['description'] = strtolower(trim($data['description']));
+                $updates['description'] = trim($data['description']);
             }
 
             if (!empty($updates)) {
@@ -146,7 +156,7 @@ public function indexCategorieGarantie(Request $request)
      */
     public function destroyCategorieGarantie(string $id)
     {
-        $categorieGarantie = CategoriesGaranties::with('garanties')->find($id);
+        $categorieGarantie = CategorieGarantie::with('garanties')->find($id);
 
         if (!$categorieGarantie) {
             return ApiResponse::error('Catégorie de garantie non trouvée', 404);

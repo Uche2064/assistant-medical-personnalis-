@@ -124,7 +124,7 @@ class GestionnaireController extends Controller
                 'prenoms' => $validated['prenoms'] ?? null,
                 'sexe' => $validated['sexe'] ?? null,
                 'date_naissance' => $validated['date_naissance'] ?? null,
-                'gestionnaire_id' => Auth::user()->personnel->id,
+                'gestionnaire_id' => Auth::user()->id,
             ];
 
             // Générer un code de parrainage pour les commerciaux
