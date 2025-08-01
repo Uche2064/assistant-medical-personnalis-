@@ -21,6 +21,59 @@ use Illuminate\Support\Facades\Log;
 
 class AdminController extends Controller
 {
+
+     /**
+     * Lister tous les gestionnaires avec filtres
+     */
+    public function indexGestionnaires(Request $request)
+    {
+        $perPage = $request->input('per_page', 10);
+        $adminId = Auth::user()?->personnel?->id;
+    
+        $query = Personnel::with(['user.roles'])
+            ->whereHas('user.roles', fn ($q) => 
+                $q->where('name', RoleEnum::GESTIONNAIRE->value)
+            )
+            ->when($adminId, fn ($q) => $q->where('id', '!=', $adminId))
+            ->when($request->filled('est_actif'), function ($q) use ($request) {
+                $estActif = filter_var($request->input('est_actif'), FILTER_VALIDATE_BOOLEAN);
+                $q->whereHas('user', fn ($q) => $q->where('est_actif', $estActif));
+            })
+            ->when($request->filled('sexe'), fn ($q) => 
+                $q->where('sexe', $request->input('sexe'))
+            )
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = $request->input('search');
+                $q->where(fn ($q) => 
+                    $q->where('nom', 'like', "%$search%")
+                      ->orWhere('prenoms', 'like', "%$search%")
+                      ->orWhereHas('user', fn ($q) => 
+                          $q->where('email', 'like', "%$search%")
+                      )
+                );
+            })
+            ->orderBy(
+                $request->input('sort_by', 'created_at'),
+                $request->input('sort_order', 'desc')
+            );
+    
+        $gestionnaires = $query->paginate($perPage);
+    
+        // Extraire et transformer en UserResource
+        $users = UserResource::collection($gestionnaires->pluck('user'));
+    
+        // Re-créer la pagination sur les UserResource
+        $paginated = new LengthAwarePaginator(
+            $users,
+            $gestionnaires->total(),
+            $gestionnaires->perPage(),
+            $gestionnaires->currentPage(),
+            ['path' => Paginator::resolveCurrentPath()]
+        );
+    
+        return ApiResponse::success($paginated, 'Liste des gestionnaires récupérée avec succès');
+    }
+    
     /**
      * Créer un nouveau gestionnaire
      */
@@ -31,8 +84,8 @@ class AdminController extends Controller
         $photoUrl = null;
 
         // Gestion de l'upload de la photo
-        if (isset($validated['photo_url'])) {
-            $photoUrl = ImageUploadHelper::uploadImage($validated['photo_url'], 'uploads/users/gestionnaires');
+        if (isset($validated['photo'])) {
+            $photoUrl = ImageUploadHelper::uploadImage($validated['photo'], 'uploads/users/gestionnaires/'.$validated['email'].'/');
             if (!$photoUrl) {
                 return ApiResponse::error('Erreur lors de l\'upload de la photo', 422);
             }
@@ -50,21 +103,20 @@ class AdminController extends Controller
                 'est_actif' => false,
                 'mot_de_passe_a_changer' => true,
                 'email_verified_at' => now(),
-                'photo_url' => $photoUrl,
+                'photo' => $photoUrl,
             ]);
 
             // Assigner le rôle gestionnaire
             $user->assignRole(RoleEnum::GESTIONNAIRE->value);
 
             // Créer le personnel gestionnaire
-            $gestionnaire = Personnel::create([
+            Personnel::create([
                 'user_id' => $user->id,
                 'nom' => $validated['nom'],
                 'prenoms' => $validated['prenoms'] ?? null,
                 'sexe' => $validated['sexe'] ?? null,
                 'date_naissance' => $validated['date_naissance'] ?? null,
             ]);
-
             // Envoyer les identifiants par email
             dispatch(new SendCredentialsJob($user, $password));
             
@@ -83,69 +135,7 @@ class AdminController extends Controller
         }
     }
 
-    /**
-     * Lister tous les gestionnaires avec filtres
-     */
-    public function indexGestionnaires(Request $request)
-    {
-        $perPage = $request->input('per_page', 10);
-        $currentAdmin = Auth::user();
-
-        $query = Personnel::with(['user', 'user.roles'])
-            ->whereHas('user', function ($q) {
-                $q->whereHas('roles', function ($roleQuery) {
-                    $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
-                });
-            })
-            ->where('id', '!=', $currentAdmin->personnel->id); // Exclure l'admin actuel
-
-        // 🔍 Filtre par statut actif
-        if ($request->has('est_actif')) {
-            $estActif = filter_var($request->input('est_actif'), FILTER_VALIDATE_BOOLEAN);
-            $query->whereHas('user', function ($q) use ($estActif) {
-                $q->where('est_actif', $estActif);
-            });
-        }
-
-        // 🔍 Filtre par sexe
-        if ($request->filled('sexe')) {
-            $query->where('sexe', $request->input('sexe'));
-        }
-
-        // 🔍 Recherche globale (nom, prénoms, email)
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('nom', 'like', "%{$search}%")
-                  ->orWhere('prenoms', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($userQuery) use ($search) {
-                      $userQuery->where('email', 'like', "%{$search}%");
-                  });
-            });
-        }
-
-        // 🔍 Tri
-        $sortBy = $request->input('sort_by', 'created_at');
-        $sortOrder = $request->input('sort_order', 'desc');
-        $query->orderBy($sortBy, $sortOrder);
-
-        $gestionnaires = $query->paginate($perPage);
-
-        // Transformer en UserResource
-        $userCollection = $gestionnaires->getCollection()->map(function ($personnel) {
-            return $personnel->user;
-        });
-
-        $paginatedUsers = new LengthAwarePaginator(
-            UserResource::collection($userCollection),
-            $gestionnaires->total(),
-            $gestionnaires->perPage(),
-            $gestionnaires->currentPage(),
-            ['path' => Paginator::resolveCurrentPath()]
-        );
-
-        return ApiResponse::success($paginatedUsers, 'Liste des gestionnaires récupérée avec succès');
-    }
+   
 
     /**
      * Afficher les détails d'un gestionnaire
@@ -173,7 +163,7 @@ class AdminController extends Controller
     /**
      * Suspendre/désactiver un gestionnaire
      */
-    public function suspendGestionnaire($id)
+    public function toggleGestionnaireStatus($id)
     {
         $gestionnaire = Personnel::with('user')
             ->whereHas('user', function ($q) {
@@ -187,46 +177,15 @@ class AdminController extends Controller
             return ApiResponse::error('Gestionnaire non trouvé', 404);
         }
 
-        // Empêcher l'admin de se suspendre lui-même
-        if ($gestionnaire->id === Auth::user()->personnel->id) {
-            return ApiResponse::error('Vous ne pouvez pas suspendre votre propre compte', 403);
+        if ($gestionnaire->user->mot_de_passe_a_changer) {
+            return ApiResponse::error('Le gestionnaire doit changer son mot de passe avant de pouvoir être réactivé', 400, null);
         }
 
-        $gestionnaire->user->update(['est_actif' => false]);
+        $gestionnaire->user->update(['est_actif' => !$gestionnaire->user->est_actif]);
 
         Log::info("Gestionnaire suspendu - ID: {$gestionnaire->id}, Email: {$gestionnaire->user->email}");
 
-        return ApiResponse::success(
-            new UserResource($gestionnaire->user), 
-            'Gestionnaire suspendu avec succès'
-        );
-    }
-
-    /**
-     * Réactiver un gestionnaire
-     */
-    public function activateGestionnaire($id)
-    {
-        $gestionnaire = Personnel::with('user')
-            ->whereHas('user', function ($q) {
-                $q->whereHas('roles', function ($roleQuery) {
-                    $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
-                });
-            })
-            ->find($id);
-
-        if (!$gestionnaire) {
-            return ApiResponse::error('Gestionnaire non trouvé', 404);
-        }
-
-        $gestionnaire->user->update(['est_actif' => true]);
-
-        Log::info("Gestionnaire réactivé - ID: {$gestionnaire->id}, Email: {$gestionnaire->user->email}");
-
-        return ApiResponse::success(
-            new UserResource($gestionnaire->user), 
-            'Gestionnaire réactivé avec succès'
-        );
+        return ApiResponse::success(null, 'Gestionnaire ' . ($gestionnaire->user->est_actif ? 'suspendu' : 'réactivé') . ' avec succès');
     }
 
     /**
@@ -244,11 +203,6 @@ class AdminController extends Controller
 
         if (!$gestionnaire) {
             return ApiResponse::error('Gestionnaire non trouvé', 404);
-        }
-
-        // Empêcher l'admin de se supprimer lui-même
-        if ($gestionnaire->id === Auth::user()->personnel->id) {
-            return ApiResponse::error('Vous ne pouvez pas supprimer votre propre compte', 403);
         }
 
         DB::beginTransaction();

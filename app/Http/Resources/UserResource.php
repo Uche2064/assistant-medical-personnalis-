@@ -32,7 +32,7 @@ class UserResource extends JsonResource
             $userData['sexe'] = $this->personnel->sexe;
             $userData['date_naissance'] = $this->personnel->date_naissance;
             $userData['gestionnaire_id'] = $this->personnel->gestionnaire_id;
-            $userData['photo'] = $this->personnel->photo;
+            $userData['photo'] = $this->photo ?? null;
         } else if ($this->whenLoaded('client') && $this->client) {
             $userData['nom'] = $this->client->nom ?? null;
             $userData['prenoms'] = $this->client->prenoms ?? null;

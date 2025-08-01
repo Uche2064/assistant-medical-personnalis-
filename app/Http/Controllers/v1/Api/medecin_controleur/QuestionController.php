@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\v1\Api\medecin_controleur;
 
 use App\Enums\TypeDemandeurEnum;
+use App\Enums\TypeDonneeEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\medecin_controleur\QuestionsBulkInsertRequest;
@@ -22,32 +23,29 @@ class QuestionController extends Controller
     /**
      * Liste toutes les questions.
      */
-    public function indexQuestions(Request $request)
-    {
+ public function indexQuestions(Request $request)
+{
+    $perPage = $request->input('per_page', 10);
 
-        $query = Question::query();
-        $perPage = $request->input('per_page', 10);
+    $query = Question::query()
+        ->when($request->filled('type_donnee'), fn($q) => $q->where('type_donnee', $request->type_donnee))
+        ->when($request->filled('destinataire'), fn($q) => $q->where('destinataire', $request->destinataire))
+        ->when($request->has('obligatoire'), fn($q) => 
+            $q->where('obligatoire', filter_var($request->obligatoire, FILTER_VALIDATE_BOOLEAN))
+        )
+        ->when($request->has('est_actif'), fn($q) => 
+            $q->where('est_actif', filter_var($request->est_actif, FILTER_VALIDATE_BOOLEAN))
+        )
+        ->orderBy('created_at', 'desc');
 
-        if ($request->has('type_donnee')) {
-            $query->where('type_donnee', $request->type_donnee);
-        }
+    $questions = $query->paginate($perPage);
 
-        if ($request->has('destinataire')) {
-            $query->where('destinataire', $request->destinataire);
-        }
+    return ApiResponse::success(
+        QuestionResource::collection($questions), 
+        'Questions récupérées avec succès'
+    );
+}
 
-        if ($request->has('obligatoire')) {
-            $query->where('obligatoire', filter_var($request->obligatoire, FILTER_VALIDATE_BOOLEAN));
-        }
-
-        if ($request->has('est_actif')) {
-            $query->where('est_actif', filter_var($request->est_actif, FILTER_VALIDATE_BOOLEAN));
-        }
-
-        $questions = $query->orderBy('created_at', 'desc')->paginate($perPage);
-
-        return ApiResponse::success(QuestionResource::collection($questions), 'Questions récupérées avec succès');
-    }
 
     public function getQuestionsByDestinataire(Request $request)
     {
@@ -124,19 +122,6 @@ class QuestionController extends Controller
         }
     }
 
-    public function toggleQuestionStatus($id)
-    {
-        $question = Question::find($id);
-        if (!$question) {
-            return ApiResponse::error('Question non trouvée', 404);
-        }
-
-        $question->update(['est_actif' => !$question->est_actif]);
-
-        $etat = $question->est_actif ? 'activée' : 'désactivée';
-
-        return ApiResponse::success(new QuestionResource($question), "Question $etat avec succès.");
-    }
 
 
     /*
@@ -158,12 +143,27 @@ class QuestionController extends Controller
             $question->update($data);
 
             DB::commit();
-            return ApiResponse::success(new QuestionResource($question), 'Question mise à jour avec succès');
+            return ApiResponse::success(null, 'Question mise à jour avec succès');
         } catch (\Exception $e) {
             DB::rollBack();
             return ApiResponse::error('Erreur lors de la mise à jour de la question: ' . $e->getMessage(), 500);
         }
     }
+
+    public function toggleQuestionStatus($id)
+    {
+        $question = Question::find($id);
+        if (!$question) {
+            return ApiResponse::error('Question non trouvée', 404);
+        }
+
+        $question->update(['est_actif' => !$question->est_actif]);
+
+        $etat = $question->est_actif ? 'activée' : 'désactivée';
+
+        return ApiResponse::success(null, "Question $etat avec succès.");
+    }
+
 
     /**
      * Supprimer une question (hard delete)
@@ -195,7 +195,7 @@ class QuestionController extends Controller
         $ids = $request->input('ids');
         $deleted = Question::whereIn('id', $ids)->delete();
         Log::info("Suppression en masse de questions - IDs: [" . implode(',', $ids) . "]");
-        return ApiResponse::success(['deleted' => $deleted], "$deleted questions supprimées avec succès");
+        return ApiResponse::success(null, "$deleted questions supprimées avec succès");
     }
 
     /**
@@ -219,25 +219,16 @@ class QuestionController extends Controller
                 ->groupBy('destinataire')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->destinataire ?? 'Non spécifié' => $item->count];
+                    return [TypeDemandeurEnum::getLabelKey($item->destinataire->value) ?? 'Non spécifié' => $item->count];
                 }),
             
             'repartition_par_type_donnee' => Question::selectRaw('type_donnee, COUNT(*) as count')
                 ->groupBy('type_donnee')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->type_donnee ?? 'Non spécifié' => $item->count];
+                    return [TypeDonneeEnum::getLabelKey($item->type_donnee->value) ?? 'Non spécifié' => $item->count];
                 }),
-            
-            'repartition_obligatoire_par_destinataire' => Question::selectRaw('destinataire, obligatoire, COUNT(*) as count')
-                ->groupBy('destinataire', 'obligatoire')
-                ->get()
-                ->groupBy('destinataire')
-                ->map(function ($group) {
-                    return $group->mapWithKeys(function ($item) {
-                        return [$item->obligatoire ? 'obligatoires' : 'optionnelles' => $item->count];
-                    });
-                }),
+           
         ];
 
         return ApiResponse::success($stats, 'Statistiques des questions récupérées avec succès');

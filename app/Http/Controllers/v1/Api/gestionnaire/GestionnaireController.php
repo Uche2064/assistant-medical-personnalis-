@@ -28,55 +28,48 @@ class GestionnaireController extends Controller
     {
         $perPage = $request->input('per_page', 10);
         $currentGestionnaire = Auth::user();
-
+    
         $query = Personnel::with(['user', 'user.roles'])
             ->where('id', '!=', $currentGestionnaire->personnel->id)
-            ->where('gestionnaire_id', '!=', null); // Exclure le gestionnaire actuel
-
-        // Filtre par statut actif
-        if ($request->has('est_actif')) {
-            $estActif = filter_var($request->input('est_actif'), FILTER_VALIDATE_BOOLEAN);
-            $query->whereHas('user', function ($q) use ($estActif) {
-                $q->where('est_actif', $estActif);
+            ->whereNotNull('gestionnaire_id')
+    
+            // Filtre par statut actif
+            ->when($request->has('est_actif'), function ($q) use ($request) {
+                $estActif = filter_var($request->input('est_actif'), FILTER_VALIDATE_BOOLEAN);
+                $q->whereHas('user', fn ($subQ) => $subQ->where('est_actif', $estActif));
+            })
+    
+            // Filtre par sexe
+            ->when($request->filled('sexe'), function ($q) use ($request) {
+                $q->where('sexe', $request->input('sexe'));
+            })
+    
+            // Filtre par rôle
+            ->when($request->filled('role'), function ($q) use ($request) {
+                $q->whereHas('user.roles', fn ($subQ) => $subQ->where('name', $request->input('role')));
+            })
+    
+            // Recherche globale (nom, prénoms, email)
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = $request->input('search');
+                $q->where(function ($subQ) use ($search) {
+                    $subQ->where('nom', 'like', "%{$search}%")
+                        ->orWhere('prenoms', 'like', "%{$search}%")
+                        ->orWhereHas('user', fn ($userQ) => $userQ->where('email', 'like', "%{$search}%"));
+                });
             });
-        }
-
-        // Filtre par sexe
-        if ($request->filled('sexe')) {
-            $query->where('sexe', $request->input('sexe'));
-        }
-
-        // Filtre par rôle
-        if ($request->filled('role')) {
-            $query->whereHas('user.roles', function ($q) use ($request) {
-                $q->where('name', $request->input('role'));
-            });
-        }
-
-        // Recherche globale (nom, prénoms, email)
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('nom', 'like', "%{$search}%")
-                  ->orWhere('prenoms', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($userQuery) use ($search) {
-                      $userQuery->where('email', 'like', "%{$search}%");
-                  });
-            });
-        }
-
+    
         // Tri
-        $sortBy = $request->input('sort_by', 'created_at');
-        $sortOrder = $request->input('sort_order', 'desc');
-        $query->orderBy($sortBy, $sortOrder);
-
+        $query->orderBy(
+            $request->input('sort_by', 'created_at'),
+            $request->input('sort_order', 'desc')
+        );
+    
         $personnels = $query->paginate($perPage);
-
-        // Transformer en UserResource
-        $userCollection = $personnels->getCollection()->map(function ($personnel) {
-            return $personnel->user;
-        });
-
+    
+        // Mapper en UserResource
+        $userCollection = $personnels->getCollection()->map(fn ($personnel) => $personnel->user);
+    
         $paginatedUsers = new LengthAwarePaginator(
             UserResource::collection($userCollection),
             $personnels->total(),
@@ -84,9 +77,10 @@ class GestionnaireController extends Controller
             $personnels->currentPage(),
             ['path' => Paginator::resolveCurrentPath()]
         );
-
+    
         return ApiResponse::success($paginatedUsers, 'Liste des personnels récupérée avec succès');
     }
+    
 
     /**
      * Créer un nouveau personnel
@@ -98,8 +92,8 @@ class GestionnaireController extends Controller
         $photoUrl = null;
 
         // Gestion de l'upload de la photo
-        if (isset($validated['photo_url'])) {
-            $photoUrl = ImageUploadHelper::uploadImage($validated['photo_url'], 'uploads/users/personnels');
+        if (isset($validated['photo'])) {
+            $photoUrl = ImageUploadHelper::uploadImage($validated['photo'], 'uploads/users/personnels/'.$validated['email'].'/');
             if (!$photoUrl) {
                 return ApiResponse::error('Erreur lors de l\'upload de la photo', 422);
             }
@@ -113,7 +107,7 @@ class GestionnaireController extends Controller
                 'email' => $validated['email'],
                 'contact' => $validated['contact'] ?? null,
                 'adresse' => $validated['adresse'],
-                'photo_url' => $photoUrl,
+                'photo' => $photoUrl,
                 'mot_de_passe_a_changer' => true,
                 'est_actif' => false,
                 'password' => Hash::make($password),
@@ -147,9 +141,7 @@ class GestionnaireController extends Controller
 
             DB::commit();
 
-            return ApiResponse::success([
-                'personnel' => new UserResource($user->load(['roles', 'personnel'])),
-            ], 'Personnel créé avec succès. Les identifiants ont été envoyés par email.', 201);
+            return ApiResponse::success(null , RoleEnum::getLabel($validated['role']).' créé avec succès. Les identifiants ont été envoyés par email.', 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -161,14 +153,14 @@ class GestionnaireController extends Controller
     /**
      * Afficher les détails d'un personnel
      */
-    public function showPersonnel($id)
+    public function showPersonnel(int $id)
     {
         $currentGestionnaire = Auth::user();
 
         $personnel = Personnel::with(['user', 'user.roles'])
-            ->where('gestionnaire_id', $currentGestionnaire->personnel->id)
-            ->where('id', '!=', $currentGestionnaire->personnel->id)
-            ->find($id);
+        ->where('id', '!=', $currentGestionnaire->personnel->id)
+        ->whereNotNull('gestionnaire_id')
+        ->find($id);
 
         if (!$personnel) {
             return ApiResponse::error('Personnel non trouvé', 404);
@@ -183,53 +175,27 @@ class GestionnaireController extends Controller
     /**
      * Suspendre/désactiver un personnel
      */
-    public function suspendPersonnel($id)
+    public function togglePersonnelStatus($id)
     {
         $currentGestionnaire = Auth::user();
-
-        $personnel = Personnel::with('user')
-            ->where('gestionnaire_id', $currentGestionnaire->personnel->id)
-            ->where('id', '!=', $currentGestionnaire->personnel->id)
-            ->find($id);
+        $personnel = Personnel::with(['user', 'user.roles'])
+        ->where('id', '!=', $currentGestionnaire->personnel->id)
+        ->whereNotNull('gestionnaire_id')
+        ->find($id);
 
         if (!$personnel) {
             return ApiResponse::error('Personnel non trouvé', 404);
         }
 
-        $personnel->user->update(['est_actif' => false]);
+        if($personnel->user->mot_de_passe_a_changer) {
+            return ApiResponse::error('Le personnel doit changer son mot de passe avant de pouvoir être suspendu', 400, null);
+        }
+
+        $personnel->user->update(['est_actif' => !$personnel->user->est_actif]);
 
         Log::info("Personnel suspendu - ID: {$personnel->id}, Email: {$personnel->user->email}");
 
-        return ApiResponse::success(
-            new UserResource($personnel->user), 
-            'Personnel suspendu avec succès'
-        );
-    }
-
-    /**
-     * Réactiver un personnel
-     */
-    public function activatePersonnel($id)
-    {
-        $currentGestionnaire = Auth::user();
-
-        $personnel = Personnel::with('user')
-            ->where('gestionnaire_id', $currentGestionnaire->personnel->id)
-            ->where('id', '!=', $currentGestionnaire->personnel->id)
-            ->find($id);
-
-        if (!$personnel) {
-            return ApiResponse::error('Personnel non trouvé', 404);
-        }
-
-        $personnel->user->update(['est_actif' => true]);
-
-        Log::info("Personnel réactivé - ID: {$personnel->id}, Email: {$personnel->user->email}");
-
-        return ApiResponse::success(
-            new UserResource($personnel->user), 
-            'Personnel réactivé avec succès'
-        );
+        return ApiResponse::success(null, 'Personnel ' . ($personnel->user->est_actif ? 'suspendu' : 'réactivé') . ' avec succès');
     }
 
     /**
@@ -238,11 +204,10 @@ class GestionnaireController extends Controller
     public function destroyPersonnel($id)
     {
         $currentGestionnaire = Auth::user();
-
-        $personnel = Personnel::with('user')
-            ->where('gestionnaire_id', $currentGestionnaire->personnel->id)
-            ->where('id', '!=', $currentGestionnaire->personnel->id)
-            ->find($id);
+        $personnel = Personnel::with(['user', 'user.roles'])
+        ->where('id', '!=', $currentGestionnaire->personnel->id)
+        ->whereNotNull('gestionnaire_id')
+        ->find($id);
 
         if (!$personnel) {
             return ApiResponse::error('Personnel non trouvé', 404);
@@ -275,23 +240,30 @@ class GestionnaireController extends Controller
         $currentGestionnaire = Auth::user();
 
         $stats = [
-            'total' => Personnel::where('id', '!=', $currentGestionnaire->personnel->id)
-                ->count(),
+            'total' => Personnel::with(['user', 'user.roles'])
+            ->where('id', '!=', $currentGestionnaire->personnel->id)
+            ->whereNotNull('gestionnaire_id')
+            ->count(),
             
-            'actifs' => Personnel::where('id', '!=', $currentGestionnaire->personnel->id)
-                ->whereHas('user', function ($q) {
-                    $q->where('est_actif', true);
-                })->count(),
+            'actifs' => Personnel::with(['user', 'user.roles'])
+            ->where('id', '!=', $currentGestionnaire->personnel->id)
+            ->whereNotNull('gestionnaire_id')
+            ->whereHas('user', function ($q) {
+                $q->where('est_actif', true);
+            })->count(),
             
-            'inactifs' => Personnel::where('id', '!=', $currentGestionnaire->personnel->id)
-                ->whereHas('user', function ($q) {
-                    $q->where('est_actif', false);
-                })->count(),
+            'inactifs' => Personnel::with(['user', 'user.roles'])
+            ->where('id', '!=', $currentGestionnaire->personnel->id)
+            ->whereNotNull('gestionnaire_id')
+            ->whereHas('user', function ($q) {
+                $q->where('est_actif', false);
+            })->count(),
             
-            'repartition_par_role' => Personnel::where('id', '!=', $currentGestionnaire->personnel->id)
-                ->whereHas('user.roles')
-                ->with('user.roles')
-                ->get()
+            'repartition_par_role' => Personnel::with(['user', 'user.roles'])
+            ->where('id', '!=', $currentGestionnaire->personnel->id)
+            ->whereNotNull('gestionnaire_id')
+            ->whereHas('user.roles')
+            ->get()
                 ->groupBy(function ($personnel) {
                     return $personnel->user->roles->first()->name ?? 'Aucun rôle';
                 })
@@ -299,10 +271,12 @@ class GestionnaireController extends Controller
                     return $group->count();
                 }),
             
-            'repartition_par_sexe' => Personnel::where('id', '!=', $currentGestionnaire->personnel->id)
-                ->selectRaw('sexe, COUNT(*) as count')
-                ->groupBy('sexe')
-                ->get()
+            'repartition_par_sexe' => Personnel::with(['user', 'user.roles'])
+            ->where('id', '!=', $currentGestionnaire->personnel->id)
+            ->whereNotNull('gestionnaire_id')
+            ->selectRaw('sexe, COUNT(*) as count')
+            ->groupBy('sexe')
+            ->get()
                 ->mapWithKeys(function ($item) {
                     return [$item->sexe ?? 'Non spécifié' => $item->count];
                 }),

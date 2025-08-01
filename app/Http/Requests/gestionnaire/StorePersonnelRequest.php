@@ -29,7 +29,7 @@ class StorePersonnelRequest extends FormRequest
             'adresse' => ['required', 'string', 'max:500'],
             'sexe' => ['nullable', Rule::in(SexeEnum::values())],
             'date_naissance' => ['nullable', 'date', 'before:today'],
-            'photo_url' => ['nullable', 'file', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'],
+            'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'],
             'role' => ['required', Rule::in(array_diff(RoleEnum::values(), [RoleEnum::ADMIN_GLOBAL->value, RoleEnum::GESTIONNAIRE->value]))]
         ];
 

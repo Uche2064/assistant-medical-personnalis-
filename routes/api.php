@@ -47,21 +47,17 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
 
-
-
     // ---------------------- gestion des gestionnaires par l'admin global -------------------
 
     Route::middleware(['auth:api', 'checkRole:admin_global'])->prefix('admin/gestionnaires')->group(function () {
-        Route::post('/', [AdminController::class, 'storeGestionnaire']);
         Route::get('/', [AdminController::class, 'indexGestionnaires']);
+        Route::post('/', [AdminController::class, 'storeGestionnaire']);
         Route::get('/stats', [AdminController::class, 'gestionnaireStats']);
         Route::get('/{id}', [AdminController::class, 'showGestionnaire']);
-        Route::patch('/{id}/suspend', [AdminController::class, 'suspendGestionnaire']);
-        Route::patch('/{id}/activate', [AdminController::class, 'activateGestionnaire']);
+        Route::patch('/{id}/change-status', [AdminController::class, 'toggleGestionnaireStatus']);
         Route::delete('/{id}', [AdminController::class, 'destroyGestionnaire']);
-        Route::get('/stats', [StatsController::class, 'getGestionnaireStats']);
-
     });
+
 
     // ---------------------- gestion des personnels par le gestionnaire --------------------
 
@@ -70,15 +66,13 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/', [GestionnaireController::class, 'indexPersonnels']);
         Route::get('/stats', [GestionnaireController::class, 'personnelStats']);
         Route::get('/{id}', [GestionnaireController::class, 'showPersonnel']);
-        Route::get('/stats', [StatsController::class, 'getPersonnelStats']);
 
     });
 
     // Écriture : uniquement gestionnaire
     Route::middleware(['auth:api', 'checkRole:gestionnaire'])->prefix('gestionnaire/personnels')->group(function () {
         Route::post('/', [GestionnaireController::class, 'storePersonnel']);
-        Route::patch('/{id}/suspend', [GestionnaireController::class, 'suspendPersonnel']);
-        Route::patch('/{id}/activate', [GestionnaireController::class, 'activatePersonnel']);
+        Route::patch('/{id}/change-status', [GestionnaireController::class, 'togglePersonnelStatus']);
         Route::delete('/{id}', [GestionnaireController::class, 'destroyPersonnel']);
 
     });
@@ -91,17 +85,18 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
     Route::middleware(['auth:api', 'checkRole:medecin_controleur,admin_global'])->prefix('questions')->group(function () {
         Route::get('/all', [QuestionController::class, 'indexQuestions']); // toutes les questions
+        Route::get('/stats', [QuestionController::class, 'questionStats']); // statistiques des questions
         Route::get('/{id}', [QuestionController::class, 'showQuestion']); // toutes les questions
         Route::post('/', [QuestionController::class, 'bulkInsertQuestions']);
         Route::put('/{id}', [QuestionController::class, 'updateQuestion']);
         Route::patch('/{id}/toggle', [QuestionController::class, 'toggleQuestionStatus']);
         Route::delete('/{id}', [QuestionController::class, 'destroyQuestion']); // suppression simple
         Route::post('/bulk-delete', [QuestionController::class, 'bulkDestroyQuestions']); // suppression en masse
-        Route::get('/all/stats', [QuestionController::class, 'questionStats']); // statistiques des questions
     });
+    Route::get('/questions', [QuestionController::class, 'getQuestionsByDestinataire']); // questions par destinataire
 
 
-    Route::get('/questions', [QuestionController::class, 'getQuestionsByDestinataire']);
+
     Route::get('/has-demande', [DemandeAdhesionController::class, 'hasDemande'])->middleware('auth:api');
 
     Route::middleware(['auth:api'])->prefix('demandes-adhesions')->group(function () {

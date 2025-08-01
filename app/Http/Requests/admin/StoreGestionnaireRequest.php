@@ -33,7 +33,7 @@ class StoreGestionnaireRequest extends FormRequest
             'adresse' => 'nullable|string|max:255',
             'sexe' => 'nullable|in:M,F',
             'date_naissance' => 'nullable|date',
-            'photo_url' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp|max:2048',
+            'photo' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp|max:2048',
         ];
     }
 

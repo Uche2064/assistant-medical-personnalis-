@@ -16,6 +16,18 @@ enum TypeDemandeurEnum: string
         return array_column(self::cases(), 'value');
     }
 
+    public static function getLabelKey(string $typeDemandeur): string
+    {
+        return match($typeDemandeur) {
+            self::PHYSIQUE->value => 'physique',
+            self::CENTRE_DE_SOINS->value => 'centre_de_soins',
+            self::LABORATOIRE_CENTRE_DIAGNOSTIC->value => 'laboratoire_centre_diagnostic',
+            self::PHARMACIE->value => 'pharmacie',
+            self::OPTIQUE->value => 'optique',
+            self::ENTREPRISE->value => 'entreprise',
+        };
+    }
+
     public function getLabel(): string
     {
         return match($this) {

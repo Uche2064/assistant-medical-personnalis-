@@ -17,6 +17,20 @@ enum TypeDonneeEnum: string
         return array_column(self::cases(), 'value');
     }
 
+    public static function getLabelKey(string $typeDonnee): string
+    {
+        return match($typeDonnee) {
+            self::TEXT->value => 'text',
+            self::NUMBER->value => 'number',
+            self::BOOLEAN->value => 'boolean',
+            self::DATE->value => 'date',
+            self::SELECT->value => 'select',
+            self::CHECKBOX->value => 'checkbox',
+            self::RADIO->value => 'radio',
+            self::FILE->value => 'file',
+        };
+    }
+
     public function getLabel(): string
     {
         return match($this) {

@@ -56,6 +56,21 @@ enum RoleEnum: String
         ];
     }
 
+    // get role label
+    public static function getLabel(string $role): string {
+        return match($role) {
+            self::ADMIN_GLOBAL->value => 'Administrateur Global',
+            self::GESTIONNAIRE->value => 'Gestionnaire',
+            self::TECHNICIEN->value => 'Technicien',
+            self::MEDECIN_CONTROLEUR->value => 'Médecin Contrôleur',
+            self::COMMERCIAL->value => 'Commercial',
+            self::COMPTABLE->value => 'Comptable',
+            self::PHYSIQUE->value => 'Physique',
+            self::ENTREPRISE->value => 'Entreprise',
+            self::PRESTATAIRE->value => 'Prestataire',
+        };
+    }
+
     /**
      * Get external roles (Clients/Partners)
      */

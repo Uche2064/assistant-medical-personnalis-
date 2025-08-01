@@ -38,10 +38,17 @@ class ApiResponse
      */
     public static function error($message = '', $statusCode = 400, $errors = null)
     {
-        return response()->json([
-            'status' => false,
-            'message' => $message,
-            'data' => $errors,
-        ], $statusCode);
+        if($errors == null) {
+            return response()->json([
+                'status' => false,
+                'message' => $message,
+            ], $statusCode);
+        } else {
+            return response()->json([
+                'status' => false,
+                'message' => $message,
+                'data' => $errors,
+            ], $statusCode);
+        }
     }
 }
