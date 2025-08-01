@@ -52,12 +52,14 @@ class QuestionController extends Controller
     public function getQuestionsByDestinataire(Request $request)
     {
 
+        Log::info('getQuestionsByDestinataire', ['request' => $request->all()]);
         $destinataire = $request->query('destinataire');
 
         $questions = Question::where('destinataire', $destinataire)
             ->where('est_actif', true)
             ->get();
 
+        Log::info('questions', ['questions' => $questions]);
         return ApiResponse::success(QuestionResource::collection($questions), "Questions pour le type $destinataire récupérées avec succès");
     }
 

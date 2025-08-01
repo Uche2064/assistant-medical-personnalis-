@@ -18,28 +18,31 @@ use App\Http\Controllers\v1\Api\CommercialController;
 use App\Http\Controllers\v1\Api\ComptableController;
 use App\Http\Controllers\v1\Api\TechnicienController;
 use App\Http\Controllers\v1\Api\AssureController;
+use App\Http\Controllers\v1\Api\StatsController;
 use Illuminate\Support\Facades\Auth;
 
 Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
 
-
-
     // ----------------------- Authentification et gestion des mots de passe ---------------------
     Route::prefix('auth')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
-        Route::post('/send-otp', [AuthController::class, 'sendOtp']);
         Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
-        Route::post('/verify-register-otp', [AuthController::class, 'verifyOtp']);
         Route::post('/login', [AuthController::class, 'login']);
-        Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
-        Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:api');
-        Route::post('/change-password', [AuthController::class, 'changePassword']);
-        Route::get('/check-unique', [AuthController::class, 'checkUnique']);
+        Route::get('/me', [AuthController::class, 'getCurrentUser'])->middleware('auth:api');
+
+        // ----------------------- Gestion des mots de passe ---------------------
         Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink']);
         Route::post('/verify-reset-otp', [ForgotPasswordController::class, 'verifyOtp']);
         Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword']);
-        Route::get('/me', [AuthController::class, 'getCurrentUser'])->middleware('auth:api');
+
+        // ----------------------- Gestion des OTP ---------------------
+        // Route::post('/send-otp', [AuthController::class, 'sendOtp']);
+        // Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
+        Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:api');
+        Route::post('/change-password', [AuthController::class, 'changePassword']);
+        Route::get('/check-unique', [AuthController::class, 'checkUnique']);
+
         Route::get('/test-roles', [AuthController::class, 'testRoles'])->middleware('auth:api');
     });
 
@@ -56,6 +59,8 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::patch('/{id}/suspend', [AdminController::class, 'suspendGestionnaire']);
         Route::patch('/{id}/activate', [AdminController::class, 'activateGestionnaire']);
         Route::delete('/{id}', [AdminController::class, 'destroyGestionnaire']);
+        Route::get('/stats', [StatsController::class, 'getGestionnaireStats']);
+
     });
 
     // ---------------------- gestion des personnels par le gestionnaire --------------------
@@ -65,6 +70,8 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/', [GestionnaireController::class, 'indexPersonnels']);
         Route::get('/stats', [GestionnaireController::class, 'personnelStats']);
         Route::get('/{id}', [GestionnaireController::class, 'showPersonnel']);
+        Route::get('/stats', [StatsController::class, 'getPersonnelStats']);
+
     });
 
     // Écriture : uniquement gestionnaire
@@ -73,13 +80,13 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::patch('/{id}/suspend', [GestionnaireController::class, 'suspendPersonnel']);
         Route::patch('/{id}/activate', [GestionnaireController::class, 'activatePersonnel']);
         Route::delete('/{id}', [GestionnaireController::class, 'destroyPersonnel']);
+
     });
 
 
     // --------------------- gestion des questions pour les prospects et prestataire par le médecin contrôleur --------------------
 
-    Route::get('/questions', [QuestionController::class, 'getQuestionsByDestinataire']);
-    Route::get('/has-demande', [DemandeAdhesionController::class, 'hasDemande'])->middleware('auth:api');
+    
 
 
     Route::middleware(['auth:api', 'checkRole:medecin_controleur,admin_global'])->prefix('questions')->group(function () {
@@ -94,6 +101,8 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
 
+    Route::get('/questions', [QuestionController::class, 'getQuestionsByDestinataire']);
+    Route::get('/has-demande', [DemandeAdhesionController::class, 'hasDemande'])->middleware('auth:api');
 
     Route::middleware(['auth:api'])->prefix('demandes-adhesions')->group(function () {
         // Demande d'adhésion personne physique (assuré principal)
@@ -112,7 +121,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::put('/{demande_id}/proposer-contrat', [DemandeAdhesionController::class, 'proposerContrat'])->middleware('checkRole:technicien');
         Route::put('/{demande_id}/valider-prestataire', [DemandeAdhesionController::class, 'validerPrestataire'])->middleware('checkRole:medecin_controleur');
         Route::put('/{demande_id}/rejeter', [DemandeAdhesionController::class, 'rejeter'])->middleware('checkRole:technicien,medecin_controleur');
-        Route::get('/stats', [DemandeAdhesionController::class, 'demandeAdhesionStats'])->middleware('checkRole:admin_global,medecin_controleur,technicien');
+        Route::get('/stats', [StatsController::class, 'getDemandeAdhesionStats'])->middleware('checkRole:admin_global,medecin_controleur,technicien');
     });
     // Anciennes routes spécifiques supprimées ou commentées pour éviter toute confusion.
 
@@ -220,12 +229,12 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
     // Statistiques des assurés
     Route::middleware(['auth:api', 'checkRole:admin_global,medecin_controleur,technicien'])->prefix('assures')->group(function () {
-        Route::get('/stats', [\App\Http\Controllers\v1\Api\Assure\AssureController::class, 'assureStats']);
+        Route::get('/stats', [AssureController::class, 'assureStats']);
     });
 
     // Statistiques du dashboard adaptées au rôle
     Route::middleware(['auth:api'])->prefix('dashboard')->group(function () {
-        Route::get('/stats', [\App\Http\Controllers\v1\Api\StatsController::class, 'dashboardStats']);
+        Route::get('/stats', [StatsController::class, 'dashboardStats']);
     });
 
     Route::middleware(['auth:api'])->prefix('clients')->group(function () {

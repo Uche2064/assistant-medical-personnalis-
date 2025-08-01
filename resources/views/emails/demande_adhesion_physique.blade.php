@@ -6,7 +6,7 @@
     <title>Nouvelle demande d'adhésion personne physique</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: Verdana, sans-serif;
             background-color: #f4f4f4;
             margin: 0;
             padding: 20px;

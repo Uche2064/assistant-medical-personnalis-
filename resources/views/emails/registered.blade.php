@@ -6,7 +6,7 @@
     <title>Compte Créé - SUNU Santé</title>
     <style>
         body {
-            font-family: 'Poppins', Arial, sans-serif;
+            font-family: 'Poppins', Verdana, sans-serif;
             line-height: 1.6;
             color: #333;
             margin: 0;

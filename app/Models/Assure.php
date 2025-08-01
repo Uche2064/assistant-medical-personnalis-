@@ -25,6 +25,7 @@ class Assure extends Model
         'statut',
         'date_debut_contrat',
         'date_fin_contrat',
+        'photo_url',
     ];
 
     protected $casts = [

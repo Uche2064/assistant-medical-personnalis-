@@ -25,7 +25,7 @@ class User extends Authenticatable implements JWTSubject
         'contact',
         'password',
         'adresse',
-        'photo_url',
+        'photo',
         'est_actif',
         'email_verified_at',
         'mot_de_passe_a_changer',
@@ -196,6 +196,8 @@ class User extends Authenticatable implements JWTSubject
         if ($this->entreprise) return 'entreprise';
         if ($this->assure) return 'assure';
         if ($this->prestataire) return 'prestataire';
+        if($this->prestataire) return 'prestataire';
+        
         
         return 'user';
     }

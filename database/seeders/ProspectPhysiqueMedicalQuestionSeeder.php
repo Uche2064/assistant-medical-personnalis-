@@ -13,20 +13,20 @@ class ProspectPhysiqueMedicalQuestionSeeder extends Seeder
     {
         // Questions du questionnaire médical SUNU pour les prospects physiques
         $questions = [
-            [
-                'libelle' => 'Souffrez vous du diabète',
-                'type_donnee' => TypeDonneeEnum::BOOLEAN,
-                'destinataire' => TypeDemandeurEnum::PHYSIQUE,
-                'obligatoire' => true,
-                'est_actif' => true,
-            ],
-            [
-                'libelle' => 'Mangez vous le porc ?',
-                'type_donnee' => TypeDonneeEnum::BOOLEAN,
-                'destinataire' => TypeDemandeurEnum::PHYSIQUE,
-                'obligatoire' => true,
-                'est_actif' => true,
-            ],
+            // [
+            //     'libelle' => 'Souffrez vous du diabète',
+            //     'type_donnee' => TypeDonneeEnum::BOOLEAN,
+            //     'destinataire' => TypeDemandeurEnum::PHYSIQUE,
+            //     'obligatoire' => true,
+            //     'est_actif' => true,
+            // ],
+            // [
+            //     'libelle' => 'Mangez vous le porc ?',
+            //     'type_donnee' => TypeDonneeEnum::BOOLEAN,
+            //     'destinataire' => TypeDemandeurEnum::PHYSIQUE,
+            //     'obligatoire' => true,
+            //     'est_actif' => true,
+            // ],
             [
                 'libelle' => 'Quel sport pratiquez-vous?',
                 'type_donnee' => TypeDonneeEnum::TEXT,

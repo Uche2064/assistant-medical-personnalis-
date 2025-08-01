@@ -11,6 +11,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 
 class StoreDemandeAdhesionRequest extends FormRequest
 {
@@ -21,6 +22,7 @@ class StoreDemandeAdhesionRequest extends FormRequest
 
     public function rules(): array
     {
+        Log::info('Demande d\'adhésion soumise', ['data' => $this->all()]);
         $typeDemandeur = $this->input('type_demandeur');
         if (!$typeDemandeur) {
             return ['type_demandeur' => 'required|in:' . implode(',', TypeDemandeurEnum::values())];
@@ -42,7 +44,6 @@ class StoreDemandeAdhesionRequest extends FormRequest
             $question = $questions->get($questionId);
             $ruleKey = 'reponses.' . $index;
             $required = $question->isRequired() ? 'required' : 'nullable';
-            dd($required);
             switch ($question->type_donnee) {
                 case TypeDonneeEnum::TEXT:
                 case TypeDonneeEnum::RADIO:

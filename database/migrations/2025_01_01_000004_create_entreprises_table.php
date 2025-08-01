@@ -14,9 +14,8 @@ return new class extends Migration
     {
         Schema::create('entreprises', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
             $table->string('raison_sociale');
-            $table->string('statut')->default(StatutClientEnum::PROSPECT);
             $table->string('lien_adhesion')->unique()->nullable();
             $table->timestamps();
             $table->softDeletes();

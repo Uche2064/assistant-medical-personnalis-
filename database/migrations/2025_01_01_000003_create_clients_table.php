@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('type_client');
             $table->string('profession')->nullable();
             $table->string('code_parainage')->nullable();
-            $table->string('statut')->default(StatutClientEnum::PROSPECT);
+            $table->string('statut')->default(StatutClientEnum::ASSURE);
             $table->timestamps();
             $table->softDeletes();
         });

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\OtpTypeEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -22,7 +23,7 @@ class Otp extends Model
     protected $casts = [
         'expire_at' => 'datetime',
         'verifier_a' => 'datetime',
-        'type' => 'string',
+        'type' => OtpTypeEnum::class,
     ];
 
     /**
@@ -44,20 +45,20 @@ class Otp extends Model
     /**
      * Generate a new OTP.
      */
-    public static function generateOtp($email, $minutes = 10, $type)
+    public static function generateOtp($email, $minutes = 10, OtpTypeEnum $type)
     {
         // Delete existing OTPs for this email
         self::where('email', $email)->delete();
 
         // Generate new OTP
         $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
-
-        return self::create([
+        self::create([
             'email' => $email,
             'otp' => $otp,
             'type' => $type,
             'expire_at' => now()->addMinutes($minutes),
         ]);
+        return $otp;
     }
 
     /**

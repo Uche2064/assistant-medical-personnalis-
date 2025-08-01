@@ -4,8 +4,7 @@ namespace App\Enums;
 
 enum StatutClientEnum: string
 {
-    case PROSPECT = 'prospect';
-    case CLIENT = 'client';
+    case BENEFICIAIRE = 'beneficiaire';
     case ASSURE = 'assure';
 
     public static function values(): array
@@ -13,21 +12,4 @@ enum StatutClientEnum: string
         return array_column(self::cases(), 'value');
     }
 
-    public function getLabel(): string
-    {
-        return match($this) {
-            self::PROSPECT => 'Prospect',
-            self::CLIENT => 'Client',
-            self::ASSURE => 'Assuré',
-        };
-    }
-
-    public function getColor(): string
-    {
-        return match($this) {
-            self::PROSPECT => 'warning',
-            self::CLIENT => 'info',
-            self::ASSURE => 'success',
-        };
-    }
 } 

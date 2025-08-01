@@ -10,6 +10,8 @@ class CategorieGarantie extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $table = 'categories_garanties';
+
     protected $fillable = [
         'libelle',
         'description',

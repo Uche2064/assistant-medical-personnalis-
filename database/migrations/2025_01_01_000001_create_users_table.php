@@ -17,8 +17,8 @@ return new class extends Migration
             $table->string('contact')->nullable()->unique();
             $table->string('password')->nullable();
             $table->text('adresse')->nullable();
-            $table->string('photo_url')->nullable();
-            $table->boolean('est_actif')->default(true);
+            $table->string('photo')->nullable();
+            $table->boolean('est_actif')->default(false);
             $table->timestamp('email_verified_at')->nullable();
             $table->boolean('mot_de_passe_a_changer')->default(true);
             $table->rememberToken();

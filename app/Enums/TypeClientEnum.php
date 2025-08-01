@@ -5,7 +5,7 @@ namespace App\Enums;
 enum TypeClientEnum: String
 {
     case PHYSIQUE = 'physique';
-    case MORAL = 'moral';
+    case ENTREPRISE = 'entreprise';
 
     public static function values(): array
     {

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\v1\Api\auth;
 
+use App\Enums\EmailType;
+use App\Enums\OtpTypeEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\auth\ResetPasswordRequest;
@@ -21,10 +23,17 @@ class ForgotPasswordController extends Controller
     /**
      * Envoyer un OTP pour réinitialiser le mot de passe
      */
-    public function sendResetLink(SendResetPasswordLinkRequest $request)
+    public function sendResetLink(Request $request)
     {
-        $validated = $request->validated();
-        $email = $validated['email'];
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+        ]);
+
+        if ($validator->fails()) {
+            return ApiResponse::error("Erreur de validation", 422, $validator->errors());
+        }
+
+        $email = $request->email;
 
         // Vérifier si l'utilisateur existe
         $user = User::where('email', $email)->first();
@@ -33,34 +42,21 @@ class ForgotPasswordController extends Controller
         }
 
         // Générer un OTP unique
-        $otp = Otp::generateOtp($email, 10, 'password_reset');
-
-        // Supprimer les anciens OTP pour cet email
-        Otp::where('email', $email)->delete();
-
-        Otp::create([
-            'email' => $email,
-            'otp' => $otp->otp,
-            'expire_at' => $otp->expire_at,
-            'type' => 'password_reset'
-        ]);
+        $otp = Otp::generateOtp($email, 10, OtpTypeEnum::FORGOT_PASSWORD);
 
         // Envoyer l'email avec l'OTP
         dispatch(new SendEmailJob(
             $email,
             'Réinitialisation de votre mot de passe',
-            'emails.password_reset_otp',
+            EmailType::PASSWORD_RESET_OTP->value,
             [
                 'user' => $user,
                 'otp' => $otp,
-                'expire_at' => $otp->expire_at
+                'expire_at' => now()->addMinutes(10)
             ]
         ));
 
-        return ApiResponse::success([
-            'email' => $email,
-            'message' => 'Un code OTP a été envoyé à votre email.'
-        ], 'Code OTP envoyé avec succès.');
+        return ApiResponse::success(null, 'Code OTP envoyé avec succès.');
     }
 
     /**
@@ -72,11 +68,11 @@ class ForgotPasswordController extends Controller
             'email' => 'required|email',
             'otp' => 'required|string|size:6',
         ]);
-        
+
         if ($validator->fails()) {
             return ApiResponse::error("Erreur de validation", 422, $validator->errors());
         }
-        
+
 
         $email = $request->email;
         $otp = $request->otp;
@@ -90,7 +86,7 @@ class ForgotPasswordController extends Controller
         // Vérifier l'OTP
         $otpRecord = Otp::where('email', $email)
             ->where('otp', $otp)
-            ->where('type', 'password_reset')
+            ->where('type', OtpTypeEnum::FORGOT_PASSWORD)
             ->where('expire_at', '>', now())
             ->first();
 
@@ -101,22 +97,7 @@ class ForgotPasswordController extends Controller
         // Supprimer l'OTP utilisé
         $otpRecord->delete();
 
-        // Générer un token temporaire pour la réinitialisation
-        $resetToken = Str::random(60);
-        $tokenExpiration = now()->addMinutes(15);
-
-        // Stocker le token (utiliser le cache ou une table temporaire)
-        \Illuminate\Support\Facades\Cache::put("password_reset_{$resetToken}", [
-            'user_id' => $user->id,
-            'email' => $email,
-            'expires_at' => $tokenExpiration
-        ], $tokenExpiration);
-
-        return ApiResponse::success([
-            'reset_token' => $resetToken,
-            'expires_at' => $tokenExpiration,
-            'message' => 'Code OTP vérifié. Vous pouvez maintenant définir votre nouveau mot de passe.'
-        ], 'Code OTP vérifié avec succès.');
+        return ApiResponse::success(null, 'Code OTP vérifié avec succès. Vous pouvez maintenant définir votre nouveau mot de passe.');
     }
 
     /**
@@ -125,23 +106,13 @@ class ForgotPasswordController extends Controller
     public function resetPassword(ResetPasswordRequest $request)
     {
         $validated = $request->validated();
-        $resetToken = $validated['token'];
+        // $resetToken = $validated['token'];
         $newPassword = $validated['password'];
+        $email = $validated['email'];
 
-        // Récupérer les données du token
-        $tokenData = \Illuminate\Support\Facades\Cache::get("password_reset_{$resetToken}");
-        
-        if (!$tokenData) {
-            return ApiResponse::error('Token de réinitialisation invalide ou expiré.', 400);
-        }
-
-        // Vérifier que l'email correspond
-        if ($tokenData['email'] !== $validated['email']) {
-            return ApiResponse::error('Email ne correspond pas au token de réinitialisation.', 400);
-        }
 
         // Récupérer l'utilisateur
-        $user = User::find($tokenData['user_id']);
+        $user = User::where('email', $email)->first();
         if (!$user) {
             return ApiResponse::error('Utilisateur non trouvé.', 404);
         }
@@ -152,22 +123,17 @@ class ForgotPasswordController extends Controller
             'mot_de_passe_a_changer' => false
         ]);
 
-        // Supprimer le token utilisé
-        \Illuminate\Support\Facades\Cache::forget("password_reset_{$resetToken}");
-
         // Envoyer un email de confirmation
         dispatch(new SendEmailJob(
             $user->email,
             'Mot de passe modifié avec succès',
-            'emails.password_changed',
+            EmailType::PASSWORD_CHANGED->value,
             [
                 'user' => $user,
                 'changed_at' => now()
             ]
         ));
 
-        return ApiResponse::success([
-            'message' => 'Mot de passe réinitialisé avec succès.'
-        ], 'Mot de passe modifié avec succès.');
+        return ApiResponse::success(null, 'Mot de passe modifié avec succès.');
     }
 }

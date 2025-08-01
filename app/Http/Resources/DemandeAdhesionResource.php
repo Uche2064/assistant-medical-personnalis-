@@ -14,7 +14,7 @@ class DemandeAdhesionResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $demandeur = $this->user;
+        $demandeur = $this;
 
         return [
             'id' => $demandeur->id,
@@ -25,14 +25,14 @@ class DemandeAdhesionResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'deleted_at' => $this->when($this->deleted_at, $this->deleted_at),
-            'nom' => $demandeur->client->nom ?? null,
-            'raison_sociale' => $demandeur->entreprise->raison_sociale ?? null,
-            'prenoms' => $demandeur->client->prenoms ?? null,
-            'date_naissance' => $demandeur->client->date_naissance ?? null,
-            'sexe' => $demandeur->client->sexe ?? null,
-            'profession' => $demandeur->client->profession ?? null,
-            'email' => $demandeur->email,
-            'contact' => $demandeur->contact,
+            'nom' => $demandeur->user->client->nom ?? null,
+            'raison_sociale' => $demandeur->user->entreprise->raison_sociale ?? null,
+            'prenoms' => $demandeur->user->client->prenoms ?? null,
+            'date_naissance' => $demandeur->user->client->date_naissance ?? null,
+            'sexe' => $demandeur->user->client->sexe ?? null,
+            'profession' => $demandeur->user->client->profession ?? null,
+            'email' => $demandeur->user->email,
+            'contact' => $demandeur->user->contact,
             'reponses_questionnaire' => $this->when('reponsesQuestionnaire', function () {
                 return $this->reponsesQuestionnaire->map(function ($reponse) {
                     return [
@@ -43,7 +43,7 @@ class DemandeAdhesionResource extends JsonResource
                         'reponse_fichier' => $reponse->reponse_fichier,
                         'question_id' => $reponse->question_id,
                         'created_at' => $reponse->created_at,
-                        'updated_at' => $reponse->updated_at,
+                        'updated_at' => $reponse->updated_at, 
                         'deleted_at' => $reponse->deleted_at,
                         'question' => $reponse->when('question', function () use ($reponse) {
                             return [

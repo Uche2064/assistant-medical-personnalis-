@@ -17,8 +17,8 @@ class VerifyOtpFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['string', 'required'],
-            'otp' => ['string', 'required']
+            'email' => ['string', 'required', 'email'],
+            'otp' => ['string', 'required', 'min:6', 'max:6']
         ];
     }
 
@@ -29,7 +29,10 @@ class VerifyOtpFormRequest extends FormRequest
     public function messages(): array {
         return [
             'email' => 'L\'email est requis',
-            'otp' => 'Le code est requis'
+            'otp' => 'Le code est requis',
+            'email.email' => 'L\'email est invalide',
+            'otp.min' => 'Le code doit contenir 6 chiffres',
+            'otp.max' => 'Le code doit contenir 6 chiffres'
         ];
     }
 }

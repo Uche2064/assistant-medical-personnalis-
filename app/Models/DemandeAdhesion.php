@@ -52,8 +52,7 @@ class DemandeAdhesion extends Model
     public function reponsesQuestionnaire()
     {
         // Pour l'assuré principal
-        return $this->hasMany(ReponseQuestionnaire::class, 'personne_id', 'user_id')
-            ->where('personne_type', User::class);
+        return $this->hasMany(ReponseQuestionnaire::class, 'personne_id', 'user_id');
     }
 
     /**

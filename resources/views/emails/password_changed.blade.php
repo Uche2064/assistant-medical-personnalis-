@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mot de passe modifié - SUNU Santé</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+      
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -25,184 +21,37 @@
             border-radius: 10px;
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
         }
-        
-        .header {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-        
-        .header h1 {
-            font-size: 28px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-        
-        .header p {
-            font-size: 16px;
-            opacity: 0.9;
-        }
-        
-        .content {
-            padding: 40px 30px;
-        }
-        
-        .greeting {
-            font-size: 18px;
-            margin-bottom: 20px;
-            color: #2c3e50;
-        }
-        
-        .message {
-            font-size: 16px;
-            margin-bottom: 30px;
-            color: #555;
-            line-height: 1.8;
-        }
-        
-        .success-container {
-            background-color: #d4edda;
-            border: 2px solid #c3e6cb;
-            border-radius: 8px;
-            padding: 25px;
-            text-align: center;
-            margin: 30px 0;
-        }
-        
-        .success-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-        
-        .success-title {
-            font-size: 20px;
-            font-weight: bold;
-            color: #155724;
-            margin-bottom: 10px;
-        }
-        
-        .success-message {
-            font-size: 16px;
-            color: #155724;
-        }
-        
-        .details-container {
+          .details-container {
             background-color: #f8f9fa;
             border: 1px solid #e9ecef;
             border-radius: 6px;
             padding: 20px;
             margin: 30px 0;
         }
+
         
-        .details-title {
+        .success-title {
             font-size: 16px;
             font-weight: bold;
-            color: #495057;
-            margin-bottom: 15px;
+            color: #155724;
         }
         
-        .detail-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
+        .success-message {
             font-size: 14px;
-        }
-        
-        .detail-label {
-            color: #6c757d;
-            font-weight: 500;
-        }
-        
-        .detail-value {
-            color: #495057;
-            font-weight: 600;
-        }
-        
-        .security-note {
-            background-color: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 6px;
-            padding: 20px;
-            margin: 30px 0;
-        }
-        
-        .security-note h3 {
-            color: #856404;
-            font-size: 16px;
+            color: #155724;
             margin-bottom: 10px;
         }
-        
-        .security-note p {
-            color: #856404;
+
+          .message {
             font-size: 14px;
-            margin: 0;
+            margin-bottom: 30px;
+            color: #555;
+            line-height: 1.8;
         }
         
-        .footer {
-            background-color: #f8f9fa;
-            padding: 25px 30px;
-            text-align: center;
-            border-top: 1px solid #e9ecef;
-        }
-        
-        .footer p {
-            font-size: 14px;
-            color: #6c757d;
-            margin-bottom: 10px;
-        }
-        
-        .logo {
-            font-size: 24px;
-            font-weight: bold;
-            color: white;
-            margin-bottom: 10px;
-        }
-        
-        .contact-info {
-            margin-top: 20px;
-            font-size: 14px;
-            color: #6c757d;
-        }
-        
-        .contact-info a {
-            color: #28a745;
-            text-decoration: none;
-        }
-        
-        .action-button {
-            display: inline-block;
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            color: white;
-            text-decoration: none;
-            padding: 12px 30px;
-            border-radius: 6px;
-            font-weight: 600;
-            margin-top: 20px;
-            transition: all 0.3s ease;
-        }
-        
-        .action-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
-        }
-        
-        @media (max-width: 600px) {
-            .container {
-                margin: 10px;
-                border-radius: 8px;
-            }
-            
-            .header, .content, .footer {
-                padding: 20px;
-            }
-            
-            .detail-item {
-                flex-direction: column;
-                gap: 5px;
-            }
-        }
+       
     </style>
 </head>
 <body>
@@ -225,17 +74,13 @@
                 Cette action a été effectuée pour votre compte SUNU Santé.
             </div>
             
-            <!-- Success Container -->
-            <div class="success-container">
-                <div class="success-icon">✅</div>
-                <div class="success-title">Mot de passe mis à jour</div>
+            <!-- Details Container -->
+            <div class="details-container">
+                 <div class="success-title">Mot de passe mis à jour</div>
                 <div class="success-message">
                     Votre nouveau mot de passe est maintenant actif
                 </div>
-            </div>
-            
-            <!-- Details Container -->
-            <div class="details-container">
+                
                 <div class="details-title">Détails de la modification</div>
                 <div class="detail-item">
                     <span class="detail-label">Compte :</span>
@@ -245,30 +90,9 @@
                     <span class="detail-label">Date de modification :</span>
                     <span class="detail-value">{{ $changed_at->format('d/m/Y à H:i') }}</span>
                 </div>
-                <div class="detail-item">
-                    <span class="detail-label">Statut :</span>
-                    <span class="detail-value">✅ Confirmé</span>
-                </div>
             </div>
             
-            <!-- Security Note -->
-            <div class="security-note">
-                <h3>🔒 Sécurité</h3>
-                <p>
-                    • Si vous n'avez pas effectué cette modification, contactez-nous immédiatement<br>
-                    • Assurez-vous de vous déconnecter de tous vos appareils si nécessaire<br>
-                    • Utilisez un mot de passe fort et unique pour votre compte
-                </p>
-            </div>
-            
-            <div class="message">
-                <strong>Prochaines étapes :</strong><br>
-                • Connectez-vous avec votre nouveau mot de passe<br>
-                • Vérifiez que vous pouvez accéder à votre compte<br>
-                • Contactez notre support si vous rencontrez des difficultés
-            </div>
-            
-            <div style="text-align: center; margin-top: 30px;">
+            <div style="text-align: center; margin-top: 30px; margin-bottom: 30px;">
                 <a href="{{ config('app.frontend_url', 'https://app.sunusante.com') }}/login" class="action-button">
                     Se connecter maintenant
                 </a>

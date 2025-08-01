@@ -36,10 +36,9 @@ class RegisterRequest extends FormRequest
             'profession' => 'nullable|string|max:255',
             'sexe' => 'required_if:type_demandeur,physique|in:M,F',
 
-            // Données pour demandeur moral (entreprise)
-            'raison_sociale' => 'required_if:type_demandeur,autre,pharmacie,centre_de_soins,laboratoire_de_biologie_medicale,optique|string|max:255|unique:entreprises,raison_sociale',
+            'raison_sociale' => 'required_if:type_demandeur,entreprise,pharmacie,centre_de_soins,laboratoire_de_biologie_medicale,optique|string|max:255',
 
-            'photo_url' => 'required_if:type_demandeur,physique|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'photo' => 'required_if:type_demandeur,physique|image|mimes:jpeg,png,jpg|max:2048',
         ];
     }
 
@@ -89,7 +88,6 @@ class RegisterRequest extends FormRequest
             'raison_sociale.required_if' => 'La raison sociale est obligatoire pour une entreprise.',
             'raison_sociale.string' => 'La raison sociale doit être une chaîne de caractères.',
             'raison_sociale.max' => 'La raison sociale ne peut pas dépasser 255 caractères.',
-            'raison_sociale.unique' => 'Cette raison sociale existe déjà.',
             
             'nombre_employes.required_if' => 'Le nombre d\'employés est obligatoire pour une entreprise.',
             'nombre_employes.integer' => 'Le nombre d\'employés doit être un nombre entier.',

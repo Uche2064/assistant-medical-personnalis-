@@ -109,7 +109,7 @@ class StatsController extends Controller
             ->groupBy('sexe')
             ->get()
             ->mapWithKeys(function ($item) {
-                return [$item->sexe ?? 'Non spécifié' => $item->count];
+                return [($item->sexe !== null ? (string) $item->sexe : 'Non spécifié') => $item->count];
             }),
         ];
     }
@@ -154,7 +154,7 @@ class StatsController extends Controller
                 ->groupBy('sexe')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->sexe ?? 'Non spécifié' => $item->count];
+                    return [($item->sexe !== null ? (string) $item->sexe : 'Non spécifié') => $item->count];
                 }),
         ];
     }
@@ -181,7 +181,12 @@ class StatsController extends Controller
                 ->groupBy('sexe')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->sexe ?? 'Non spécifié' => $item->count];
+                    // CORRECTION: Gérer l'enum sexe
+                    $sexe = $item->sexe;
+                    if (is_object($sexe) && method_exists($sexe, 'value')) {
+                        $sexe = $sexe->value;
+                    }
+                    return [($sexe !== null ? (string) $sexe : 'Non spécifié') => $item->count];
                 }),
             
             'repartition_par_profession' => Client::selectRaw('profession, COUNT(*) as count')
@@ -191,16 +196,36 @@ class StatsController extends Controller
                 ->limit(10)
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->profession => $item->count];
+                    return [($item->profession !== null ? (string) $item->profession : 'Non spécifié') => $item->count];
                 }),
             
             'repartition_statut_par_type' => Client::selectRaw('type_client, statut, COUNT(*) as count')
                 ->groupBy('type_client', 'statut')
                 ->get()
-                ->groupBy('type_client')
+                ->groupBy(function ($item) {
+                    // CORRECTION: Gérer l'enum type_client pour le groupBy
+                    $typeClient = $item->type_client;
+                    if (is_object($typeClient) && method_exists($typeClient, 'value')) {
+                        $typeClient = $typeClient->value;
+                    } elseif (is_string($typeClient)) {
+                        $typeClient = $typeClient;
+                    } else {
+                        $typeClient = 'Non spécifié';
+                    }
+                    return $typeClient;
+                })
                 ->map(function ($group) {
                     return $group->mapWithKeys(function ($item) {
-                        return [$item->statut => $item->count];
+                        // CORRECTION: Convertir l'enum statut en string si c'est un objet
+                        $statut = $item->statut;
+                        if (is_object($statut) && method_exists($statut, 'value')) {
+                            $statut = $statut->value;
+                        } elseif (is_string($statut)) {
+                            $statut = $statut;
+                        } else {
+                            $statut = 'Non spécifié';
+                        }
+                        return [($statut !== null ? (string) $statut : 'Non spécifié') => $item->count];
                     });
                 }),
         ];
@@ -228,21 +253,36 @@ class StatsController extends Controller
                 ->groupBy('sexe')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->sexe ?? 'Non spécifié' => $item->count];
+                    // CORRECTION: Gérer l'enum sexe
+                    $sexe = $item->sexe;
+                    if (is_object($sexe) && method_exists($sexe, 'value')) {
+                        $sexe = $sexe->value;
+                    }
+                    return [($sexe !== null ? (string) $sexe : 'Non spécifié') => $item->count];
                 }),
             
             'repartition_par_lien_parente' => Assure::selectRaw('lien_parente, COUNT(*) as count')
                 ->groupBy('lien_parente')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->lien_parente ?? 'Non spécifié' => $item->count];
+                    // CORRECTION: Gérer l'enum lien_parente
+                    $lienParente = $item->lien_parente;
+                    if (is_object($lienParente) && method_exists($lienParente, 'value')) {
+                        $lienParente = $lienParente->value;
+                    }
+                    return [($lienParente !== null ? (string) $lienParente : 'Non spécifié') => $item->count];
                 }),
             
             'repartition_par_statut' => Assure::selectRaw('statut, COUNT(*) as count')
                 ->groupBy('statut')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->statut ?? 'Non spécifié' => $item->count];
+                    // CORRECTION: Gérer l'enum statut
+                    $statut = $item->statut;
+                    if (is_object($statut) && method_exists($statut, 'value')) {
+                        $statut = $statut->value;
+                    }
+                    return [($statut !== null ? (string) $statut : 'Non spécifié') => $item->count];
                 }),
             
             'repartition_principaux_beneficiaires' => [
@@ -255,7 +295,7 @@ class StatsController extends Controller
                 ->groupBy('contrat_id')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return ["Contrat {$item->contrat_id}" => $item->count];
+                    return ["Contrat " . ($item->contrat_id !== null ? (string) $item->contrat_id : 'Non spécifié') => $item->count];
                 }),
         ];
     }
@@ -285,7 +325,16 @@ class StatsController extends Controller
                 ->groupBy('type_demandeur')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->type_demandeur ?? 'Non spécifié' => $item->count];
+                    // CORRECTION: Gérer l'enum type_demandeur
+                    $typeDemandeur = $item->type_demandeur;
+                    if (is_object($typeDemandeur) && method_exists($typeDemandeur, 'value')) {
+                        $typeDemandeur = $typeDemandeur->value;
+                    } elseif (is_string($typeDemandeur)) {
+                        $typeDemandeur = $typeDemandeur;
+                    } else {
+                        $typeDemandeur = 'Non spécifié';
+                    }
+                    return [($typeDemandeur !== null ? (string) $typeDemandeur : 'Non spécifié') => $item->count];
                 }),
             
             'repartition_par_statut' => $query->clone()
@@ -293,17 +342,46 @@ class StatsController extends Controller
                 ->groupBy('statut')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->statut ?? 'Non spécifié' => $item->count];
+                    // CORRECTION: Gérer le statut (qui peut être un enum ou une string)
+                    $statut = $item->statut;
+                    if (is_object($statut) && method_exists($statut, 'value')) {
+                        $statut = $statut->value;
+                    } elseif (is_string($statut)) {
+                        $statut = $statut;
+                    } else {
+                        $statut = 'Non spécifié';
+                    }
+                    return [($statut !== null ? (string) $statut : 'Non spécifié') => $item->count];
                 }),
             
             'repartition_statut_par_type' => $query->clone()
                 ->selectRaw('type_demandeur, statut, COUNT(*) as count')
                 ->groupBy('type_demandeur', 'statut')
                 ->get()
-                ->groupBy('type_demandeur')
+                ->groupBy(function ($item) {
+                    // CORRECTION: Gérer l'enum pour le groupBy
+                    $typeDemandeur = $item->type_demandeur;
+                    if (is_object($typeDemandeur) && method_exists($typeDemandeur, 'value')) {
+                        $typeDemandeur = $typeDemandeur->value;
+                    } elseif (is_string($typeDemandeur)) {
+                        $typeDemandeur = $typeDemandeur;
+                    } else {
+                        $typeDemandeur = 'Non spécifié';
+                    }
+                    return $typeDemandeur;
+                })
                 ->map(function ($group) {
                     return $group->mapWithKeys(function ($item) {
-                        return [$item->statut => $item->count];
+                        // CORRECTION: Gérer l'enum statut
+                        $statut = $item->statut;
+                        if (is_object($statut) && method_exists($statut, 'value')) {
+                            $statut = $statut->value;
+                        } elseif (is_string($statut)) {
+                            $statut = $statut;
+                        } else {
+                            $statut = 'Non spécifié';
+                        }
+                        return [($statut !== null ? (string) $statut : 'Non spécifié') => $item->count];
                     });
                 }),
             
@@ -319,7 +397,7 @@ class StatsController extends Controller
                         5 => 'Mai', 6 => 'Juin', 7 => 'Juillet', 8 => 'Août',
                         9 => 'Septembre', 10 => 'Octobre', 11 => 'Novembre', 12 => 'Décembre'
                     ];
-                    return [$mois[$item->mois] ?? "Mois {$item->mois}" => $item->count];
+                    return [$mois[(int) $item->mois] ?? "Mois " . ((int) $item->mois) => $item->count];
                 }),
         ];
     }
@@ -344,23 +422,52 @@ class StatsController extends Controller
                 ->groupBy('destinataire')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->destinataire ?? 'Non spécifié' => $item->count];
+                    // CORRECTION: Gérer l'enum destinataire
+                    $destinataire = $item->destinataire;
+                    if (is_object($destinataire) && method_exists($destinataire, 'value')) {
+                        $destinataire = $destinataire->value;
+                    } elseif (is_string($destinataire)) {
+                        $destinataire = $destinataire;
+                    } else {
+                        $destinataire = 'Non spécifié';
+                    }
+                    return [($destinataire !== null ? (string) $destinataire : 'Non spécifié') => $item->count];
                 }),
             
             'repartition_par_type_donnee' => Question::selectRaw('type_donnee, COUNT(*) as count')
                 ->groupBy('type_donnee')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->type_donnee ?? 'Non spécifié' => $item->count];
+                    // CORRECTION: Gérer l'enum type_donnee
+                    $typeDonnee = $item->type_donnee;
+                    if (is_object($typeDonnee) && method_exists($typeDonnee, 'value')) {
+                        $typeDonnee = $typeDonnee->value;
+                    } elseif (is_string($typeDonnee)) {
+                        $typeDonnee = $typeDonnee;
+                    } else {
+                        $typeDonnee = 'Non spécifié';
+                    }
+                    return [($typeDonnee !== null ? (string) $typeDonnee : 'Non spécifié') => $item->count];
                 }),
             
             'repartition_obligatoire_par_destinataire' => Question::selectRaw('destinataire, obligatoire, COUNT(*) as count')
                 ->groupBy('destinataire', 'obligatoire')
                 ->get()
-                ->groupBy('destinataire')
+                ->groupBy(function ($item) {
+                    // CORRECTION: Gérer l'enum pour le groupBy
+                    $destinataire = $item->destinataire;
+                    if (is_object($destinataire) && method_exists($destinataire, 'value')) {
+                        $destinataire = $destinataire->value;
+                    } elseif (is_string($destinataire)) {
+                        $destinataire = $destinataire;
+                    } else {
+                        $destinataire = 'Non spécifié';
+                    }
+                    return $destinataire;
+                })
                 ->map(function ($group) {
                     return $group->mapWithKeys(function ($item) {
-                        return [$item->obligatoire ? 'obligatoires' : 'optionnelles' => $item->count];
+                        return [($item->obligatoire ? 'obligatoires' : 'optionnelles') => $item->count];
                     });
                 }),
         ];
@@ -374,15 +481,11 @@ class StatsController extends Controller
         return [
             'total' => Garantie::count(),
             
-            'actives' => Garantie::where('est_actif', true)->count(),
-            
-            'inactives' => Garantie::where('est_actif', false)->count(),
-            
             'repartition_par_categorie' => Garantie::selectRaw('categorie_garantie_id, COUNT(*) as count')
                 ->groupBy('categorie_garantie_id')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return ["Catégorie {$item->categorie_garantie_id}" => $item->count];
+                    return ["Catégorie " . ($item->categorie_garantie_id !== null ? (string) $item->categorie_garantie_id : 'Non spécifié') => $item->count];
                 }),
         ];
     }
@@ -395,15 +498,11 @@ class StatsController extends Controller
         return [
             'total' => CategorieGarantie::count(),
             
-            'actives' => CategorieGarantie::where('est_actif', true)->count(),
-            
-            'inactives' => CategorieGarantie::where('est_actif', false)->count(),
-            
             'repartition_par_garanties' => CategorieGarantie::withCount('garanties')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->libelle => $item->garanties_count];
+                    return [($item->libelle !== null ? (string) $item->libelle : 'Non spécifié') => $item->garanties_count];
                 }),
         ];
     }
-} 
+}

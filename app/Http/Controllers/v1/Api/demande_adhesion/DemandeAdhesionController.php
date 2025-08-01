@@ -89,7 +89,7 @@ class DemandeAdhesionController extends Controller
 
         // Filtrage basé sur le rôle de l'utilisateur
         if ($user->hasRole('technicien')) {
-            $query->whereIn('type_demandeur', ['physique', 'autre']);
+            $query->whereIn('type_demandeur', [TypeDemandeurEnum::PHYSIQUE->value, TypeDemandeurEnum::ENTREPRISE->value]);
         } elseif ($user->hasRole('medecin_controleur')) {
             $query->whereIn('type_demandeur', [
                 TypeDemandeurEnum::CENTRE_DE_SOINS->value,
@@ -110,11 +110,6 @@ class DemandeAdhesionController extends Controller
             });
         }
 
-        // Filtrage explicite par type_demande si fourni
-        if ($request->has('type_demandeur')) {
-            $query->where('type_demandeur', $request->input('type_demandeur'));
-        }
-
         // Pagination
         $perPage = $request->query('per_page', 10);
         $demandes = $query->orderByDesc('created_at')->paginate($perPage);
@@ -130,12 +125,11 @@ class DemandeAdhesionController extends Controller
     public function hasDemande()
     {
         $demande = DemandeAdhesion::with('reponsesQuestionnaire')->where('user_id', Auth::user()->id)->first();
-        $prospect = Personnel::where('user_id', Auth::user()->id)->first();
         return ApiResponse::success([
             'existing' => !!$demande,
             'demande' => $demande,
-            'prospect' => $prospect,
         ], 'Demande d\'adhésion récupérée avec succès');
+
     }
 
     public function show(int $id)
@@ -175,6 +169,8 @@ class DemandeAdhesionController extends Controller
         $data = $request->validated();
         $typeDemandeur = $data['type_demandeur'];
 
+        Log::info('Demande d\'adhésion soumise', ['data' => $data]);
+
         // Vérifier si l'utilisateur a déjà une demande en cours ou validée (optionnel)
         if ($this->demandeValidatorService->hasPendingDemande($data)) {
             return ApiResponse::error('Vous avez déjà une demande d\'adhésion en cours de traitement. Veuillez attendre la réponse.', 400);
@@ -193,7 +189,7 @@ class DemandeAdhesionController extends Controller
             ]);
             // Enregistrer les réponses au questionnaire principal
             foreach ($data['reponses'] as $reponse) {
-                $this->enregistrerReponseDemande($demande, $reponse);
+                $this->enregistrerReponseDemande($demande, $reponse, $typeDemandeur);
             }
             // Enregistrer les bénéficiaires si fournis
             if (!empty($data['beneficiaires'])) {
@@ -338,7 +334,7 @@ class DemandeAdhesionController extends Controller
     {
         try {
             $medecinControleur = Auth::user();
-            $demande = DemandeAdhesion::with(['demandeur.prestataire'])->find($id);
+            $demande = DemandeAdhesion::find($id);
 
             if (!$demande) {
                 return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
@@ -362,6 +358,7 @@ class DemandeAdhesionController extends Controller
                 'demande_validee'
             );
 
+            
             dispatch(new SendEmailJob($demande->demandeur->email, 'Demande d\'adhésion prestataire validée', EmailType::ACCEPTED->value, [
                 'demande' => $demande,
                 'medecin_controleur' => $medecinControleur->personnel,
@@ -369,13 +366,8 @@ class DemandeAdhesionController extends Controller
 
             DB::commit();
 
-            Log::info('Demande d\'adhésion prestataire validée', [
-                'demande_id' => $demande->id,
-                'medecin_controleur_id' => $medecinControleur->id,
-            ]);
-
             return ApiResponse::success([
-                'demande_id' => $demande->id,
+                'demande_id' => $demande,
                 'statut' => $demande->statut->value,
                 'valide_par' => $medecinControleur->personnel->nom . ' ' . ($medecinControleur->personnel->prenoms ?? ''),
             ], 'Demande d\'adhésion prestataire validée avec succès.');
@@ -385,7 +377,7 @@ class DemandeAdhesionController extends Controller
             Log::error('Erreur lors de la validation de la demande prestataire', [
                 'error' => $e->getMessage(),
                 'demande_id' => $id,
-                'medecin_controleur_id' => Auth::id(),
+                'medecin_controleur_id' => Auth::user()->personnel->id,
             ]);
 
             return ApiResponse::error('Erreur lors de la validation de la demande: ' . $e->getMessage(), 500);
@@ -706,9 +698,9 @@ class DemandeAdhesionController extends Controller
     /**
      * Enregistrer une réponse au questionnaire pour la demande principale
      */
-    private function enregistrerReponseDemande(DemandeAdhesion $demande, array $reponseData): void
+    private function enregistrerReponseDemande(DemandeAdhesion $demande, array $reponseData, $typeDemandeur): void
     {
-        $this->enregistrerReponsePersonne(User::class, $demande->user_id, $reponseData, $demande->id);
+        $this->enregistrerReponsePersonne($typeDemandeur, $demande->user_id, $reponseData, $demande->id);
     }
 
     /**
@@ -728,6 +720,7 @@ class DemandeAdhesionController extends Controller
             'lien_parente' => $beneficiaire['lien_parente'],
             'est_principal' => false, // ✅ Bénéficiaire = pas principal
             'statut' => StatutAssureEnum::INACTIF->value, // Inactif jusqu'à validation
+            'photo_url' => $beneficiaire['photo_url'] ?? null,
         ]);
 
         // Enregistrer les réponses du bénéficiaire

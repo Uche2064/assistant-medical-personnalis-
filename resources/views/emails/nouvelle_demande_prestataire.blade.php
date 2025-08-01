@@ -6,7 +6,7 @@
     <title>Nouvelle demande d'adhésion prestataire</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: Verdana, sans-serif;
             line-height: 1.6;
             color: #333;
             max-width: 600px;

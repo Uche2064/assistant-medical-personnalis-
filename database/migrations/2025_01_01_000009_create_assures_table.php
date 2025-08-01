@@ -30,6 +30,7 @@ return new class extends Migration
             $table->string('statut')->default('actif'); // Sera casté vers StatutAssureEnum
             $table->date('date_debut_contrat')->nullable();
             $table->date('date_fin_contrat')->nullable();
+            $table->string('photo_url')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
