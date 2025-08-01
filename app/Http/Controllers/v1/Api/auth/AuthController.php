@@ -256,11 +256,10 @@ class AuthController extends Controller
      */
     public function getCurrentUser()
     {
-        if (!Auth::check()) {
-            return ApiResponse::error('Utilisateur non connecté', 401);
+        $user = Auth::user();
+        if(is_null($user)) {
+            return ApiResponse::error('Utilisateur non connecté', 400);
         }
-
-        $user = Auth::getUser();
 
         return ApiResponse::success(
             new UserResource($user),

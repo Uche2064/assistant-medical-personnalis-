@@ -12,6 +12,8 @@ use App\Models\Question;
 use App\Http\Resources\QuestionResource;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -38,10 +40,20 @@ class QuestionController extends Controller
         )
         ->orderBy('created_at', 'desc');
 
-    $questions = $query->paginate($perPage);
+      // Mapper en UserResource
+      $questions = $query->paginate($perPage);
 
+      $questionsCollection = $questions->getCollection()->map(fn ($question) => $question);
+    
+      $paginatedQuestions = new LengthAwarePaginator(
+          QuestionResource::collection($questionsCollection),
+          $questions->total(),
+          $questions->perPage(),
+          $questions->currentPage(),
+          ['path' => Paginator::resolveCurrentPath()]
+      );
     return ApiResponse::success(
-        QuestionResource::collection($questions), 
+    $paginatedQuestions, 
         'Questions récupérées avec succès'
     );
 }
