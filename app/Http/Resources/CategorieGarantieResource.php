@@ -16,7 +16,7 @@ class CategorieGarantieResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'libelle' => $this->libelle,
+            'libelle' => ucfirst($this->libelle),
             'description' => $this->description,
             'medecin_controleur_id' => $this->medecin_controleur_id,
             'garanties' => GarantieResource::collection($this->garanties),

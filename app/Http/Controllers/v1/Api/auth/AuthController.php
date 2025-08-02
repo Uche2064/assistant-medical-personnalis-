@@ -345,31 +345,13 @@ class AuthController extends Controller
         ]);
 
         $exists = User::where($request->field, $request->value)->exists();
+       
 
         return ApiResponse::success([
             'exists' => $exists,
             'message' => $exists ? 'Ce ' . $request->field . ' est déjà utilisé' : 'Ce ' . $request->field . ' est disponible'
         ]);
     }
-
-    /**
-     * Vérifier l'unicité d'un contact
-     */
-    public function checkContactUnique(Request $request)
-    {
-        $request->validate([
-            'contact' => 'required|string'
-        ]);
-
-        $exists = User::where('contact', $request->contact)->exists();
-
-        return ApiResponse::success([
-            'available' => !$exists,
-            'message' => $exists ? 'Contact déjà utilisé' : 'Contact disponible'
-        ]);
-    }
-
-
 
     /**
      * Test endpoint to check user roles

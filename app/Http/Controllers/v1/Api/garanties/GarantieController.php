@@ -25,11 +25,13 @@ class GarantieController extends Controller
         $search = $request->query('search');
         $perPage = $request->query('per_page', 10);
 
-        $query = Garantie::with('categorie')
-            ->where('medecin_controleur_id', Auth::user()->personnel->id);
+        $query = Garantie::with('categorieGarantie');   
 
         if ($search) {
             $query->where('libelle', 'like', '%' . $search . '%');
+        }
+        if ($request->query('categorie_garantie_id')) {
+            $query->where('categorie_garantie_id', $request->query('categorie_garantie_id'));
         }
 
         $query->orderBy('created_at', 'desc');
