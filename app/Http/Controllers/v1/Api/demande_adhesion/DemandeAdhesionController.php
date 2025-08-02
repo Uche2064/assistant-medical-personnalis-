@@ -56,6 +56,8 @@ use App\Services\NotificationService;
 use App\Traits\DemandeAdhesionDataTrait;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -114,12 +116,15 @@ class DemandeAdhesionController extends Controller
         $perPage = $request->query('per_page', 10);
         $demandes = $query->orderByDesc('created_at')->paginate($perPage);
 
-        // Utilisation de la ressource avec pagination
-        $demandes->getCollection()->transform(function ($demande) {
-            return new DemandeAdhesionResource($demande);
-        });
+        $paginatedData = new LengthAwarePaginator(
+            DemandeAdhesionResource::collection($demandes),
+            $demandes->total(),
+            $demandes->perPage(),
+            $demandes->currentPage(),
+            ['path' => Paginator::resolveCurrentPath()]
+        );
 
-        return ApiResponse::success($demandes, 'Liste des demandes d\'adhésion récupérée avec succès');
+        return ApiResponse::success($paginatedData, 'Liste des demandes d\'adhésion récupérée avec succès', 200);
     }
 
     public function hasDemande()
@@ -132,35 +137,7 @@ class DemandeAdhesionController extends Controller
 
     }
 
-    public function show(int $id)
-    {
-        $demande = $this->loadDemandeWithRelations($id);
-
-        if (!$demande) {
-            return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
-        }
-
-        return ApiResponse::success($this->prepareDemandeData($demande), 'Détails de la demande d\'adhésion');
-    }
-
-
-
-
-
-    public function download($id)
-    {
-        $demande = DemandeAdhesion::with(['reponsesQuestionnaire', 'reponsesQuestionnaire.question'])->find($id);
-
-        // Générez le PDF
-        $pdf = Pdf::loadView('pdf.demande-adhesion', [
-            'demande' => $demande
-        ]);
-
-        // Retournez le PDF en téléchargement
-        return $pdf->download("demande-adhesion-{$id}.pdf");
-    }
-
-    /**
+       /**
      * Soumission d'une demande d'adhésion pour une personne physique
      */
     public function store(StoreDemandeAdhesionRequest $request)
@@ -168,6 +145,7 @@ class DemandeAdhesionController extends Controller
         $user = Auth::user();
         $data = $request->validated();
         $typeDemandeur = $data['type_demandeur'];
+
 
         Log::info('Demande d\'adhésion soumise', ['data' => $data]);
 
@@ -204,6 +182,36 @@ class DemandeAdhesionController extends Controller
             return ApiResponse::error('Erreur lors de la soumission de la demande d\'adhésion : ' . $e->getMessage(), 500);
         }
     }
+
+    public function show(int $id)
+    {
+        $demande = $this->loadDemandeWithRelations($id);
+
+        if (!$demande) {
+            return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
+        }
+
+        return ApiResponse::success($this->prepareDemandeData($demande), 'Détails de la demande d\'adhésion');
+    }
+
+
+
+
+
+    public function download($id)
+    {
+        $demande = DemandeAdhesion::with(['reponsesQuestionnaire', 'reponsesQuestionnaire.question'])->find($id);
+
+        // Générez le PDF
+        $pdf = Pdf::loadView('pdf.demande-adhesion', [
+            'demande' => $demande
+        ]);
+
+        // Retournez le PDF en téléchargement
+        return $pdf->download("demande-adhesion-{$id}.pdf");
+    }
+
+ 
 
     /**
      * Proposer un contrat à un prospect (client physique ou entreprise) par un technicien
@@ -687,6 +695,14 @@ class DemandeAdhesionController extends Controller
                 }
                 break;
             case TypeDonneeEnum::TEXT:
+                $data['reponse_text'] = $reponseData['reponse_text'] ?? null;
+                break;
+            case TypeDonneeEnum::SELECT:
+                $data['reponse_text'] = $reponseData['reponse_text'] ?? null;
+                break;
+            case TypeDonneeEnum::CHECKBOX:
+                $data['reponse_text'] = $reponseData['reponse_text'] ?? null;
+                break;
             case TypeDonneeEnum::RADIO:
             default:
                 $data['reponse_text'] = $reponseData['reponse_text'] ?? null;
@@ -720,7 +736,7 @@ class DemandeAdhesionController extends Controller
             'lien_parente' => $beneficiaire['lien_parente'],
             'est_principal' => false, // ✅ Bénéficiaire = pas principal
             'statut' => StatutAssureEnum::INACTIF->value, // Inactif jusqu'à validation
-            'photo_url' => $beneficiaire['photo_url'] ?? null,
+            'photo' => $beneficiaire['photo'] ?? null,
         ]);
 
         // Enregistrer les réponses du bénéficiaire

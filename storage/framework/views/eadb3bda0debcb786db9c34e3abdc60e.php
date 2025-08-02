@@ -6,7 +6,7 @@
     <title>Demande d'adhésion approuvée - SUNU Santé</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: Verdana, sans-serif;
             margin: 0;
             padding: 20px;
             background-color: #f4f4f4;

@@ -51,6 +51,7 @@ class AuthController extends Controller
     public function register(RegisterRequest $request)
     {
         $validated = $request->validated();
+        $otp_expired_at = (int) env('OTP_EXPIRED_AT', 10);
         $photoUrl = null;
         // Gestion de l'upload de la photo
         if (isset($validated['photo'])) {
@@ -98,8 +99,8 @@ class AuthController extends Controller
             }
 
             // Générer et envoyer l'OTP
-            $otp = Otp::generateOtp($validated['email'], 10, OtpTypeEnum::REGISTER);
-
+            $otp = Otp::generateOtp($validated['email'], $otp_expired_at, OtpTypeEnum::REGISTER);
+            
 
             // Envoyer l'OTP par email
             dispatch(new SendEmailJob(
@@ -109,6 +110,7 @@ class AuthController extends Controller
                 [
                     'user' => $user,
                     'otp' => $otp,
+                    'expire_at' => now()->addMinutes($otp_expired_at),
                     'type_demandeur' => $validated['type_demandeur']
                 ]
             ));

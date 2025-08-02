@@ -31,11 +31,19 @@ class StoreDemandeAdhesionRequest extends FormRequest
         $questions = Question::forDestinataire($typeDemandeur)->get()->keyBy('id');
         $questionIds = $questions->pluck('id')->toArray();
 
+        Log::info('Questions', ['questionsIds' => $questionIds]);
 
         $rules = [
             'type_demandeur' => 'required|in:' . implode(',', TypeDemandeurEnum::values()),
             'reponses' => ['required', 'array'],
             'reponses.*.question_id' => ['required', Rule::in($questionIds)],
+            'beneficiaires' => ['nullable', 'array'],
+            'beneficiaires.*.nom' => ['required', 'string'],
+            'beneficiaires.*.prenom' => ['required', 'string'],
+            'beneficiaires.*.date_de_naissance' => ['required', 'date'],
+            'beneficiaires.*.sexe' => ['required', 'in:M,F'],
+            'beneficiaires.*.lien_parente' => ['required', 'in:Mere,Pere,Fils,Fille,Frere,Soeur,Conjoint,Autre'],
+            'beneficiaires.*.photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
         ];
 
         foreach ($this->input('reponses', []) as $index => $reponse) {

@@ -96,10 +96,12 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     Route::get('/questions', [QuestionController::class, 'getQuestionsByDestinataire']); // questions par destinataire
 
 
+    // --------------------- Routes pour les demandes d'adhésion ---------------------
 
     Route::get('/has-demande', [DemandeAdhesionController::class, 'hasDemande'])->middleware('auth:api');
 
     Route::middleware(['auth:api'])->prefix('demandes-adhesions')->group(function () {
+        Route::get('/', [DemandeAdhesionController::class, 'index'])->middleware('checkRole:medecin_controleur,technicien,admin_global');
         // Demande d'adhésion personne physique (assuré principal)
         Route::post('/', [DemandeAdhesionController::class, 'store'])->middleware('checkRole:physique');
         // Demande d'adhésion prestataire de soins
@@ -109,7 +111,6 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
         // Téléchargement PDF, listing, détails, etc.
         Route::get('demandes-adhesions/{id}/download', [DemandeAdhesionController::class, 'download'])->name('api.demandes-adhesions.download');
-        Route::get('/', [DemandeAdhesionController::class, 'index'])->middleware('checkRole:medecin_controleur,technicien,admin_global');
         Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware('checkRole:medecin_controleur,technicien,admin_global');
 
         // Actions sur les demandes (proposer contrat, valider, rejeter)
