@@ -19,7 +19,30 @@ use App\Http\Controllers\v1\Api\ComptableController;
 use App\Http\Controllers\v1\Api\TechnicienController;
 use App\Http\Controllers\v1\Api\AssureController;
 use App\Http\Controllers\v1\Api\StatsController;
+use App\Helpers\ApiResponse;
 use Illuminate\Support\Facades\Auth;
+
+// Route publique pour les fichiers (en dehors du middleware verifyApiKey)
+Route::get('/v1/files/{filename}', function ($filename) {
+    // Sécuriser le nom de fichier
+    $filename = basename($filename);
+    
+    $path = storage_path('app/public/uploads/' . $filename);
+    
+    if (!file_exists($path)) {
+        abort(404, 'Fichier non trouvé');
+    }
+    
+    // Vérifier que c'est bien dans le dossier uploads
+    $realPath = realpath($path);
+    $uploadsDir = realpath(storage_path('app/public/uploads'));
+    
+    if (!$realPath || strpos($realPath, $uploadsDir) !== 0) {
+        abort(403, 'Accès interdit');
+    }
+    
+    return response()->file($path);
+})->where('filename', '.*');
 
 Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
@@ -111,7 +134,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::post('/entreprise', [DemandeAdhesionController::class, 'soumettreDemandeAdhesionEntreprise'])->middleware('checkRole:entreprise');
 
         // Téléchargement PDF, listing, détails, etc.
-        Route::get('demandes-adhesions/{id}/download', [DemandeAdhesionController::class, 'download'])->name('api.demandes-adhesions.download');
+        Route::get('/{id}/download', [DemandeAdhesionController::class, 'download'])->name('api.demandes-adhesions.download');
         Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware('checkRole:medecin_controleur,technicien,admin_global');
 
         // Actions sur les demandes (proposer contrat, valider, rejeter)
@@ -188,7 +211,40 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
     // --- Demande d'adhésion personne physique ---
 
+    // Route pour servir les fichiers uploadés (publique)
+    Route::get('/files/{filename}', function ($filename) {
+        // Sécuriser le nom de fichier
+        $filename = basename($filename);
+        
+        $path = storage_path('app/public/uploads/' . $filename);
+        
+        if (!file_exists($path)) {
+            abort(404, 'Fichier non trouvé');
+        }
+        
+        // Vérifier que c'est bien dans le dossier uploads
+        $realPath = realpath($path);
+        $uploadsDir = realpath(storage_path('app/public/uploads'));
+        
+        if (!$realPath || strpos($realPath, $uploadsDir) !== 0) {
+            abort(403, 'Accès interdit');
+        }
+        
+        return response()->file($path);
+    })->where('filename', '.*');
 
+    // Route pour télécharger les fichiers de manière sécurisée
+    Route::middleware(['auth:api'])->prefix('download')->group(function () {
+        Route::get('/file/{filename}', function ($filename) {
+            $path = storage_path('app/public/uploads/' . $filename);
+            
+            if (!file_exists($path)) {
+                return ApiResponse::error('Fichier non trouvé', 404);
+            }
+            
+            return response()->download($path);
+        })->where('filename', '.*');
+    });
 
     // --- Anciennes routes inutiles pour la demande d'adhésion (commentées) ---
     // Route::middleware('auth:api')->prefix('demandes-adhesion')->group(function () {

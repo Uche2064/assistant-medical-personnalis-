@@ -36,7 +36,7 @@ trait DemandeAdhesionDataTrait
                 'reponses_questionnaire' => $this->getDemandeurReponses($demande),
             ],
             'personnes_associees' => [
-                'employes' => $demande->employes->map(function($employe) {
+                'employes' => $demande->employes->map(function ($employe) {
                     return [
                         'id' => $employe->id,
                         'nom' => $employe->nom,
@@ -51,7 +51,7 @@ trait DemandeAdhesionDataTrait
                         'reponses_questionnaire' => $employe->reponsesQuestionnaire,
                     ];
                 }),
-                'beneficiaires' => $demande->beneficiaires->map(function($beneficiaire) {
+                'beneficiaires' => $demande->beneficiaires->map(function ($beneficiaire) {
                     return [
                         'id' => $beneficiaire->id,
                         'nom' => $beneficiaire->nom,
@@ -70,10 +70,10 @@ trait DemandeAdhesionDataTrait
                 'total_employes' => $demande->employes->count(),
                 'total_beneficiaires' => $demande->beneficiaires->count(),
                 'total_personnes' => $demande->employes->count() + $demande->beneficiaires->count(),
-                'employes_avec_reponses' => $demande->employes->filter(function($employe) {
+                'employes_avec_reponses' => $demande->employes->filter(function ($employe) {
                     return $employe->reponsesQuestionnaire->count() > 0;
                 })->count(),
-                'beneficiaires_avec_reponses' => $demande->beneficiaires->filter(function($beneficiaire) {
+                'beneficiaires_avec_reponses' => $demande->beneficiaires->filter(function ($beneficiaire) {
                     return $beneficiaire->reponsesQuestionnaire->count() > 0;
                 })->count(),
             ]
@@ -97,6 +97,16 @@ trait DemandeAdhesionDataTrait
         ])->find($id);
     }
 
+    //  charger demande d'adhésion avec les relations et les réponses questionnaire pour un prestataire
+    protected function loadDemandeWithRelationsForPrestataire($id)
+    {
+        return DemandeAdhesion::with([
+            'validePar',
+            'reponsesQuestionnaire.question',
+            'user.prestataire',
+            'user.entreprise',
+        ])->find($id);
+    }
     /**
      * Obtenir les réponses du demandeur selon son type
      */
@@ -111,4 +121,4 @@ trait DemandeAdhesionDataTrait
         // Pour les autres types (physique, prestataire), retourner les réponses du demandeur
         return $demande->reponsesQuestionnaire;
     }
-} 
+}

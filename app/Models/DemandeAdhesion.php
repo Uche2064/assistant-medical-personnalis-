@@ -38,6 +38,7 @@ class DemandeAdhesion extends Model
         return $this->belongsTo(User::class);
     }
 
+
     /**
      * Get the personnel that validated this demande.
      */
@@ -53,21 +54,6 @@ class DemandeAdhesion extends Model
     {
         // Pour l'assuré principal
         return $this->hasMany(ReponseQuestionnaire::class, 'personne_id', 'user_id');
-    }
-
-    /**
-     * Get the entreprise associated with this demande (if type_demandeur is entreprise)
-     */
-    public function entreprise()
-    {
-        return $this->hasOneThrough(
-            Entreprise::class,
-            User::class,
-            'id', // Clé étrangère sur users
-            'user_id', // Clé étrangère sur entreprises
-            'user_id', // Clé locale sur demandes_adhesions
-            'id' // Clé locale sur users
-        );
     }
 
     /**

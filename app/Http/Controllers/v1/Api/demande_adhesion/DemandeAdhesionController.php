@@ -185,13 +185,14 @@ class DemandeAdhesionController extends Controller
 
     public function show(int $id)
     {
-        $demande = $this->loadDemandeWithRelations($id);
-
-        if (!$demande) {
+        $demande = DemandeAdhesion::find($id);
+        if($demande == null){
             return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
         }
 
-        return ApiResponse::success($this->prepareDemandeData($demande), 'Détails de la demande d\'adhésion');
+        $demande = $this->loadDemandeWithRelationsForPrestataire($id);
+
+        return ApiResponse::success($demande, 'Détails de la demande d\'adhésion');
     }
 
 
@@ -200,12 +201,27 @@ class DemandeAdhesionController extends Controller
 
     public function download($id)
     {
-        $demande = DemandeAdhesion::with(['reponsesQuestionnaire', 'reponsesQuestionnaire.question'])->find($id);
+        $demande = DemandeAdhesion::with([
+            'user',
+            'validePar.personnel',
+            'reponsesQuestionnaire.question',
+            'assures.reponsesQuestionnaire.question',
+            'employes.reponsesQuestionnaire.question',
+            'beneficiaires.reponsesQuestionnaire.question'
+        ])->find($id);
+
+        if (!$demande) {
+            return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
+        }
+
+        // Préparer les données pour le PDF
+        $data = [
+            'demande' => $demande,
+            'baseUrl' => url('/'), // URL de base pour les fichiers
+        ];
 
         // Générez le PDF
-        $pdf = Pdf::loadView('pdf.demande-adhesion', [
-            'demande' => $demande
-        ]);
+        $pdf = Pdf::loadView('pdf.demande-adhesion', $data);
 
         // Retournez le PDF en téléchargement
         return $pdf->download("demande-adhesion-{$id}.pdf");
