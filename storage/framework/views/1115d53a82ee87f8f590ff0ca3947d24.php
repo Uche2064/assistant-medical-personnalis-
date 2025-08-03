@@ -33,18 +33,19 @@
 
         
         .success-title {
-            font-size: 20px;
+            font-size: 16px;
             font-weight: bold;
             color: #155724;
         }
         
         .success-message {
-            font-size: 16px;
+            font-size: 14px;
             color: #155724;
+            margin-bottom: 10px;
         }
 
           .message {
-            font-size: 16px;
+            font-size: 14px;
             margin-bottom: 30px;
             color: #555;
             line-height: 1.8;
@@ -79,6 +80,7 @@
                 <div class="success-message">
                     Votre nouveau mot de passe est maintenant actif
                 </div>
+                
                 <div class="details-title">Détails de la modification</div>
                 <div class="detail-item">
                     <span class="detail-label">Compte :</span>

@@ -42,7 +42,7 @@ class ForgotPasswordController extends Controller
         }
 
         // Générer un OTP unique
-        $otp = Otp::generateOtp($email, 10, OtpTypeEnum::FORGOT_PASSWORD);
+        $otp = Otp::generateOtp($email, 10, OtpTypeEnum::FORGOT_PASSWORD->value);
 
         // Envoyer l'email avec l'OTP
         dispatch(new SendEmailJob(

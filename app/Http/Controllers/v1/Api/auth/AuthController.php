@@ -183,7 +183,7 @@ class AuthController extends Controller
             return ApiResponse::success([
                 'user' => new UserResource($user->load('client', 'entreprise', 'prestataire')),
                 'access_token' => $token,
-            ], 'Votre compte a été validé avec succès. Vous pouvez maintenant vous connecter.');
+            ], 'Votre compte a été validé avec succès.');
         } catch (\Exception $e) {
             DB::rollBack();
             return ApiResponse::error('Erreur lors de la validation du compte.', 500);
