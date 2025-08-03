@@ -30,6 +30,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
         Route::post('/login', [AuthController::class, 'login']);
         Route::get('/me', [AuthController::class, 'getCurrentUser']);
+        Route::post('/send-otp', [AuthController::class, 'sendOtp']);
 
         // ----------------------- Gestion des mots de passe ---------------------
         Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink']);

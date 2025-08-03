@@ -18,6 +18,7 @@ use App\Http\Requests\auth\LoginWithEmailAndPasswordFormRequest;
 use App\Http\Requests\auth\RegisterRequest;
 use App\Http\Requests\auth\SendOtpFormRequest;
 use App\Http\Requests\auth\VerifyOtpFormRequest;
+use App\Http\Requests\auth\VerifyOtpRequest;
 use App\Http\Resources\UserResource;
 use App\Jobs\SendEmailJob;
 use App\Jobs\SendLoginNotificationJob;
@@ -99,7 +100,7 @@ class AuthController extends Controller
             }
 
             // Générer et envoyer l'OTP
-            $otp = Otp::generateOtp($validated['email'], $otp_expired_at, OtpTypeEnum::REGISTER);
+            $otp = Otp::generateOtp($validated['email'], $otp_expired_at, OtpTypeEnum::REGISTER->value);
             
 
             // Envoyer l'OTP par email
@@ -114,6 +115,8 @@ class AuthController extends Controller
                     'type_demandeur' => $validated['type_demandeur']
                 ]
             ));
+
+            Log::info("Email:".$validated['email']." otp: ".$otp);
 
             DB::commit();
 
@@ -130,7 +133,7 @@ class AuthController extends Controller
        /**
      * Vérifier l'OTP et activer le compte
      */
-    public function verifyOtp(Request $request)
+    public function verifyOtp(VerifyOtpRequest $request)
     {
         $user = User::where('email', $request['email'])
             ->first();
@@ -143,7 +146,7 @@ class AuthController extends Controller
         $otp = Otp::where('email', $request['email'])
             ->where('otp', $request['otp'])
             ->whereNull('verifier_a')
-            ->where('type', OtpTypeEnum::REGISTER)
+            ->where('type', $request['type'])
             ->first();
 
         if (!$otp || $otp->isExpired()) {
@@ -157,6 +160,10 @@ class AuthController extends Controller
             $user->update([
                 'est_actif' => true,
                 'email_verified_at' => now(),
+                'verifier_a' => now()
+            ]);
+
+            $otp->update([
                 'verifier_a' => now()
             ]);
 
@@ -222,36 +229,40 @@ class AuthController extends Controller
     /**
      * Envoyer un OTP pour validation email
      */
-    // public function sendOtp(SendOtpFormRequest $request)
-    // {
-    //     $validated = $request->validated();
+    public function sendOtp(SendOtpFormRequest $request)
+    {
+        $validated = $request->validated();
+        $otp_expired_at = (int) env('OTP_EXPIRED_AT', 10);
 
-    //     $user = User::where('email', $validated['email'])
-    //         ->first();
+        $user = User::where('email', $validated['email'])
+            ->first();
 
-    //     if (!$user) {
-    //         return ApiResponse::error('Aucun compte en attente de validation trouvé avec cet email.', 404);
-    //     }
+        if (!$user) {
+            return ApiResponse::error('Aucun compte en attente de validation trouvé avec cet email.', 404);
+        }
 
-    //     // Générer un nouveau OTP
-    //     $otp = Otp::generateOtp($validated['email'], 10, OtpTypeEnum::FORGOT_PASSWORD);
+        // Générer un nouveau OTP
+        $otp = Otp::generateOtp($validated['email'], 10, $validated['type']);
 
-    //     // Envoyer l'OTP par email
-    //     dispatch(new SendEmailJob(
-    //         $user->email,
-    //         'Code de validation - SUNU Santé',
-    //         'emails.otp_verification',
-    //         [
-    //             'user' => $user,
-    //             'otp' => $otp
-    //         ]
-    //     ));
+        // Envoyer l'OTP par email
+       
+            // Envoyer l'OTP par email
+            dispatch(new SendEmailJob(
+                $user->email,
+                'Validation de votre compte - SUNU Santé',
+                'emails.otp_verification',
+                [
+                    'user' => $user,
+                    'otp' => $otp,
+                    'expire_at' => now()->addMinutes($otp_expired_at),
+                ]
+            ));
 
-    //     return ApiResponse::success([
-    //         'email' => $user->email,
-    //         'message' => 'OTP envoyé avec succès'
-    //     ], 'Code de validation envoyé à votre email.');
-    // }
+        return ApiResponse::success([
+            'email' => $user->email,
+            'message' => 'OTP envoyé avec succès'
+        ], 'Code de validation envoyé à votre email.');
+    }
 
     /**
      * Récupérer l'utilisateur connecté

@@ -24,6 +24,7 @@ class Otp extends Model
         'expire_at' => 'datetime',
         'verifier_a' => 'datetime',
         'type' => OtpTypeEnum::class,
+
     ];
 
     /**
@@ -45,7 +46,7 @@ class Otp extends Model
     /**
      * Generate a new OTP.
      */
-    public static function generateOtp($email, $minutes = 10, OtpTypeEnum $type)
+    public static function generateOtp($email, $minutes = 10, string $type)
     {
         // Delete existing OTPs for this email
         self::where('email', $email)->delete();

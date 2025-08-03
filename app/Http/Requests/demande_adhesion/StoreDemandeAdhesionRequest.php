@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\demande_adhesion;
 
+use App\Enums\LienParenteEnum;
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
 use App\Helpers\ApiResponse;
@@ -42,7 +43,7 @@ class StoreDemandeAdhesionRequest extends FormRequest
             'beneficiaires.*.prenom' => ['required', 'string'],
             'beneficiaires.*.date_de_naissance' => ['required', 'date'],
             'beneficiaires.*.sexe' => ['required', 'in:M,F'],
-            'beneficiaires.*.lien_parente' => ['required', 'in:Mere,Pere,Fils,Fille,Frere,Soeur,Conjoint,Autre'],
+            'beneficiaires.*.lien_parente' => ['required', 'in:'.implode(',', LienParenteEnum::values())],
             'beneficiaires.*.photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
         ];
 

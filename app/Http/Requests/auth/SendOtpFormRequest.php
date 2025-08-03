@@ -18,7 +18,8 @@ class SendOtpFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'phone' => ['string', 'required']
+            'email' => ['string', 'required', 'email'],
+            'type' => ['string', 'required']
         ];
     }
 
@@ -28,8 +29,9 @@ class SendOtpFormRequest extends FormRequest
 
     public function messages(): array {
         return [
-            'phone' => 'Le numéro est requis',
-            'phone.exists' => 'Le numéro n\'est pas enregistré'
+            'email' => 'L\'email est requis',
+            'email.email' => 'L\'email n\'est pas valide',
+            'type' => 'Le type est requis'
         ];
     }
 }
