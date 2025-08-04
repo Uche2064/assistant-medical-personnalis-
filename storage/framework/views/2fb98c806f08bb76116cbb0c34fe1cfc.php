@@ -45,14 +45,14 @@
                 <p>Décision concernant votre candidature</p>
             </div>
             
-            <p>Cher(e) <strong>@if ($demande->type_demandeur === 'medecin_liberal' || $demande->type_demandeur ==='entreprise') {{ $demande->nom. ' ' . $demande->prenoms }} @else {{ $demande->raison_sociale }} @endif</strong>,</p>
+            <p>Cher(e) <strong><?php if($demande->type_demandeur === 'medecin_liberal' || $demande->type_demandeur ==='entreprise'): ?> <?php echo e($demande->nom. ' ' . $demande->prenoms); ?> <?php else: ?> <?php echo e($demande->raison_sociale); ?> <?php endif; ?></strong>,</p>
             
             <p>Merci pour votre intérêt envers <strong>SUNU Santé</strong>.</p>
             
             <div class="request-details">
                 <h3>Informations de votre demande</h3>
                 <table>
-                    <tr><td>Date de soumission :</td><td><strong>{{ $demande->created_at->format('d/m/Y H:i') }}</strong></td></tr>
+                    <tr><td>Date de soumission :</td><td><strong><?php echo e($demande->created_at->format('d/m/Y H:i')); ?></strong></td></tr>
                     <tr><td>Statut :</td><td><span style="color: #dc3545; font-weight: bold;">❌ Non approuvée</span></td></tr>
                 </table>
             </div>
@@ -60,10 +60,10 @@
             <div class="rejection-info">
                 <h4>Décision de votre demande</h4>
                 <p><strong>Votre demande d'adhésion n'a pas été approuvée.</strong></p>
-                @if($demande->motif_rejet)
+                <?php if($demande->motif_rejet): ?>
                     <p>
-                        <strong>Motif :</strong> {{ $demande->motif_rejet }}</p>
-                @endif
+                        <strong>Motif :</strong> <?php echo e($demande->motif_rejet); ?></p>
+                <?php endif; ?>
             </div>
 
             <div class="contact-box">
@@ -84,8 +84,9 @@
         <div class="footer">
             <p><strong>SUNU Santé</strong> - Votre partenaire santé de confiance</p>
             <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre directement.</p>
-            <p>&copy; {{ date('Y') }} SUNU Santé. Tous droits réservés.</p>
+            <p>&copy; <?php echo e(date('Y')); ?> SUNU Santé. Tous droits réservés.</p>
         </div>
     </div>
 </body>
 </html>
+<?php /**PATH D:\projects\amp\amp_backend\resources\views/emails/rejetee.blade.php ENDPATH**/ ?>

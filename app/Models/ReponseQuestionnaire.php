@@ -21,6 +21,8 @@ class ReponseQuestionnaire extends Model
         'reponse_decimal',
         'reponse_date',
         'reponse_fichier',
+        'est_vue',
+        'demande_adhesion_id'
     ];
 
     protected $casts = [

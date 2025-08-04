@@ -67,7 +67,7 @@ use Illuminate\Support\Str;
 class DemandeAdhesionController extends Controller
 {
     use DemandeAdhesionDataTrait;
-    
+
     protected NotificationService $notificationService;
     protected DemandeValidatorService $demandeValidatorService;
 
@@ -129,15 +129,35 @@ class DemandeAdhesionController extends Controller
 
     public function hasDemande()
     {
-        $demande = DemandeAdhesion::with('reponsesQuestionnaire')->where('user_id', Auth::user()->id)->first();
-        return ApiResponse::success([
-            'existing' => !!$demande,
-            'demande' => $demande,
-        ], 'Demande d\'adhésion récupérée avec succès');
+        $demande = DemandeAdhesion::with('reponsesQuestionnaire')
+                    ->where('user_id', Auth::user()->id)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                    
+        if (!$demande) {
+            return ApiResponse::success([
+                'existing' => false,
+                'demande' => null,
+                'can_submit' => true,
+                'status' => 'none'
+            ], 'Aucune demande d\'adhésion trouvée');
+        }
 
+        $status = $demande->statut->value;
+        $canSubmit = in_array($status, ['rejetee']); // Can resubmit if rejected
+        
+        return ApiResponse::success([
+            'existing' => true,
+            'demande' => $demande,
+            'can_submit' => $canSubmit,
+            'status' => $status,
+            'motif_rejet' => $demande->motif_rejet ?? null,
+            'valide_par' => $demande->validePar ?? null,
+            'valider_a' => $demande->valider_a ?? null
+        ], 'Demande d\'adhésion récupérée avec succès');
     }
 
-       /**
+    /**
      * Soumission d'une demande d'adhésion pour une personne physique
      */
     public function store(StoreDemandeAdhesionRequest $request)
@@ -185,8 +205,14 @@ class DemandeAdhesionController extends Controller
 
     public function show(int $id)
     {
-        $demande = DemandeAdhesion::find($id);
-        if($demande == null){
+        Log::info('show demande', ['id' => $id]);
+
+        $demande = DemandeAdhesion::with(['reponsesQuestionnaire' => function ($query) use ($id) {
+            $query->where('est_vue', true);
+            $query->where('demande_adhesion_id', $id);
+        }])->where('id', $id)->first();
+
+        if ($demande == null) {
             return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
         }
 
@@ -203,8 +229,14 @@ class DemandeAdhesionController extends Controller
     {
         $demande = DemandeAdhesion::with([
             'user',
-            'validePar.personnel',
-            'reponsesQuestionnaire.question',
+            'user.entreprise',
+            'user.prestataire',
+            'user.client',
+            'validePar', // validePar est déjà un Personnel
+            'reponsesQuestionnaire' => function ($query) use ($id) {
+                $query->where('est_vue', true);
+                $query->where('demande_adhesion_id', $id);
+            },
             'assures.reponsesQuestionnaire.question',
             'employes.reponsesQuestionnaire.question',
             'beneficiaires.reponsesQuestionnaire.question'
@@ -227,7 +259,7 @@ class DemandeAdhesionController extends Controller
         return $pdf->download("demande-adhesion-{$id}.pdf");
     }
 
- 
+
 
     /**
      * Proposer un contrat à un prospect (client physique ou entreprise) par un technicien
@@ -303,11 +335,11 @@ class DemandeAdhesionController extends Controller
 
             // Envoyer l'email avec le lien d'acceptation
             $acceptationUrl = config('app.frontend_url', 'http://localhost:3000') . "/contrat/accepter/" . $token;
-            
+
             dispatch(new SendEmailJob(
-                $demande->demandeur->email, 
-                'Votre proposition de contrat d\'assurance', 
-                EmailType::CONTRAT_PRET->value, 
+                $demande->demandeur->email,
+                'Votre proposition de contrat d\'assurance',
+                EmailType::CONTRAT_PRET->value,
                 [
                     'demande' => $demande,
                     'proposition' => $propositionContrat,
@@ -337,7 +369,6 @@ class DemandeAdhesionController extends Controller
                 'statut' => $propositionContrat->statut->value,
                 'propose_par' => $technicien->personnel->nom . ' ' . ($technicien->personnel->prenoms ?? ''),
             ], 'Proposition de contrat envoyée avec succès. Le client doit maintenant accepter ou refuser.');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Erreur lors de la proposition de contrat', [
@@ -376,14 +407,14 @@ class DemandeAdhesionController extends Controller
 
             // Notifier le prestataire
             $this->notificationService->createNotification(
-                $demande->demandeur->id,
+                $demande->user->id,
                 'Demande d\'adhésion validée',
                 "Votre demande d'adhésion en tant que prestataire de soins a été validée par notre médecin contrôleur.",
                 'demande_validee'
             );
 
-            
-            dispatch(new SendEmailJob($demande->demandeur->email, 'Demande d\'adhésion prestataire validée', EmailType::ACCEPTED->value, [
+
+            dispatch(new SendEmailJob($demande->user->email, 'Demande d\'adhésion prestataire validée', EmailType::ACCEPTED->value, [
                 'demande' => $demande,
                 'medecin_controleur' => $medecinControleur->personnel,
             ]));
@@ -395,7 +426,6 @@ class DemandeAdhesionController extends Controller
                 'statut' => $demande->statut->value,
                 'valide_par' => $medecinControleur->personnel->nom . ' ' . ($medecinControleur->personnel->prenoms ?? ''),
             ], 'Demande d\'adhésion prestataire validée avec succès.');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Erreur lors de la validation de la demande prestataire', [
@@ -431,8 +461,8 @@ class DemandeAdhesionController extends Controller
 
         try {
             // Rejet de la demande
-            $demande->reject($personnel, $validatedData['motif_rejet']);
-            $this->notificationService->sendEmail($demande->email, 'Demande d\'adhésion rejetée', 'emails.rejetee', [
+            $demande->reject($validatedData['motif_rejet'], $personnel->id);
+            $this->notificationService->sendEmail($demande->user->email, 'Demande d\'adhésion rejetée', EmailType::REJETEE->value, [
                 'demande' => $demande,
             ]);
             return ApiResponse::success([
@@ -453,7 +483,7 @@ class DemandeAdhesionController extends Controller
 
 
 
-   
+
     /**
      * Récupérer les contrats disponibles pour proposition
      */
@@ -551,7 +581,15 @@ class DemandeAdhesionController extends Controller
             'token' => $token,
             'questions' => QuestionResource::collection($questions),
             'fields' => [
-                'nom', 'prenoms', 'email', 'date_naissance', 'sexe', 'contact', 'profession', 'adresse', 'photo_url'
+                'nom',
+                'prenoms',
+                'email',
+                'date_naissance',
+                'sexe',
+                'contact',
+                'profession',
+                'adresse',
+                'photo_url'
             ],
         ], 'Formulaire employé prêt à être rempli.');
     }
@@ -641,7 +679,7 @@ class DemandeAdhesionController extends Controller
             // Associer les employés à la demande (si relation many-to-many, sinon ignorer)
             // $demande->employes()->sync($employes->pluck('id'));
             // Notifier SUNU (technicien)
-            
+
             DB::commit();
             return ApiResponse::success(new DemandeAdhesionEntrepriseResource($demande), 'Demande d\'adhésion entreprise soumise avec succès.');
         } catch (\Exception $e) {
@@ -768,27 +806,27 @@ class DemandeAdhesionController extends Controller
     {
         $stats = [
             'total' => DemandeAdhesion::count(),
-            
+
             'en_attente' => DemandeAdhesion::where('statut', 'en_attente')->count(),
-            
+
             'validees' => DemandeAdhesion::where('statut', 'validee')->count(),
-            
+
             'rejetees' => DemandeAdhesion::where('statut', 'rejetee')->count(),
-            
+
             'repartition_par_type_demandeur' => DemandeAdhesion::selectRaw('type_demandeur, COUNT(*) as count')
                 ->groupBy('type_demandeur')
                 ->get()
                 ->mapWithKeys(function ($item) {
                     return [$item->type_demandeur ?? 'Non spécifié' => $item->count];
                 }),
-            
+
             'repartition_par_statut' => DemandeAdhesion::selectRaw('statut, COUNT(*) as count')
                 ->groupBy('statut')
                 ->get()
                 ->mapWithKeys(function ($item) {
                     return [$item->statut ?? 'Non spécifié' => $item->count];
                 }),
-            
+
             'repartition_statut_par_type' => DemandeAdhesion::selectRaw('type_demandeur, statut, COUNT(*) as count')
                 ->groupBy('type_demandeur', 'statut')
                 ->get()
@@ -798,7 +836,7 @@ class DemandeAdhesionController extends Controller
                         return [$item->statut => $item->count];
                     });
                 }),
-            
+
             'demandes_par_mois' => DemandeAdhesion::selectRaw('MONTH(created_at) as mois, COUNT(*) as count')
                 ->whereYear('created_at', date('Y'))
                 ->groupBy('mois')
@@ -806,9 +844,18 @@ class DemandeAdhesionController extends Controller
                 ->get()
                 ->mapWithKeys(function ($item) {
                     $mois = [
-                        1 => 'Janvier', 2 => 'Février', 3 => 'Mars', 4 => 'Avril',
-                        5 => 'Mai', 6 => 'Juin', 7 => 'Juillet', 8 => 'Août',
-                        9 => 'Septembre', 10 => 'Octobre', 11 => 'Novembre', 12 => 'Décembre'
+                        1 => 'Janvier',
+                        2 => 'Février',
+                        3 => 'Mars',
+                        4 => 'Avril',
+                        5 => 'Mai',
+                        6 => 'Juin',
+                        7 => 'Juillet',
+                        8 => 'Août',
+                        9 => 'Septembre',
+                        10 => 'Octobre',
+                        11 => 'Novembre',
+                        12 => 'Décembre'
                     ];
                     return [$mois[$item->mois] ?? "Mois {$item->mois}" => $item->count];
                 }),

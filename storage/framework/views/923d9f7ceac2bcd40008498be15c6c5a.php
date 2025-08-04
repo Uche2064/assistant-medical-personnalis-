@@ -158,7 +158,7 @@
         <?php if($demande->validePar): ?>
         <div class="info-row">
             <span class="info-label">Validée par :</span>
-            <span class="info-value"><?php echo e($demande->validePar->personnel->nom ?? 'N/A'); ?></span>
+            <span class="info-value"><?php echo e($demande->validePar->nom ?? 'N/A'); ?></span>
         </div>
         <div class="info-row">
             <span class="info-label">Date de validation :</span>
@@ -176,21 +176,23 @@
     <div class="section">
         <div class="section-title">Informations du demandeur</div>
         <div class="user-info">
-            <?php if($demande->user->type_personne == 'physique'): ?>
-                <div class="info-row">
-                    <span class="info-label">Nom complet :</span>
-                    <span class="info-value"><?php echo e($demande->user->nom); ?> <?php echo e($demande->user->prenoms); ?></span>
-                </div>
-            <?php else: ?>
-                <div class="info-row">
-                    <span class="info-label">Nom de l'entreprise :</span>
-                    <?php if($demande->user->entreprise): ?>
-                        <span class="info-value"><?php echo e($demande->user->entreprise->raison_sociale); ?></span>
-                    <?php else: ?>
-                        <span class="info-value"><?php echo e($demande->user->prestataire->raison_sociale); ?></span>
-                    <?php endif; ?>
-                </div>
-            <?php endif; ?>
+            <?php if($demande->type_demandeur == \App\Enums\TypeDemandeurEnum::PHYSIQUE): ?>
+                 <div class="info-row">
+                     <span class="info-label">Nom complet :</span>
+                     <span class="info-value"><?php echo e($demande->user->client->nom ?? 'N/A'); ?> <?php echo e($demande->user->client->prenoms ?? ''); ?></span>
+                 </div>
+             <?php else: ?>
+                 <div class="info-row">
+                     <span class="info-label">Nom de l'entreprise :</span>
+                     <?php if($demande->user->entreprise && $demande->user->entreprise->raison_sociale): ?>
+                         <span class="info-value"><?php echo e($demande->user->entreprise->raison_sociale); ?></span>
+                     <?php elseif($demande->user->prestataire && $demande->user->prestataire->raison_sociale): ?>
+                         <span class="info-value"><?php echo e($demande->user->prestataire->raison_sociale); ?></span>
+                     <?php else: ?>
+                         <span class="info-value">N/A</span>
+                     <?php endif; ?>
+                 </div>
+             <?php endif; ?>
             <div class="info-row">
                 <span class="info-label">Email :</span>
                 <span class="info-value"><?php echo e($demande->user->email); ?></span>

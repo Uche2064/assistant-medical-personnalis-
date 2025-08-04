@@ -157,7 +157,7 @@
         @if($demande->validePar)
         <div class="info-row">
             <span class="info-label">Validée par :</span>
-            <span class="info-value">{{ $demande->validePar->personnel->nom ?? 'N/A' }}</span>
+            <span class="info-value">{{ $demande->validePar->nom ?? 'N/A' }}</span>
         </div>
         <div class="info-row">
             <span class="info-label">Date de validation :</span>
@@ -175,21 +175,23 @@
     <div class="section">
         <div class="section-title">Informations du demandeur</div>
         <div class="user-info">
-            @if ($demande->user->type_personne == 'physique')
-                <div class="info-row">
-                    <span class="info-label">Nom complet :</span>
-                    <span class="info-value">{{ $demande->user->nom }} {{ $demande->user->prenoms }}</span>
-                </div>
-            @else
-                <div class="info-row">
-                    <span class="info-label">Nom de l'entreprise :</span>
-                    @if ($demande->user->entreprise)
-                        <span class="info-value">{{ $demande->user->entreprise->raison_sociale }}</span>
-                    @else
-                        <span class="info-value">{{$demande->user->prestataire->raison_sociale}}</span>
-                    @endif
-                </div>
-            @endif
+            @if ($demande->type_demandeur == \App\Enums\TypeDemandeurEnum::PHYSIQUE)
+                 <div class="info-row">
+                     <span class="info-label">Nom complet :</span>
+                     <span class="info-value">{{ $demande->user->client->nom ?? 'N/A' }} {{ $demande->user->client->prenoms ?? '' }}</span>
+                 </div>
+             @else
+                 <div class="info-row">
+                     <span class="info-label">Nom de l'entreprise :</span>
+                     @if ($demande->user->entreprise && $demande->user->entreprise->raison_sociale)
+                         <span class="info-value">{{ $demande->user->entreprise->raison_sociale }}</span>
+                     @elseif ($demande->user->prestataire && $demande->user->prestataire->raison_sociale)
+                         <span class="info-value">{{ $demande->user->prestataire->raison_sociale }}</span>
+                     @else
+                         <span class="info-value">N/A</span>
+                     @endif
+                 </div>
+             @endif
             <div class="info-row">
                 <span class="info-label">Email :</span>
                 <span class="info-value">{{ $demande->user->email }}</span>

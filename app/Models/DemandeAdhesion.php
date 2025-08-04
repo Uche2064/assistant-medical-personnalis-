@@ -56,20 +56,6 @@ class DemandeAdhesion extends Model
         return $this->hasMany(ReponseQuestionnaire::class, 'personne_id', 'user_id');
     }
 
-    /**
-     * Get the client associated with this demande
-     */
-    public function client()
-    {
-        return $this->hasOneThrough(
-            Client::class,
-            User::class,
-            'id', // Clé étrangère sur users
-            'user_id', // Clé étrangère sur clients
-            'user_id', // Clé locale sur demandes_adhesions
-            'id' // Clé locale sur users
-        );
-    }
 
     /**
      * Get the assures (employees) associated with this demande
@@ -160,6 +146,7 @@ class DemandeAdhesion extends Model
         $this->statut = StatutDemandeAdhesionEnum::VALIDEE;
         $this->valide_par_id = $valideParId;
         $this->valider_a = now();
+        $this->reponsesQuestionnaire()->update(['est_vue' => true, 'demande_adhesion_id' => $this->id]);
         $this->save();
     }
 
@@ -172,6 +159,7 @@ class DemandeAdhesion extends Model
         $this->motif_rejet = $motifRejet;
         $this->valide_par_id = $valideParId;
         $this->valider_a = now();
+        $this->reponsesQuestionnaire()->update(['est_vue' => true, 'demande_adhesion_id' => $this->id]);
         $this->save();
     }
 
