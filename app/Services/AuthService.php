@@ -52,6 +52,7 @@ class AuthService
             'profession' => $validated['profession'] ?? null,
             'commercial_id' => $validated['commercial_id'] ?? null,
             'est_principal' => true,
+            'profession' => $validated['profession'] ?? null,
             'photo' => $validated['photo'] ?? null,
         ]);
     }

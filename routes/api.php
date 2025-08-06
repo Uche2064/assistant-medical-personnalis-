@@ -262,19 +262,6 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         })->where('filename', '.*');
     });
 
-    // --- Anciennes routes inutiles pour la demande d'adhésion (commentées) ---
-    // Route::middleware('auth:api')->prefix('demandes-adhesion')->group(function () {
-    //     Route::get('demandes-adhesions/{id}/download', [DemandeAdhesionController::class, 'download'])->name('api.demandes-adhesions.download');
-    //     Route::post('/', [DemandeAdhesionController::class, 'store'])->middleware('role:user');
-    //     Route::post('/p', [DemandeAdhesionController::class, 'storePrestataire'])->middleware('role:user');
-    //     Route::post('/e', [DemandeAdhesionController::class, 'storeEntreprise'])->middleware('role:user');
-    //     Route::get('/', [DemandeAdhesionController::class, 'index'])->middleware('role:medecin_controleur|technicien|admin_global');
-    //     Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware('role:medecin_controleur|technicien|admin_global');
-    //     Route::put('/{demande_id}/valider-prospect', [DemandeAdhesionController::class, 'validerProspect'])->middleware('role:technicien');
-    //     Route::put('/{demande_id}/valider-prestataire', [DemandeAdhesionController::class, 'validerPrestataire'])->middleware('role:medecin_controleur');
-    //     Route::put('/{demande_id}/rejeter', [DemandeAdhesionController::class, 'rejeter'])
-    //         ->middleware('role:technicien|medecin_controleur');
-    // });
 
     // ---------------------- Routes pour l'acceptation des contrats par les clients -------------------
     Route::prefix('contrats')->group(function () {
@@ -284,11 +271,12 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
     // --------------------- Routes pour l'Assuré Principal (PHYSIQUE) ---------------------
     Route::middleware(['auth:api', 'checkRole:physique'])->prefix('assure')->group(function () {
-        Route::get('/dashboard', [AssureController::class, 'dashboard']);
         Route::get('/beneficiaires', [AssureController::class, 'beneficiaires']);
+        Route::get('/beneficiaires/{id}', [AssureController::class, 'beneficiaire']);
         Route::post('/beneficiaires', [AssureController::class, 'ajouterBeneficiaire']);
         Route::put('/beneficiaires/{id}', [AssureController::class, 'modifierBeneficiaire']);
         Route::delete('/beneficiaires/{id}', [AssureController::class, 'supprimerBeneficiaire']);
+        // Route::get('/has-active-contrat', [AssureController::class, 'hasActiveContrat']);
         Route::get('/centres-soins', [AssureController::class, 'centresSoins']);
         Route::get('/historique-remboursements', [AssureController::class, 'historiqueRemboursements']);
         Route::get('/contrat', [AssureController::class, 'contrat']);

@@ -179,11 +179,15 @@ class DemandeAdhesionController extends Controller
 
         DB::beginTransaction();
         try {
+            $assurePrincipal = Assure::where('user_id', $user->id)->first();
             // Créer la demande d'adhésion
             $demande = DemandeAdhesion::create([
                 'type_demandeur' => $typeDemandeur,
                 'statut' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
                 'user_id' => $user->id,
+            ]);
+            $assurePrincipal->update([
+                'demande_adhesion_id' => $demande->id,
             ]);
             // Enregistrer les réponses au questionnaire principal
             foreach ($data['reponses'] as $reponse) {
@@ -192,7 +196,7 @@ class DemandeAdhesionController extends Controller
             // Enregistrer les bénéficiaires si fournis
             if (!empty($data['beneficiaires'])) {
                 foreach ($data['beneficiaires'] as $beneficiaire) {
-                    $this->enregistrerBeneficiaire($demande, $beneficiaire);
+                    $this->enregistrerBeneficiaire($demande, $beneficiaire, $assurePrincipal);
                 }
             }
             DB::commit();
@@ -1172,7 +1176,7 @@ class DemandeAdhesionController extends Controller
             // Enregistrer les bénéficiaires (optionnels)
             if (isset($data['beneficiaires']) && is_array($data['beneficiaires'])) {
                 foreach ($data['beneficiaires'] as $beneficiaire) {
-                    $this->enregistrerBeneficiaire($assure, $beneficiaire);
+                    $this->enregistrerBeneficiaire($assure, $beneficiaire, $assure);
                 }
             }
             // Notifier l'entreprise
@@ -1283,12 +1287,12 @@ class DemandeAdhesionController extends Controller
     /**
      * Enregistrer un bénéficiaire et ses réponses
      */
-    private function enregistrerBeneficiaire(DemandeAdhesion $demande, array $beneficiaire): void
+    private function enregistrerBeneficiaire(DemandeAdhesion $demande, array $beneficiaire, Assure $assurePrincipal): void
     {
         // Créer le bénéficiaire dans la table assures (PAS de compte utilisateur)
         $benefAssure = Assure::create([
             'user_id' => null, // ❌ Bénéficiaires n'ont PAS de compte
-            'assure_principal_id' => null, // Sera mis à jour quand l'assuré principal sera créé
+            'assure_principal_id' => $assurePrincipal->id,
             'nom' => $beneficiaire['nom'], // ✅ Informations personnelles
             'prenoms' => $beneficiaire['prenoms'], // ✅ Informations personnelles0
             'date_naissance' => $beneficiaire['date_naissance'], // ✅ Informations personnelles

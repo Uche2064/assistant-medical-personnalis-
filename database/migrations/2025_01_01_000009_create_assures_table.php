@@ -24,9 +24,10 @@ return new class extends Migration
             $table->date('date_naissance')->nullable();
             $table->string('sexe')->nullable();
             $table->string('profession')->nullable();
+            $table->string('contact')->unique()->nullable();
             $table->string('lien_parente')->nullable();
             $table->foreignId('commercial_id')->nullable()->constrained('personnels')->onDelete('set null');
-            $table->boolean('est_principal')->default(true);
+            $table->boolean('est_principal')->default(false);
             $table->string('photo')->nullable();
             $table->timestamps();
             $table->softDeletes();

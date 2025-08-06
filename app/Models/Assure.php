@@ -21,6 +21,8 @@ class Assure extends Model
         'sexe', // ✅ Ajouté pour les bénéficiaires
         'lien_parente',
         'est_principal',
+        'profession',
+        'contact',
         'photo',
         'demande_adhesion_id',
     ];

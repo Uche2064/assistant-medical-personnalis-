@@ -40,6 +40,7 @@ class UserResource extends JsonResource
             $userData['type_demandeur'] = 'physique';
             $userData['sexe'] = $this->assure->sexe ?? null;
             $userData['date_naissance'] = $this->assure->date_naissance ?? null;
+            $userData['profession'] = $this->assure->profession ?? null;
             $userData['photo'] = $this->photo ?? null;
         } else if ($this->whenLoaded('entreprise') && $this->entreprise) {
             $userData['raison_sociale'] = $this->entreprise->raison_sociale ?? null;

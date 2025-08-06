@@ -14,6 +14,8 @@ class Contrat extends Model
         'type_contrat',
         'technicien_id',
         'prime_standard',
+        'date_debut',
+        'date_fin',
         'est_actif',
         'categories_garanties_standard',
     ];
@@ -23,6 +25,8 @@ class Contrat extends Model
         'est_actif' => 'boolean',
         'type_contrat' => \App\Enums\TypeContratEnum::class,
         'categories_garanties_standard' => 'array',
+        'date_debut' => 'date',
+        'date_fin' => 'date',
     ];
 
     /**

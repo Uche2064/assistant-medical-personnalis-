@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\v1\Api\Assure;
 
 use App\Enums\LienEnum;
+use App\Enums\LienParenteEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\BeneficiaireResource;
 use App\Models\Assure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -22,19 +24,18 @@ class BeneficiaireController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = Auth::user();
-        // Récupérer l'assuré principal associé à cet utilisateur
         $assurePrincipal = Assure::where('user_id', $user->id)
-            ->where('lien_parente', LienEnum::PRINCIPAL)
+            ->where('est_principal', true)
             ->first();
 
         if (!$assurePrincipal) {
-            return ApiResponse::error('Aucun assuré principal trouvé pour cet utilisateur');
+            return ApiResponse::error('Utilisateur non trouvé', 404);
         }
 
         // Récupérer tous les bénéficiaires (assurés dépendants) de cet assuré principal
         $beneficiaires = $assurePrincipal->assureEnfants()->with('user')->get();
 
-        return ApiResponse::success($beneficiaires, "Bénéficiaire récupérer");
+        return ApiResponse::success(BeneficiaireResource::collection($beneficiaires), "Bénéficiaires récupérés avec succès");
     }
 
     /**
@@ -50,7 +51,7 @@ class BeneficiaireController extends Controller
 
         // Récupérer l'assuré principal associé à cet utilisateur
         $assurePrincipal = Assure::where('user_id', $user->id)
-            ->where('lien_parente', LienEnum::PRINCIPAL)
+            ->where('est_principal', false)
             ->first();
 
         if (!$assurePrincipal) {
@@ -79,7 +80,7 @@ class BeneficiaireController extends Controller
 
         // Récupérer l'assuré principal associé à cet utilisateur
         $assurePrincipal = Assure::where('user_id', $user->id)
-            ->where('lien_parente', LienEnum::PRINCIPAL)
+            ->where('est_principal', false)
             ->first();
 
         if (!$assurePrincipal) {
@@ -136,7 +137,7 @@ class BeneficiaireController extends Controller
 
         // Récupérer l'assuré principal associé à cet utilisateur
         $assurePrincipal = Assure::where('user_id', $user->id)
-            ->where('lien_parente', LienEnum::PRINCIPAL)
+            ->where('est_principal', false)
             ->first();
 
         if (!$assurePrincipal) {
@@ -196,7 +197,7 @@ class BeneficiaireController extends Controller
 
         // Récupérer l'assuré principal associé à cet utilisateur
         $assurePrincipal = Assure::where('user_id', $user->id)
-            ->where('lien_parente', LienEnum::PRINCIPAL)
+            ->where('est_principal', false)
             ->first();
 
         if (!$assurePrincipal) {
