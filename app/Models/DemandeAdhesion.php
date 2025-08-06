@@ -77,13 +77,8 @@ class DemandeAdhesion extends Model
      */
     public function beneficiaires()
     {
-        return $this->hasManyThrough(
-            Assure::class,
-            User::class,
-            'id', // Clé étrangère sur users
-            'user_id', // Clé étrangère sur assures
-            'user_id', // Clé locale sur demandes_adhesions
-            'id' // Clé locale sur users
+        return $this->hasMany(
+            Assure::class
         )->where('est_principal', false);
     }
 
@@ -146,7 +141,7 @@ class DemandeAdhesion extends Model
         $this->statut = StatutDemandeAdhesionEnum::VALIDEE;
         $this->valide_par_id = $valideParId;
         $this->valider_a = now();
-        $this->reponsesQuestionnaire()->update(['est_vue' => true, 'demande_adhesion_id' => $this->id]);
+        $this->reponsesQuestionnaire()->update(['' => true, 'demande_adhesion_id' => $this->id]);
         $this->save();
     }
 
@@ -159,7 +154,7 @@ class DemandeAdhesion extends Model
         $this->motif_rejet = $motifRejet;
         $this->valide_par_id = $valideParId;
         $this->valider_a = now();
-        $this->reponsesQuestionnaire()->update(['est_vue' => true, 'demande_adhesion_id' => $this->id]);
+        $this->reponsesQuestionnaire()->update(['' => true, 'demande_adhesion_id' => $this->id]);
         $this->save();
     }
 

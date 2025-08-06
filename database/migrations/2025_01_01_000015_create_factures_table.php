@@ -14,14 +14,14 @@ return new class extends Migration
         Schema::create('factures', function (Blueprint $table) {
             $table->id();
             $table->string('numero_facture')->unique();
-            $table->foreignId('sinistre_id')->constrained('sinistres')->onDelete('cascade');
-            $table->foreignId('prestataire_id')->constrained('prestataires')->onDelete('cascade');
+            $table->foreignId('sinistre_id')->nullable()->constrained('sinistres')->onDelete('set null');
+            $table->foreignId('prestataire_id')->nullable()->constrained('prestataires')->onDelete('set null');
             $table->decimal('montant_reclame', 12, 2);
             $table->decimal('montant_a_rembourser', 12, 2);
             $table->text('diagnostic');
             $table->json('photo_justificatifs');
             $table->decimal('ticket_moderateur', 12, 2);
-            $table->string('statut')->default('en_attente'); // Sera casté vers StatutFactureEnum
+            $table->string('statut')->default('en_attente');
             $table->text('motif_rejet')->nullable();
             
             // Validation par technicien

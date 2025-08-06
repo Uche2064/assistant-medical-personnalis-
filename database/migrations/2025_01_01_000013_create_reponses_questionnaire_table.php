@@ -21,7 +21,6 @@ return new class extends Migration
             $table->unsignedBigInteger('personne_id'); // ID de la personne
             
             $table->text('reponse_text')->nullable();
-            $table->boolean('est_vue')->default(false);
             $table->boolean('reponse_bool')->nullable();
             $table->decimal('reponse_decimal', 12, 2)->nullable();
             $table->date('reponse_date')->nullable();

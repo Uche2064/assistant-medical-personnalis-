@@ -91,13 +91,12 @@ trait DemandeAdhesionDataTrait
             'user.client',
             'validePar',
             'reponsesQuestionnaire' => function ($query) use ($id) {
-                $query->where('est_vue', true);
                 $query->where('demande_adhesion_id', $id);
             },
             'reponsesQuestionnaire.question',
-            'assures.reponsesQuestionnaire.question',
-            'employes.reponsesQuestionnaire.question',
-            'beneficiaires.reponsesQuestionnaire.question'
+            'assures',
+            'employes',
+            'beneficiaires'
         ])->find($id);
     }
 
@@ -106,13 +105,14 @@ trait DemandeAdhesionDataTrait
     {
         return DemandeAdhesion::with([
             'validePar',
+            'beneficiaires',
             'reponsesQuestionnaire' => function ($query) use ($id) {
-                $query->where('est_vue', true);
                 $query->where('demande_adhesion_id', $id);
             },
             'reponsesQuestionnaire.question',
             'user.prestataire',
             'user.entreprise',
+            'user.client',
         ])->find($id);
     }
     /**

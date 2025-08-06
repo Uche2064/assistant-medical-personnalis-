@@ -45,6 +45,7 @@ class StoreDemandeAdhesionRequest extends FormRequest
             'beneficiaires.*.date_naissance' => ['required', 'date'],
             'beneficiaires.*.sexe' => ['required', 'in:M,F'],
             'beneficiaires.*.lien_parente' => ['required', 'in:'.implode(',', LienParenteEnum::values())],
+            'beneficiaires.*.reponses' => ['required', 'array'],
             // 'beneficiaires.*.photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:5120'],
         ];
 
@@ -73,8 +74,6 @@ class StoreDemandeAdhesionRequest extends FormRequest
                     break;
             }
         }
-
-        // dd($rules);
 
         return $rules;
     }

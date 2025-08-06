@@ -8,7 +8,6 @@ use App\Http\Controllers\v1\Api\categorie_garantie\CategorieGarantieController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\v1\Api\ClientControlleur;
 use App\Http\Controllers\v1\Api\gestionnaire\GestionnaireController;
-use App\Http\Controllers\v1\Api\ContratController;
 use App\Http\Controllers\v1\Api\demande_adhesion\DemandeAdhesionController;
 use App\Http\Controllers\v1\Api\garanties\GarantieController;
 use App\Http\Controllers\v1\Api\medecin_controleur\QuestionController;
@@ -20,6 +19,7 @@ use App\Http\Controllers\v1\Api\TechnicienController;
 use App\Http\Controllers\v1\Api\AssureController;
 use App\Http\Controllers\v1\Api\StatsController;
 use App\Helpers\ApiResponse;
+use App\Http\Controllers\v1\Api\contrat\ContratController;
 use Illuminate\Support\Facades\Auth;
 
 // Route publique pour les fichiers (en dehors du middleware verifyApiKey)
@@ -128,6 +128,9 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/', [DemandeAdhesionController::class, 'index'])->middleware('checkRole:medecin_controleur,technicien,admin_global');
         // Demande d'adhésion personne physique (assuré principal)
         Route::post('/', [DemandeAdhesionController::class, 'store'])->middleware('checkRole:physique');
+
+        Route::get('/stats', [DemandeAdhesionController::class, 'stats'])->middleware('checkRole:admin_global,medecin_controleur,technicien');
+
         // Demande d'adhésion prestataire de soins
         Route::post('/prestataire', [DemandeAdhesionController::class, 'store'])->middleware('checkRole:prestataire');
         // Demande d'adhésion entreprise (soumission groupée)
@@ -141,7 +144,6 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::put('/{demande_id}/proposer-contrat', [DemandeAdhesionController::class, 'proposerContrat'])->middleware('checkRole:technicien');
         Route::put('/{demande_id}/valider-prestataire', [DemandeAdhesionController::class, 'validerPrestataire'])->middleware('checkRole:medecin_controleur');
         Route::put('/{demande_id}/rejeter', [DemandeAdhesionController::class, 'rejeter'])->middleware('checkRole:technicien,medecin_controleur');
-        Route::get('/stats', [StatsController::class, 'getDemandeAdhesionStats'])->middleware('checkRole:admin_global,medecin_controleur,technicien');
     });
     // Anciennes routes spécifiques supprimées ou commentées pour éviter toute confusion.
 
@@ -188,10 +190,13 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
     Route::middleware(['auth:api'])->prefix('contrats')->group(function () {
         Route::get('/', [ContratController::class, 'index']);
-        Route::post('/', [ContratController::class, 'store'])->middleware('checkRole:technicien');
-        Route::get('/{id}', [ContratController::class, 'show'])->middleware('checkRole:technicien');
-        Route::put('/{id}', [ContratController::class, 'update'])->middleware('checkRole:technicien');
-        Route::delete('/{id}', [ContratController::class, 'destroy'])->middleware('checkRole:technicien');
+       Route::middleware(['auth:api', 'checkRole:technicien'])->group(function () {
+        Route::get('/stats', [ContratController::class, 'stats']);
+        Route::post('/', [ContratController::class, 'store']);
+        Route::get('/{id}', [ContratController::class, 'show']);
+        Route::put('/{id}', [ContratController::class, 'update']);
+        Route::delete('/{id}', [ContratController::class, 'destroy']);
+       });
     });
 
     Route::prefix('employes/formulaire')->group(function () {
@@ -200,14 +205,25 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
     // --- Gestion des invitations employé pour les entreprises ---
-    Route::middleware(['auth:api', 'checkRole:user'])->prefix('entreprise')->group(function () {
-        Route::post('/inviter-employe', [DemandeAdhesionController::class, 'genererLienInvitationEmploye']);
+    Route::middleware(['auth:api', 'checkRole:entreprise'])->prefix('entreprise')->group(function () {
+        Route::get('/liens-invitation', [DemandeAdhesionController::class, 'consulterLiensInvitation']);
+        Route::get('/generer-lien', [DemandeAdhesionController::class, 'genererLienInvitationEmploye']);
+        Route::get('/get-invitation-link', [DemandeAdhesionController::class, 'getInvitationLink']);
         Route::post('/soumettre-demande-adhesion', [DemandeAdhesionController::class, 'soumettreDemandeAdhesionEntreprise']);
+        
+        // Routes pour consulter les demandes d'adhésion
+        Route::get('/mes-demandes', [DemandeAdhesionController::class, 'mesDemandesAdhesion']);
+        Route::get('/mes-demandes/{id}', [DemandeAdhesionController::class, 'maDemandeAdhesion']);
+        
+        // Routes pour consulter les demandes des employés
+        Route::get('/demandes-employes', [DemandeAdhesionController::class, 'demandesEmployes']);
+        Route::get('/demandes-employes/{id}', [DemandeAdhesionController::class, 'demandeEmploye']);
     });
     Route::prefix('employes/formulaire')->group(function () {
         Route::get('/{token}', [DemandeAdhesionController::class, 'showFormulaireEmploye']);
         Route::post('/{token}', [DemandeAdhesionController::class, 'soumettreFicheEmploye']);
     });
+  
 
     // --- Demande d'adhésion personne physique ---
 

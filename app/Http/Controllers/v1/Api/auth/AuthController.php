@@ -121,7 +121,7 @@ class AuthController extends Controller
             DB::commit();
 
             return ApiResponse::success([
-                'user' => new UserResource($user->load('client', 'entreprise', 'prestataire')),
+                'user' => new UserResource($user->load('entreprise', 'prestataire')),
             ], 'Inscription réussie. Vérifiez votre email pour valider votre compte.'); 
         } catch (Exception $e) {
             DB::rollBack();
@@ -181,8 +181,8 @@ class AuthController extends Controller
             $token = $this->authService->generateToken($user);
 
             return ApiResponse::success([
-                'user' => new UserResource($user->load('client', 'entreprise', 'prestataire')),
                 'access_token' => $token,
+                'user' => new UserResource($user->load('entreprise', 'prestataire')),
             ], 'Votre compte a été validé avec succès.');
         } catch (\Exception $e) {
             DB::rollBack();

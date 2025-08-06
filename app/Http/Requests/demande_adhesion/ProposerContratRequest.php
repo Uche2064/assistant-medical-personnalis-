@@ -26,8 +26,6 @@ class ProposerContratRequest extends FormRequest
             'contrat_id' => 'required|exists:contrats,id',
             'prime_proposee' => 'required|numeric|min:0',
             'commentaires' => 'nullable|string|max:1000',
-            'garanties_incluses' => 'nullable|array',
-            'garanties_incluses.*' => 'exists:garanties,id',
             'taux_couverture' => 'nullable|numeric|min:0|max:100',
             'frais_gestion' => 'nullable|numeric|min:0|max:100',
         ];
@@ -45,8 +43,6 @@ class ProposerContratRequest extends FormRequest
             'prime_proposee.numeric' => 'La prime proposée doit être un nombre.',
             'prime_proposee.min' => 'La prime proposée ne peut pas être négative.',
             'commentaires.max' => 'Les commentaires ne peuvent pas dépasser 1000 caractères.',
-            'garanties_incluses.array' => 'Les garanties incluses doivent être un tableau.',
-            'garanties_incluses.*.exists' => 'Une ou plusieurs garanties sélectionnées n\'existent pas.',
             'taux_couverture.numeric' => 'Le taux de couverture doit être un nombre.',
             'taux_couverture.min' => 'Le taux de couverture ne peut pas être négatif.',
             'taux_couverture.max' => 'Le taux de couverture ne peut pas dépasser 100%.',

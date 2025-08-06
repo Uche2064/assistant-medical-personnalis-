@@ -11,27 +11,18 @@ class Contrat extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'numero_police',
         'type_contrat',
         'technicien_id',
         'prime_standard',
-        'frais_gestion',
-        'commission_commercial',
-        'date_debut',
-        'date_fin',
-        'statut',
         'est_actif',
+        'categories_garanties_standard',
     ];
 
     protected $casts = [
         'prime_standard' => 'decimal:2',
-        'frais_gestion' => 'decimal:2',
-        'commission_commercial' => 'decimal:2',
-        'date_debut' => 'date',
-        'date_fin' => 'date',
         'est_actif' => 'boolean',
         'type_contrat' => \App\Enums\TypeContratEnum::class,
-        'statut' => \App\Enums\StatutContratEnum::class,
+        'categories_garanties_standard' => 'array',
     ];
 
     /**
@@ -166,13 +157,6 @@ class Contrat extends Model
         return $this->prime_standard * $this->commission_commercial / 100;
     }
 
-    /**
-     * Get the contrat's duration in days.
-     */
-    public function getDureeAttribute()
-    {
-        return $this->date_debut->diffInDays($this->date_fin);
-    }
 
     /**
      * Check if contrat is still valid.

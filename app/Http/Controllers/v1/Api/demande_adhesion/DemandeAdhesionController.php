@@ -130,10 +130,10 @@ class DemandeAdhesionController extends Controller
     public function hasDemande()
     {
         $demande = DemandeAdhesion::with('reponsesQuestionnaire')
-                    ->where('user_id', Auth::user()->id)
-                    ->orderBy('created_at', 'desc')
-                    ->first();
-                    
+            ->where('user_id', Auth::user()->id)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
         if (!$demande) {
             return ApiResponse::success([
                 'existing' => false,
@@ -145,7 +145,7 @@ class DemandeAdhesionController extends Controller
 
         $status = $demande->statut->value;
         $canSubmit = in_array($status, ['rejetee']); // Can resubmit if rejected
-        
+
         return ApiResponse::success([
             'existing' => true,
             'demande' => $demande,
@@ -187,7 +187,7 @@ class DemandeAdhesionController extends Controller
             ]);
             // Enregistrer les réponses au questionnaire principal
             foreach ($data['reponses'] as $reponse) {
-                $this->enregistrerReponseDemande($demande, $reponse, $typeDemandeur);
+                $this->enregistrerReponsePersonne($typeDemandeur, $demande->user_id, $reponse, $demande->id);
             }
             // Enregistrer les bénéficiaires si fournis
             if (!empty($data['beneficiaires'])) {
@@ -196,7 +196,7 @@ class DemandeAdhesionController extends Controller
                 }
             }
             DB::commit();
-            return ApiResponse::success(new DemandeAdhesionResource($demande->load('user', 'reponsesQuestionnaire')), 'Demande d\'adhésion soumise avec succès.');
+            return ApiResponse::success(null, 'Demande d\'adhésion soumise avec succès.', 201);
         } catch (\Exception $e) {
             DB::rollBack();
             return ApiResponse::error('Erreur lors de la soumission de la demande d\'adhésion : ' . $e->getMessage(), 500);
@@ -207,16 +207,13 @@ class DemandeAdhesionController extends Controller
     {
         Log::info('show demande', ['id' => $id]);
 
-        $demande = DemandeAdhesion::with(['reponsesQuestionnaire' => function ($query) use ($id) {
-            $query->where('est_vue', true);
-            $query->where('demande_adhesion_id', $id);
-        }])->where('id', $id)->first();
+        $demande = $this->loadDemandeWithRelations($id);
 
         if ($demande == null) {
             return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
         }
 
-        $demande = $this->loadDemandeWithRelationsForPrestataire($id);
+        $demande = $this->loadDemandeWithRelations($id);
 
         return ApiResponse::success($demande, 'Détails de la demande d\'adhésion');
     }
@@ -234,7 +231,6 @@ class DemandeAdhesionController extends Controller
             'user.client',
             'validePar', // validePar est déjà un Personnel
             'reponsesQuestionnaire' => function ($query) use ($id) {
-                $query->where('est_vue', true);
                 $query->where('demande_adhesion_id', $id);
             },
             'assures.reponsesQuestionnaire.question',
@@ -269,7 +265,7 @@ class DemandeAdhesionController extends Controller
         try {
             $validatedData = $request->validated();
             $technicien = Auth::user();
-            $demande = DemandeAdhesion::with(['demandeur'])->find($id);
+            $demande = DemandeAdhesion::with(['user'])->find($id);
 
             if (!$demande) {
                 return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
@@ -526,13 +522,562 @@ class DemandeAdhesionController extends Controller
     }
 
     /**
+     * Consulter les liens d'invitation existants pour une entreprise
+     */
+    public function consulterLiensInvitation(Request $request)
+    {
+        $user = Auth::user();
+
+        // Vérifier que l'utilisateur est une entreprise
+        if (!$user->hasRole('entreprise') || !$user->entreprise) {
+            return ApiResponse::error('Seules les entreprises peuvent consulter leurs liens d\'invitation.', 403);
+        }
+
+        $entreprise = $user->entreprise;
+
+        $invitations = InvitationEmploye::with(['assure'])
+            ->where('entreprise_id', $entreprise->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $liens = $invitations->map(function ($invitation) {
+            return [
+                'invitation_id' => $invitation->id,
+                'employe_id' => $invitation->assure_id,
+                'nom' => $invitation->assure ? $invitation->assure->nom . ' ' . $invitation->assure->prenoms : 'N/A',
+                'email' => $invitation->email,
+                'lien' => config('app.frontend_url') . "/employes/formulaire/{$invitation->token}",
+                'token' => $invitation->token,
+                'statut' => $invitation->expire_at > now() ? 'actif' : 'expire',
+                'envoye_le' => $invitation->created_at,
+                'expire_le' => $invitation->expire_at
+            ];
+        });
+
+        return ApiResponse::success([
+            'entreprise_id' => $entreprise->id,
+            'raison_sociale' => $entreprise->raison_sociale,
+            'total_liens' => $liens->count(),
+            'liens_actifs' => $liens->where('statut', 'actif')->count(),
+            'liens_expires' => $liens->where('statut', 'expire')->count(),
+            'liens' => $liens
+        ], 'Liens d\'invitation récupérés avec succès.');
+    }
+
+    /**
+     * Consulter les demandes d'adhésion d'une entreprise
+     */
+    public function mesDemandesAdhesion(Request $request)
+    {
+        $user = Auth::user();
+
+        // Vérifier que l'utilisateur est une entreprise
+        if (!$user->hasRole('entreprise') || !$user->entreprise) {
+            return ApiResponse::error('Seules les entreprises peuvent consulter leurs demandes d\'adhésion.', 403);
+        }
+
+        $entreprise = $user->entreprise;
+
+        $query = DemandeAdhesion::with([
+            'user.entreprise',
+            'reponsesQuestionnaire.question',
+            'assures' => function ($query) use ($entreprise) {
+                $query->where('entreprise_id', $entreprise->id);
+            },
+            'assures.reponsesQuestionnaire.question'
+        ])
+            ->where('user_id', $user->id)
+            ->where('type_demandeur', TypeDemandeurEnum::ENTREPRISE->value);
+
+        // Filtrage par statut si fourni
+        $status = $request->input('statut');
+        if ($status) {
+            $query->where('statut', match ($status) {
+                'en_attente' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
+                'validee'    => StatutDemandeAdhesionEnum::VALIDEE->value,
+                'rejetee'    => StatutDemandeAdhesionEnum::REJETEE->value,
+                default      => null
+            });
+        }
+
+        // Pagination
+        $perPage = $request->query('per_page', 10);
+        $demandes = $query->orderByDesc('created_at')->paginate($perPage);
+
+        // Transformer les données pour l'entreprise
+        $demandesTransformees = $demandes->map(function ($demande) {
+            return [
+                'id' => $demande->id,
+                'statut' => $demande->statut->value,
+                'type_demandeur' => $demande->type_demandeur->value,
+                'created_at' => $demande->created_at,
+                'updated_at' => $demande->updated_at,
+                'valide_par' => $demande->validePar ? [
+                    'id' => $demande->validePar->id,
+                    'nom' => $demande->validePar->nom,
+                    'prenoms' => $demande->validePar->prenoms
+                ] : null,
+                'valider_a' => $demande->valider_a,
+                'motif_rejet' => $demande->motif_rejet,
+                'commentaires_technicien' => $demande->commentaires_technicien,
+
+                // Informations sur les employés
+                'employes' => $demande->assures->map(function ($assure) {
+                    return [
+                        'id' => $assure->id,
+                        'nom' => $assure->nom,
+                        'prenoms' => $assure->prenoms,
+                        'email' => $assure->email,
+                        'contact' => $assure->contact,
+                        'profession' => $assure->profession,
+                        'date_naissance' => $assure->date_naissance,
+                        'sexe' => $assure->sexe,
+                        'statut' => $assure->statut,
+                        'lien_parente' => $assure->lien_parente,
+                        'photo_url' => $assure->photo_url,
+                        'reponses_questionnaire' => $assure->reponsesQuestionnaire->map(function ($reponse) {
+                            return [
+                                'question_id' => $reponse->question_id,
+                                'question_libelle' => $reponse->question->libelle,
+                                'reponse_text' => $reponse->reponse_text,
+                                'reponse_number' => $reponse->reponse_number,
+                                'reponse_bool' => $reponse->reponse_bool,
+                                'reponse_date' => $reponse->reponse_date,
+                                'reponse_fichier' => $reponse->reponse_fichier,
+                            ];
+                        })
+                    ];
+                }),
+
+                // Réponses du questionnaire principal (entreprise)
+                'reponses_questionnaire' => $demande->reponsesQuestionnaire->map(function ($reponse) {
+                    return [
+                        'question_id' => $reponse->question_id,
+                        'question_libelle' => $reponse->question->libelle,
+                        'reponse_text' => $reponse->reponse_text,
+                        'reponse_number' => $reponse->reponse_number,
+                        'reponse_bool' => $reponse->reponse_bool,
+                        'reponse_date' => $reponse->reponse_date,
+                        'reponse_fichier' => $reponse->reponse_fichier,
+                    ];
+                }),
+
+                // Statistiques
+                'statistiques' => [
+                    'total_employes' => $demande->assures->count(),
+                    'employes_avec_reponses' => $demande->assures->filter(function ($assure) {
+                        return $assure->reponsesQuestionnaire->count() > 0;
+                    })->count(),
+                    'employes_sans_reponses' => $demande->assures->filter(function ($assure) {
+                        return $assure->reponsesQuestionnaire->count() == 0;
+                    })->count(),
+                ]
+            ];
+        });
+
+        $paginatedData = new LengthAwarePaginator(
+            $demandesTransformees,
+            $demandes->total(),
+            $demandes->perPage(),
+            $demandes->currentPage(),
+            ['path' => Paginator::resolveCurrentPath()]
+        );
+
+        return ApiResponse::success([
+            'entreprise' => [
+                'id' => $entreprise->id,
+                'raison_sociale' => $entreprise->raison_sociale,
+                'nombre_employe' => $entreprise->nombre_employe,
+                'secteur_activite' => $entreprise->secteur_activite
+            ],
+            'demandes' => $paginatedData,
+            'statistiques_globales' => [
+                'total_demandes' => $demandes->total(),
+                'demandes_en_attente' => $demandes->where('statut', StatutDemandeAdhesionEnum::EN_ATTENTE->value)->count(),
+                'demandes_validees' => $demandes->where('statut', StatutDemandeAdhesionEnum::VALIDEE->value)->count(),
+                'demandes_rejetees' => $demandes->where('statut', StatutDemandeAdhesionEnum::REJETEE->value)->count(),
+            ]
+        ], 'Demandes d\'adhésion de l\'entreprise récupérées avec succès.');
+    }
+
+    /**
+     * Consulter une demande d'adhésion spécifique pour une entreprise
+     */
+    public function maDemandeAdhesion(int $id)
+    {
+        $user = Auth::user();
+
+        // Vérifier que l'utilisateur est une entreprise
+        if (!$user->hasRole('entreprise') || !$user->entreprise) {
+            return ApiResponse::error('Seules les entreprises peuvent consulter leurs demandes d\'adhésion.', 403);
+        }
+
+        $demande = DemandeAdhesion::with([
+            'user.entreprise',
+            'reponsesQuestionnaire.question',
+            'assures' => function ($query) use ($user) {
+                $query->where('entreprise_id', $user->entreprise->id);
+            },
+            'assures.reponsesQuestionnaire.question',
+            'validePar'
+        ])
+            ->where('id', $id)
+            ->where('user_id', $user->id)
+            ->where('type_demandeur', TypeDemandeurEnum::ENTREPRISE->value)
+            ->first();
+
+        if (!$demande) {
+            return ApiResponse::error('Demande d\'adhésion non trouvée ou accès non autorisé.', 404);
+        }
+
+        $demandeTransformee = [
+            'id' => $demande->id,
+            'statut' => $demande->statut->value,
+            'type_demandeur' => $demande->type_demandeur->value,
+            'created_at' => $demande->created_at,
+            'updated_at' => $demande->updated_at,
+            'valide_par' => $demande->validePar ? [
+                'id' => $demande->validePar->id,
+                'nom' => $demande->validePar->nom,
+                'prenoms' => $demande->validePar->prenoms,
+                'email' => $demande->validePar->email
+            ] : null,
+            'valider_a' => $demande->valider_a,
+            'motif_rejet' => $demande->motif_rejet,
+            'commentaires_technicien' => $demande->commentaires_technicien,
+
+            // Informations sur les employés
+            'employes' => $demande->assures->map(function ($assure) {
+                return [
+                    'id' => $assure->id,
+                    'nom' => $assure->nom,
+                    'prenoms' => $assure->prenoms,
+                    'email' => $assure->email,
+                    'contact' => $assure->contact,
+                    'profession' => $assure->profession,
+                    'date_naissance' => $assure->date_naissance,
+                    'sexe' => $assure->sexe,
+                    'statut' => $assure->statut,
+                    'lien_parente' => $assure->lien_parente,
+                    'photo_url' => $assure->photo_url,
+                    'reponses_questionnaire' => $assure->reponsesQuestionnaire->map(function ($reponse) {
+                        return [
+                            'question_id' => $reponse->question_id,
+                            'question_libelle' => $reponse->question->libelle,
+                            'type_donnee' => $reponse->question->type_donnee,
+                            'reponse_text' => $reponse->reponse_text,
+                            'reponse_number' => $reponse->reponse_number,
+                            'reponse_bool' => $reponse->reponse_bool,
+                            'reponse_date' => $reponse->reponse_date,
+                            'reponse_fichier' => $reponse->reponse_fichier,
+                        ];
+                    })
+                ];
+            }),
+
+            // Réponses du questionnaire principal (entreprise)
+            'reponses_questionnaire' => $demande->reponsesQuestionnaire->map(function ($reponse) {
+                return [
+                    'question_id' => $reponse->question_id,
+                    'question_libelle' => $reponse->question->libelle,
+                    'type_donnee' => $reponse->question->type_donnee,
+                    'reponse_text' => $reponse->reponse_text,
+                    'reponse_number' => $reponse->reponse_number,
+                    'reponse_bool' => $reponse->reponse_bool,
+                    'reponse_date' => $reponse->reponse_date,
+                    'reponse_fichier' => $reponse->reponse_fichier,
+                ];
+            }),
+
+            // Statistiques
+            'statistiques' => [
+                'total_employes' => $demande->assures->count(),
+                'employes_avec_reponses' => $demande->assures->filter(function ($assure) {
+                    return $assure->reponsesQuestionnaire->count() > 0;
+                })->count(),
+                'employes_sans_reponses' => $demande->assures->filter(function ($assure) {
+                    return $assure->reponsesQuestionnaire->count() == 0;
+                })->count(),
+                'pourcentage_completion' => $demande->assures->count() > 0
+                    ? round(($demande->assures->filter(function ($assure) {
+                        return $assure->reponsesQuestionnaire->count() > 0;
+                    })->count() / $demande->assures->count()) * 100, 2)
+                    : 0
+            ]
+        ];
+
+        return ApiResponse::success($demandeTransformee, 'Détails de la demande d\'adhésion récupérés avec succès.');
+    }
+
+    /**
+     * Consulter les demandes d'adhésion soumises par les employés de l'entreprise
+     */
+    public function demandesEmployes(Request $request)
+    {
+        $user = Auth::user();
+
+        // Vérifier que l'utilisateur est une entreprise
+        if (!$user->hasRole('entreprise') || !$user->entreprise) {
+            return ApiResponse::error('Seules les entreprises peuvent consulter les demandes de leurs employés.', 403);
+        }
+
+        $entreprise = $user->entreprise;
+
+        $query = DemandeAdhesion::with([
+            'user',
+            'reponsesQuestionnaire.question',
+            'validePar'
+        ])
+            ->whereHas('assures', function ($query) use ($entreprise) {
+                $query->where('entreprise_id', $entreprise->id);
+            })
+            ->where('type_demandeur', TypeDemandeurEnum::PHYSIQUE->value);
+
+        // Filtrage par statut si fourni
+        $status = $request->input('statut');
+        if ($status) {
+            $query->where('statut', match ($status) {
+                'en_attente' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
+                'validee'    => StatutDemandeAdhesionEnum::VALIDEE->value,
+                'rejetee'    => StatutDemandeAdhesionEnum::REJETEE->value,
+                default      => null
+            });
+        }
+
+        // Filtrage par employé si fourni
+        $employeId = $request->input('employe_id');
+        if ($employeId) {
+            $query->whereHas('assures', function ($query) use ($employeId) {
+                $query->where('id', $employeId);
+            });
+        }
+
+        // Pagination
+        $perPage = $request->query('per_page', 10);
+        $demandes = $query->orderByDesc('created_at')->paginate($perPage);
+
+        // Transformer les données
+        $demandesTransformees = $demandes->map(function ($demande) use ($entreprise) {
+            // Récupérer les employés de cette demande qui appartiennent à l'entreprise
+            $employes = $demande->assures->where('entreprise_id', $entreprise->id);
+
+            return [
+                'id' => $demande->id,
+                'statut' => $demande->statut->value,
+                'type_demandeur' => $demande->type_demandeur->value,
+                'created_at' => $demande->created_at,
+                'updated_at' => $demande->updated_at,
+                'valide_par' => $demande->validePar ? [
+                    'id' => $demande->validePar->id,
+                    'nom' => $demande->validePar->nom,
+                    'prenoms' => $demande->validePar->prenoms
+                ] : null,
+                'valider_a' => $demande->valider_a,
+                'motif_rejet' => $demande->motif_rejet,
+                'commentaires_technicien' => $demande->commentaires_technicien,
+
+                // Informations sur l'employé qui a soumis la demande
+                'employe' => $employes->first() ? [
+                    'id' => $employes->first()->id,
+                    'nom' => $employes->first()->nom,
+                    'prenoms' => $employes->first()->prenoms,
+                    'email' => $employes->first()->email,
+                    'contact' => $employes->first()->contact,
+                    'profession' => $employes->first()->profession,
+                    'date_naissance' => $employes->first()->date_naissance,
+                    'sexe' => $employes->first()->sexe,
+                    'statut' => $employes->first()->statut,
+                    'lien_parente' => $employes->first()->lien_parente,
+                    'photo_url' => $employes->first()->photo_url,
+                ] : null,
+
+                // Réponses du questionnaire
+                'reponses_questionnaire' => $demande->reponsesQuestionnaire->map(function ($reponse) {
+                    return [
+                        'question_id' => $reponse->question_id,
+                        'question_libelle' => $reponse->question->libelle,
+                        'type_donnee' => $reponse->question->type_donnee,
+                        'reponse_text' => $reponse->reponse_text,
+                        'reponse_number' => $reponse->reponse_number,
+                        'reponse_bool' => $reponse->reponse_bool,
+                        'reponse_date' => $reponse->reponse_date,
+                        'reponse_fichier' => $reponse->reponse_fichier,
+                    ];
+                }),
+
+                // Informations sur l'utilisateur qui a soumis la demande
+                'demandeur' => [
+                    'id' => $demande->user->id,
+                    'email' => $demande->user->email,
+                    'contact' => $demande->user->contact,
+                    'adresse' => $demande->user->adresse,
+                ]
+            ];
+        });
+
+        $paginatedData = new LengthAwarePaginator(
+            $demandesTransformees,
+            $demandes->total(),
+            $demandes->perPage(),
+            $demandes->currentPage(),
+            ['path' => Paginator::resolveCurrentPath()]
+        );
+
+        return ApiResponse::success([
+            'entreprise' => [
+                'id' => $entreprise->id,
+                'raison_sociale' => $entreprise->raison_sociale,
+                'nombre_employe' => $entreprise->nombre_employe,
+                'secteur_activite' => $entreprise->secteur_activite
+            ],
+            'demandes' => $paginatedData,
+            'statistiques_globales' => [
+                'total_demandes' => $demandes->total(),
+                'demandes_en_attente' => $demandes->where('statut', StatutDemandeAdhesionEnum::EN_ATTENTE->value)->count(),
+                'demandes_validees' => $demandes->where('statut', StatutDemandeAdhesionEnum::VALIDEE->value)->count(),
+                'demandes_rejetees' => $demandes->where('statut', StatutDemandeAdhesionEnum::REJETEE->value)->count(),
+            ]
+        ], 'Demandes d\'adhésion des employés récupérées avec succès.');
+    }
+
+    /**
+     * Consulter une demande d'adhésion spécifique d'un employé
+     */
+    public function demandeEmploye(int $id)
+    {
+        $user = Auth::user();
+
+        // Vérifier que l'utilisateur est une entreprise
+        if (!$user->hasRole('entreprise') || !$user->entreprise) {
+            return ApiResponse::error('Seules les entreprises peuvent consulter les demandes de leurs employés.', 403);
+        }
+
+        $entreprise = $user->entreprise;
+
+        $demande = DemandeAdhesion::with([
+            'user',
+            'reponsesQuestionnaire.question',
+            'assures' => function ($query) use ($entreprise) {
+                $query->where('entreprise_id', $entreprise->id);
+            },
+            'assures.reponsesQuestionnaire.question',
+            'validePar'
+        ])
+            ->where('id', $id)
+            ->where('type_demandeur', TypeDemandeurEnum::PHYSIQUE->value)
+            ->whereHas('assures', function ($query) use ($entreprise) {
+                $query->where('entreprise_id', $entreprise->id);
+            })
+            ->first();
+
+        if (!$demande) {
+            return ApiResponse::error('Demande d\'adhésion non trouvée ou accès non autorisé.', 404);
+        }
+
+        // Récupérer l'employé de cette demande qui appartient à l'entreprise
+        $employe = $demande->assures->where('entreprise_id', $entreprise->id)->first();
+
+        $demandeTransformee = [
+            'id' => $demande->id,
+            'statut' => $demande->statut->value,
+            'type_demandeur' => $demande->type_demandeur->value,
+            'created_at' => $demande->created_at,
+            'updated_at' => $demande->updated_at,
+            'valide_par' => $demande->validePar ? [
+                'id' => $demande->validePar->id,
+                'nom' => $demande->validePar->nom,
+                'prenoms' => $demande->validePar->prenoms,
+                'email' => $demande->validePar->email
+            ] : null,
+            'valider_a' => $demande->valider_a,
+            'motif_rejet' => $demande->motif_rejet,
+            'commentaires_technicien' => $demande->commentaires_technicien,
+
+            // Informations sur l'employé
+            'employe' => $employe ? [
+                'id' => $employe->id,
+                'nom' => $employe->nom,
+                'prenoms' => $employe->prenoms,
+                'email' => $employe->email,
+                'contact' => $employe->contact,
+                'profession' => $employe->profession,
+                'date_naissance' => $employe->date_naissance,
+                'sexe' => $employe->sexe,
+                'statut' => $employe->statut,
+                'lien_parente' => $employe->lien_parente,
+                'photo_url' => $employe->photo_url,
+                'reponses_questionnaire' => $employe->reponsesQuestionnaire->map(function ($reponse) {
+                    return [
+                        'question_id' => $reponse->question_id,
+                        'question_libelle' => $reponse->question->libelle,
+                        'type_donnee' => $reponse->question->type_donnee,
+                        'reponse_text' => $reponse->reponse_text,
+                        'reponse_number' => $reponse->reponse_number,
+                        'reponse_bool' => $reponse->reponse_bool,
+                        'reponse_date' => $reponse->reponse_date,
+                        'reponse_fichier' => $reponse->reponse_fichier,
+                    ];
+                })
+            ] : null,
+
+            // Réponses du questionnaire principal
+            'reponses_questionnaire' => $demande->reponsesQuestionnaire->map(function ($reponse) {
+                return [
+                    'question_id' => $reponse->question_id,
+                    'question_libelle' => $reponse->question->libelle,
+                    'type_donnee' => $reponse->question->type_donnee,
+                    'reponse_text' => $reponse->reponse_text,
+                    'reponse_number' => $reponse->reponse_number,
+                    'reponse_bool' => $reponse->reponse_bool,
+                    'reponse_date' => $reponse->reponse_date,
+                    'reponse_fichier' => $reponse->reponse_fichier,
+                ];
+            }),
+
+            // Informations sur l'utilisateur qui a soumis la demande
+            'demandeur' => [
+                'id' => $demande->user->id,
+                'email' => $demande->user->email,
+                'contact' => $demande->user->contact,
+                'adresse' => $demande->user->adresse,
+            ],
+
+            // Statistiques
+            'statistiques' => [
+                'total_reponses' => $demande->reponsesQuestionnaire->count(),
+                'reponses_employe' => $employe ? $employe->reponsesQuestionnaire->count() : 0,
+                'reponses_demande' => $demande->reponsesQuestionnaire->count(),
+            ]
+        ];
+
+        return ApiResponse::success($demandeTransformee, 'Détails de la demande d\'adhésion de l\'employé récupérés avec succès.');
+    }
+
+    public function getInvitationLink(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->hasRole('entreprise')) {
+            return ApiResponse::error('Seules les entreprises peuvent générer un lien d\'invitation.', 403);
+        }
+        $invitation = InvitationEmploye::where('entreprise_id', $user->entreprise->id)
+            ->where('expire_at', '>', now())
+            ->first();
+        return ApiResponse::success([
+            'invitation_id' => $invitation->id,
+            'token' => $invitation->token,
+            'url' => config('app.frontend_url') . "/employes/formulaire/{$invitation->token}",
+            'expire_at' => $invitation->expire_at,
+        ], 'Lien d\'invitation récupéré avec succès.');
+    }
+
+    /**
      * Générer un lien d'invitation unique pour qu'un employé remplisse sa fiche d'adhésion (un seul lien actif par entreprise)
      */
     public function genererLienInvitationEmploye(Request $request)
     {
         $user = Auth::user();
         // Vérifier que l'utilisateur est une entreprise
-        if (!$user->hasRole('user') || !$user->entreprise) {
+        if (!$user->hasRole('entreprise')) {
             return ApiResponse::error('Seules les entreprises peuvent générer un lien d\'invitation.', 403);
         }
         $entrepriseId = $user->entreprise->id;
@@ -541,10 +1086,11 @@ class DemandeAdhesionController extends Controller
             ->where('expire_at', '>', now())
             ->first();
         if ($invitation) {
-            $url = url("/employes/formulaire/{$invitation->token}");
+            $url = config('app.frontend_url') . "/employes/formulaire/{$invitation->token}";
             return ApiResponse::success([
                 'invitation_id' => $invitation->id,
                 'url' => $url,
+                'token' => $invitation->token,
                 'expire_at' => $invitation->expire_at,
             ], 'Lien d\'invitation déjà existant.');
         }
@@ -555,9 +1101,10 @@ class DemandeAdhesionController extends Controller
             'token' => $token,
             'expire_at' => now()->addDays(7),
         ]);
-        $url = url("/employes/formulaire/{$token}");
+        $url = config('app.frontend_url') . "/employes/formulaire/{$token}";
         return ApiResponse::success([
             'invitation_id' => $invitation->id,
+            'token' => $token,
             'url' => $url,
             'expire_at' => $invitation->expire_at,
         ], 'Nouveau lien d\'invitation généré avec succès.');
@@ -580,17 +1127,15 @@ class DemandeAdhesionController extends Controller
             'entreprise' => $invitation->entreprise,
             'token' => $token,
             'questions' => QuestionResource::collection($questions),
-            'fields' => [
-                'nom',
-                'prenoms',
-                'email',
-                'date_naissance',
-                'sexe',
-                'contact',
-                'profession',
-                'adresse',
-                'photo_url'
-            ],
+            'beneficiaires',
+            'nom',
+            'prenoms',
+            'email',
+            'date_naissance',
+            'sexe',
+            'contact',
+            'adresse',
+            'photo'
         ], 'Formulaire employé prêt à être rempli.');
     }
 
@@ -608,29 +1153,27 @@ class DemandeAdhesionController extends Controller
         $data = $request->validated();
         DB::beginTransaction();
         try {
-            // Créer l'utilisateur employé
-            $user = User::create([
-                'email' => $data['email'],
-                'password' => bcrypt(Str::random(12)),
-                'contact' => $data['contact'] ?? null,
-                'adresse' => $data['adresse'] ?? null,
-                'est_actif' => true,
-                'email_verified_at' => now(),
-            ]);
+            
             // Créer l'assuré principal (employé)
             $assure = Assure::create([
-                'user_id' => $user->id,
+                'user_id' => null,
                 'entreprise_id' => $invitation->entreprise_id,
                 'nom' => $data['nom'],
                 'prenoms' => $data['prenoms'],
                 'date_naissance' => $data['date_naissance'],
                 'sexe' => $data['sexe'],
                 'profession' => $data['profession'] ?? null,
-                'photo_url' => isset($data['photo_url']) ? ImageUploadHelper::uploadImage($data['photo_url'], 'uploads/employes') : null,
+                'photo' => isset($data['photo']) ? ImageUploadHelper::uploadImage($data['photo'], 'uploads/employes') : null,
             ]);
             // Enregistrer les réponses au questionnaire
             foreach ($data['reponses'] as $reponse) {
                 $this->enregistrerReponsePersonne(Assure::class, $assure->id, $reponse, null);
+            }
+            // Enregistrer les bénéficiaires (optionnels)
+            if (isset($data['beneficiaires']) && is_array($data['beneficiaires'])) {
+                foreach ($data['beneficiaires'] as $beneficiaire) {
+                    $this->enregistrerBeneficiaire($assure, $beneficiaire);
+                }
             }
             // Notifier l'entreprise
             $entreprise = $invitation->entreprise;
@@ -688,41 +1231,11 @@ class DemandeAdhesionController extends Controller
         }
     }
 
-    /**
-     * Enregistrer une réponse au questionnaire pour un employé
-     */
-    private function enregistrerValeurEmploye(Assure $assure, array $reponseData): void
-    {
-        $question = Question::find($reponseData['question_id']);
-        if (!$question) return;
-        $data = [
-            'question_id' => $question->id,
-            'personne_type' => Assure::class,
-            'personne_id' => $assure->id,
-        ];
-        switch ($question->type_donnee) {
-            case TypeDonneeEnum::BOOLEAN:
-                $data['reponse_bool'] = filter_var($reponseData['reponse_bool'] ?? false, FILTER_VALIDATE_BOOLEAN);
-                break;
-            case TypeDonneeEnum::NUMBER:
-                $data['reponse_number'] = floatval($reponseData['reponse_number'] ?? 0);
-                break;
-            case TypeDonneeEnum::DATE:
-                $data['reponse_date'] = $reponseData['reponse_date'] ?? null;
-                break;
-            case TypeDonneeEnum::TEXT:
-            case TypeDonneeEnum::RADIO:
-            default:
-                $data['reponse_text'] = $reponseData['reponse_text'] ?? null;
-                break;
-        }
-        ReponseQuestionnaire::create($data);
-    }
 
     /**
      * Enregistrer une réponse au questionnaire pour une personne (assuré principal ou bénéficiaire)
      */
-    private function enregistrerReponsePersonne($personneType, $personneId, array $reponseData, $demandeId = null)
+    private function enregistrerReponsePersonne($personneType, $personneId, array $reponseData, $demandeId)
     {
         $question = Question::find($reponseData['question_id']);
         if (!$question) return;
@@ -731,6 +1244,7 @@ class DemandeAdhesionController extends Controller
             'question_id' => $question->id,
             'personne_type' => $personneType,
             'personne_id' => $personneId,
+            'demande_adhesion_id' => $demandeId,
         ];
 
         switch ($question->type_donnee) {
@@ -765,14 +1279,7 @@ class DemandeAdhesionController extends Controller
         ReponseQuestionnaire::create($data);
     }
 
-    /**
-     * Enregistrer une réponse au questionnaire pour la demande principale
-     */
-    private function enregistrerReponseDemande(DemandeAdhesion $demande, array $reponseData, $typeDemandeur): void
-    {
-        $this->enregistrerReponsePersonne($typeDemandeur, $demande->user_id, $reponseData, $demande->id);
-    }
-
+    
     /**
      * Enregistrer un bénéficiaire et ses réponses
      */
@@ -781,63 +1288,77 @@ class DemandeAdhesionController extends Controller
         // Créer le bénéficiaire dans la table assures (PAS de compte utilisateur)
         $benefAssure = Assure::create([
             'user_id' => null, // ❌ Bénéficiaires n'ont PAS de compte
-            'client_id' => $demande->user->client->id, // Même client que l'assuré principal
             'assure_principal_id' => null, // Sera mis à jour quand l'assuré principal sera créé
             'nom' => $beneficiaire['nom'], // ✅ Informations personnelles
-            'prenoms' => $beneficiaire['prenoms'], // ✅ Informations personnelles
+            'prenoms' => $beneficiaire['prenoms'], // ✅ Informations personnelles0
             'date_naissance' => $beneficiaire['date_naissance'], // ✅ Informations personnelles
             'sexe' => $beneficiaire['sexe'], // ✅ Informations personnelles
             'lien_parente' => $beneficiaire['lien_parente'],
             'est_principal' => false, // ✅ Bénéficiaire = pas principal
-            'statut' => StatutAssureEnum::INACTIF->value, // Inactif jusqu'à validation
             'photo' => $beneficiaire['photo'] ?? null,
         ]);
 
         // Enregistrer les réponses du bénéficiaire
         foreach ($beneficiaire['reponses'] as $reponse) {
-            $this->enregistrerReponsePersonne(Assure::class, $benefAssure->id, $reponse, $demande->id);
+            $this->enregistrerReponsePersonne('beneficiaire', $benefAssure->id, $reponse, $demande->id);
         }
     }
 
     /**
      * Statistiques des demandes d'adhésion
      */
-    public function demandeAdhesionStats()
+    public function stats()
     {
+        $user = Auth::user();
+        $query = DemandeAdhesion::query();
+
+        // Filtrer selon le rôle de l'utilisateur
+        if ($user->hasRole('technicien')) {
+            // Techniciens : seulement physique et entreprise
+            $query->whereIn('type_demandeur', [
+                TypeDemandeurEnum::PHYSIQUE->value,
+                TypeDemandeurEnum::ENTREPRISE->value
+            ]);
+        } elseif ($user->hasRole('medecin_controleur')) {
+            // Médecins contrôleurs : seulement prestataires
+            $query->whereIn('type_demandeur', TypePrestataireEnum::values());
+        }
+        // Admin global : toutes les demandes (pas de filtre)
+
         $stats = [
-            'total' => DemandeAdhesion::count(),
+            'total' => $query->count(),
 
-            'en_attente' => DemandeAdhesion::where('statut', 'en_attente')->count(),
+            'en_attente' => (clone $query)->where('statut', 'en_attente')->count(),
 
-            'validees' => DemandeAdhesion::where('statut', 'validee')->count(),
+            'validees' => (clone $query)->where('statut', 'validee')->count(),
 
-            'rejetees' => DemandeAdhesion::where('statut', 'rejetee')->count(),
+            'rejetees' => (clone $query)->where('statut', 'rejetee')->count(),
 
-            'repartition_par_type_demandeur' => DemandeAdhesion::selectRaw('type_demandeur, COUNT(*) as count')
+            'repartition_par_type_demandeur' => (clone $query)->selectRaw('type_demandeur, COUNT(*) as count')
                 ->groupBy('type_demandeur')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->type_demandeur ?? 'Non spécifié' => $item->count];
+                    return [$item->type_demandeur->value ?? 'Non spécifié' => $item->count];
                 }),
 
-            'repartition_par_statut' => DemandeAdhesion::selectRaw('statut, COUNT(*) as count')
+            'repartition_par_statut' => (clone $query)->selectRaw('statut, COUNT(*) as count')
                 ->groupBy('statut')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    return [$item->statut ?? 'Non spécifié' => $item->count];
+                    return [$item->statut->value ?? 'Non spécifié' => $item->count];
                 }),
 
-            'repartition_statut_par_type' => DemandeAdhesion::selectRaw('type_demandeur, statut, COUNT(*) as count')
+            'repartition_statut_par_type' => (clone $query)->selectRaw('type_demandeur, statut, COUNT(*) as count')
                 ->groupBy('type_demandeur', 'statut')
                 ->get()
                 ->groupBy('type_demandeur')
                 ->map(function ($group) {
                     return $group->mapWithKeys(function ($item) {
-                        return [$item->statut => $item->count];
+                        return [$item->statut->value ?? 'Non spécifié' => $item->count];
                     });
                 }),
 
-            'demandes_par_mois' => DemandeAdhesion::selectRaw('MONTH(created_at) as mois, COUNT(*) as count')
+            'demandes_par_mois' => (clone $query)->selectRaw('MONTH(created_at) as mois, COUNT(*) as count')
                 ->whereYear('created_at', date('Y'))
                 ->groupBy('mois')
                 ->orderBy('mois')

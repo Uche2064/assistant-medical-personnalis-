@@ -8,6 +8,7 @@ use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypePrestataireEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Resources\UserResource;
+use App\Models\Assure;
 use App\Models\Client;
 use App\Models\Entreprise;
 use App\Models\Prestataire;
@@ -32,8 +33,8 @@ class AuthService
     {
         return ApiResponse::success([
             'access_token' => $token,
-            'user' => new UserResource($user->load(['roles', 'client', 'entreprise', 'assure', 'personnel', 'prestataire'])),
             'expires_in' => JWTAuth::factory()->getTTL() * 60,
+            'user' => new UserResource($user->load(['roles', 'entreprise', 'assure', 'personnel', 'prestataire'])),
         ], 'Authentification réussie');
     }
 
@@ -42,16 +43,16 @@ class AuthService
      */
     public function createClientPhysique(User $user, array $validated): void
     {
-        Client::create([
+        Assure::create([
             'user_id' => $user->id,
             'nom' => $validated['nom'],
             'prenoms' => $validated['prenoms'] ?? null,
             'date_naissance' => $validated['date_naissance'],
             'sexe' => $validated['sexe'],
             'profession' => $validated['profession'] ?? null,
-            'type_client' => TypeClientEnum::PHYSIQUE->value,
-            'statut' => StatutClientEnum::ASSURE->value,
-            'code_parrainage' => $validated['code_parrainage'] ?? null,
+            'commercial_id' => $validated['commercial_id'] ?? null,
+            'est_principal' => true,
+            'photo' => $validated['photo'] ?? null,
         ]);
     }
 

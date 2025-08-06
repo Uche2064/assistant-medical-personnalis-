@@ -12,12 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('contrat_categorie_garantie', function (Blueprint $table) {
+            $table->id();
             $table->foreignId('contrat_id')->constrained('contrats')->onDelete('cascade');
             $table->foreignId('categorie_garantie_id')->constrained('categories_garanties')->onDelete('cascade');
             $table->decimal('couverture', 5, 2);
             $table->timestamps();
-            
-            $table->primary(['contrat_id', 'categorie_garantie_id']);
+            $table->softDeletes();
         });
     }
 

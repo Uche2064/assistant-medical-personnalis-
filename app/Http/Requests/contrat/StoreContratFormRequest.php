@@ -24,23 +24,16 @@ class StoreContratFormRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
             'type_contrat' => ['required', Rule::in(TypeContratEnum::values())],
             'prime_standard' => ['required', 'numeric', 'min:0'],
+            'categories_garanties' => ['required', 'array', 'min:1'],
+            'categories_garanties.*.categorie_garantie_id' => ['required', 'integer', 'exists:categories_garanties,id'],
+            'categories_garanties.*.couverture' => ['required', 'numeric', 'min:0', 'max:100'],
         ];
-    }
-
-    public function failedValidation(Validator $validator)
-    {
-        return new HttpResponseException(ApiResponse::error(
-            $validator->errors(),
-            'Validation failed',
-            422
-        ));
     }
 
     public function messages(): array
@@ -56,5 +49,14 @@ class StoreContratFormRequest extends FormRequest
             'prime_standard.min' => 'La prime standard doit être supérieure ou égale à 0.',
         ];
     }
+    public function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(ApiResponse::error(
+            'Erreur de validation',
+            422,
+            $validator->errors(),
+        ));
+    }
 }
 
+ 

@@ -39,4 +39,14 @@ enum TypeDemandeurEnum: string
             self::ENTREPRISE => 'Entreprise',
         };
     }
+
+    public static function getPrestataire(): array
+    {
+        return [
+            self::CENTRE_DE_SOINS->value,
+            self::LABORATOIRE_CENTRE_DIAGNOSTIC->value,
+            self::PHARMACIE->value,
+            self::OPTIQUE->value,
+        ];
+    }
 } 

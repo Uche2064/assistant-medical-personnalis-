@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('invitation_employes', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('entreprise_id')->constrained('entreprises')->onDelete('cascade');
+            $table->foreignId('entreprise_id')->nullable()->constrained('entreprises')->onDelete('set null');
             $table->string('token')->unique();
             $table->timestamp('expire_at');
             $table->timestamps();

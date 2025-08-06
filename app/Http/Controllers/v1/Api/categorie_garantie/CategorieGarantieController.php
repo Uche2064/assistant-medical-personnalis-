@@ -20,28 +20,28 @@ class CategorieGarantieController extends Controller
     /**
      * Lister toutes les catégories de garantie avec filtre.
      */
-public function indexCategorieGarantie(Request $request)
-{
-    $search = $request->query('search');
-    $perPage = $request->query('per_page', 10);
+    public function indexCategorieGarantie(Request $request)
+    {
+        $search = $request->query('search');
+        $perPage = $request->query('per_page', 10);
 
-    $query = CategorieGarantie::with('garanties', 'medecinControleur')
-                ->withCount('garanties');
+        $query = CategorieGarantie::with('garanties', 'medecinControleur')
+            ->withCount('garanties');
 
-    if ($search) {
-        $query->where('libelle', 'like', '%' . $search . '%');
-    }
+        if ($search) {
+            $query->where('libelle', 'like', '%' . $search . '%');
+        }
 
-    $categories = $query->orderBy('created_at', 'desc')->paginate($perPage);
+        $categories = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
-    $paginatedData = new LengthAwarePaginator(
-        CategorieGarantieResource::collection($categories),
-        $categories->total(),
-        $categories->perPage(),
-        $categories->currentPage(),
-        ['path' => Paginator::resolveCurrentPath()]
-    );
-    return ApiResponse::success($paginatedData, 'Liste des catégories de garanties récupérée avec succès', 200);
+        $paginatedData = new LengthAwarePaginator(
+            CategorieGarantieResource::collection($categories),
+            $categories->total(),
+            $categories->perPage(),
+            $categories->currentPage(),
+            ['path' => Paginator::resolveCurrentPath()]
+        );
+        return ApiResponse::success($paginatedData, 'Liste des catégories de garanties récupérée avec succès', 200);
     }
 
     /**
@@ -51,11 +51,11 @@ public function indexCategorieGarantie(Request $request)
     {
         try {
             DB::beginTransaction();
-            
+
             $medecinControleur = Auth::user();
             $data = $request->validated();
             $libelle = strtolower(trim($data['libelle']));
-    
+
             // Vérifier si une catégorie supprimée existe avec le même libellé
             $categorieExistante = CategorieGarantie::withTrashed()
                 ->where('libelle', $libelle)
@@ -82,9 +82,9 @@ public function indexCategorieGarantie(Request $request)
                     'medecin_controleur_id' => $medecinControleur->id,
                 ]);
             }
-    
+
             DB::commit();
-    
+
             return ApiResponse::success([
                 "categorie_garantie" => $categorieGarantie->load('garanties', 'medecinControleur')
             ], 'Catégorie de garantie créée avec succès', 201);

@@ -13,16 +13,11 @@ return new class extends Migration
     {
         Schema::create('contrats', function (Blueprint $table) {
             $table->id();
-            $table->string('numero_police')->unique();
             $table->string('type_contrat'); // Sera casté vers TypeContratEnum
             $table->foreignId('technicien_id')->nullable()->constrained('personnels')->onDelete('set null');
             $table->decimal('prime_standard', 12, 2);
-            $table->decimal('frais_gestion', 5, 2)->default(20.00); // 20% par défaut
-            $table->decimal('commission_commercial', 5, 2)->default(3.00); // 3% par défaut
-            $table->date('date_debut');
-            $table->date('date_fin');
-            $table->string('statut')->default('propose'); // Sera casté vers StatutContratEnum
-            $table->boolean('est_actif')->default(false);
+            $table->boolean('est_actif')->default(true);
+            $table->json('categories_garanties_standard')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

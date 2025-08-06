@@ -34,12 +34,12 @@ class UserResource extends JsonResource
             $userData['date_naissance'] = $this->personnel->date_naissance;
             $userData['gestionnaire_id'] = $this->personnel->gestionnaire_id;
             $userData['photo'] = $this->photo ?? null;
-        } else if ($this->whenLoaded('client') && $this->client) {
-            $userData['nom'] = $this->client->nom ?? null;
-            $userData['prenoms'] = $this->client->prenoms ?? null;
-            $userData['type_demandeur'] = $this->client->type_client ?? null;
-            $userData['sexe'] = $this->client->sexe ?? null;
-            $userData['date_naissance'] = $this->client->date_naissance ?? null;
+        } else if ($this->whenLoaded('assure') && $this->assure) {
+            $userData['nom'] = $this->assure->nom ?? null;
+            $userData['prenoms'] = $this->assure->prenoms ?? null;
+            $userData['type_demandeur'] = 'physique';
+            $userData['sexe'] = $this->assure->sexe ?? null;
+            $userData['date_naissance'] = $this->assure->date_naissance ?? null;
             $userData['photo'] = $this->photo ?? null;
         } else if ($this->whenLoaded('entreprise') && $this->entreprise) {
             $userData['raison_sociale'] = $this->entreprise->raison_sociale ?? null;

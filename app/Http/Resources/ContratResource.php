@@ -18,50 +18,40 @@ class ContratResource extends JsonResource
         return [
             'id' => $this->id,
             'type_contrat' => $this->type_contrat,
-            'prime_proposee' => $this->prime_proposee,
-            'taux_couverture' => $this->taux_couverture,
-            'frais_gestion' => $this->frais_gestion,
-            'statut' => $this->statut,
-            'commentaires_technicien' => $this->commentaires_technicien,
-            'date_proposition' => $this->date_proposition,
-            'date_acceptation' => $this->date_acceptation,
-            'date_signature' => $this->date_signature,
+            'prime_standard' => $this->prime_standard,
+            'est_actif' => $this->est_actif,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
             
-            // Informations du client
-            'client' => [
-                'id' => $this->user->id,
-                'email' => $this->user->email,
-                'contact' => $this->user->contact,
-                'adresse' => $this->user->adresse,
-            ],
-            
-            // Garanties incluses
-            'garanties' => $this->garanties->map(function ($garantie) {
+            // Informations du technicien
+            'technicien' => $this->whenLoaded('technicien', function () {
                 return [
-                    'id' => $garantie->id,
-                    'nom' => $garantie->nom,
-                    'description' => $garantie->description,
-                    'taux_couverture' => $garantie->taux_couverture,
-                    'categorie' => $garantie->categorieGarantie->nom ?? null,
+                    'id' => $this->technicien->id,
+                    'nom' => $this->technicien->nom,
+                    'prenoms' => $this->technicien->prenoms,
                 ];
             }),
             
-            // Informations de validation
-            'valide_par' => $this->validePar ? [
-                'id' => $this->validePar->id,
-                'nom' => $this->validePar->nom,
-                'prenoms' => $this->validePar->prenoms,
-                'role' => $this->validePar->role,
-            ] : null,
-            
-            // Token d'acceptation (si applicable)
-            'token_acceptation' => $this->when($this->statut === 'propose', function () {
-                return Cache::get("contrat_acceptation_{$this->id}");
+            // Catégories de garanties avec taux de couverture
+            'categories_garanties' => $this->whenLoaded('categoriesGaranties', function () {
+                return $this->categoriesGaranties->map(function ($categorie) {
+                    return [
+                        'id' => $categorie->id,
+                        'libelle' => $categorie->libelle,
+                        'description' => $categorie->description,
+                        'couverture' => $categorie->pivot->couverture,
+                        'garanties' => $categorie->garanties->map(function ($garantie) {
+                            return [
+                                'id' => $garantie->id,
+                                'libelle' => $garantie->libelle,
+                                'plafond' => $garantie->plafond,
+                                'prix_standard' => $garantie->prix_standard,
+                                'taux_couverture' => $garantie->taux_couverture,
+                            ];
+                        }),
+                    ];
+                });
             }),
-            
-            // Dates
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
         ];
     }
 } 

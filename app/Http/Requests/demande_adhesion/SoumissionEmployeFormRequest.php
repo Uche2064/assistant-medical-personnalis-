@@ -25,10 +25,21 @@ class SoumissionEmployeFormRequest extends FormRequest
             'contact' => 'nullable|string|max:30',
             'profession' => 'nullable|string|max:255',
             'adresse' => 'nullable|string|max:255',
-            'photo_url' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp',
+            'photo' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp',
             'reponses' => 'required|array|min:1',
             'reponses.*.question_id' => 'required|integer|exists:questions,id',
             // Les champs de réponse sont validés dynamiquement côté contrôleur selon le type de question
+            
+            // Bénéficiaires optionnels
+            'beneficiaires' => 'nullable|array',
+            'beneficiaires.*.nom' => 'required_with:beneficiaires|string|max:255',
+            'beneficiaires.*.prenoms' => 'required_with:beneficiaires|string|max:255',
+            'beneficiaires.*.date_naissance' => 'required_with:beneficiaires|date|before:today',
+            'beneficiaires.*.sexe' => 'required_with:beneficiaires|in:M,F',
+            'beneficiaires.*.lien_parente' => 'required_with:beneficiaires|string|max:255',
+            'beneficiaires.*.photo' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp',
+            'beneficiaires.*.reponses' => 'nullable|array',
+            'beneficiaires.*.reponses.*.question_id' => 'required_with:beneficiaires.*.reponses|integer|exists:questions,id',
         ];
     }
 
@@ -53,6 +64,22 @@ class SoumissionEmployeFormRequest extends FormRequest
             'reponses.array' => 'Le questionnaire médical doit être un tableau.',
             'reponses.*.question_id.required' => 'Chaque réponse doit référencer une question.',
             'reponses.*.question_id.exists' => 'Une des questions n\'existe pas.',
+            
+            // Messages pour les bénéficiaires
+            'beneficiaires.array' => 'Les bénéficiaires doivent être un tableau.',
+            'beneficiaires.*.nom.required_with' => 'Le nom du bénéficiaire est obligatoire.',
+            'beneficiaires.*.prenoms.required_with' => 'Le prénom du bénéficiaire est obligatoire.',
+            'beneficiaires.*.date_naissance.required_with' => 'La date de naissance du bénéficiaire est obligatoire.',
+            'beneficiaires.*.date_naissance.date' => 'La date de naissance du bénéficiaire doit être une date valide.',
+            'beneficiaires.*.date_naissance.before' => 'La date de naissance du bénéficiaire doit être antérieure à aujourd\'hui.',
+            'beneficiaires.*.sexe.required_with' => 'Le sexe du bénéficiaire est obligatoire.',
+            'beneficiaires.*.sexe.in' => 'Le sexe du bénéficiaire doit être M ou F.',
+            'beneficiaires.*.lien_parente.required_with' => 'Le lien de parenté du bénéficiaire est obligatoire.',
+            'beneficiaires.*.photo.file' => 'La photo du bénéficiaire doit être un fichier.',
+            'beneficiaires.*.photo.mimes' => 'La photo du bénéficiaire doit être au format JPG, JPEG, PNG, GIF ou WEBP.',
+            'beneficiaires.*.reponses.array' => 'Les réponses du bénéficiaire doivent être un tableau.',
+            'beneficiaires.*.reponses.*.question_id.required_with' => 'Chaque réponse du bénéficiaire doit référencer une question.',
+            'beneficiaires.*.reponses.*.question_id.exists' => 'Une des questions du bénéficiaire n\'existe pas.',
         ];
     }
 }

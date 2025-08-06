@@ -13,11 +13,10 @@ return new class extends Migration
     {
         Schema::create('sinistres', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('assure_id')->constrained('assures')->onDelete('cascade');
-            $table->foreignId('prestataire_id')->constrained('prestataires')->onDelete('cascade');
+            $table->foreignId('assure_id')->nullable()->constrained('assures')->onDelete('set null');
+            $table->foreignId('prestataire_id')->nullable()->constrained('prestataires')->onDelete('set null');
             $table->text('description');
             $table->date('date_sinistre');
-            $table->string('statut')->default('declare'); // Sera casté vers StatutSinistreEnum
             $table->timestamps();
             $table->softDeletes();
         });

@@ -89,14 +89,6 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
-     * Get the client record associated with the user.
-     */
-    public function client()
-    {
-        return $this->hasOne(Client::class);
-    }
-
-    /**
      * Get the entreprise record associated with the user.
      */
     public function entreprise()

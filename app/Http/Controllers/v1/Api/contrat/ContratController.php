@@ -9,9 +9,21 @@ use App\Http\Requests\contrat\UpdateContratFormRequest;
 use App\Models\Contrat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use App\Models\CategorieGarantie;
 
 class ContratController extends Controller
 {
+    /**
+     * Récupérer les catégories de garanties disponibles
+     */
+    public function getCategoriesGaranties()
+    {
+        $categories = CategorieGarantie::with('garanties')->get();
+
+        return ApiResponse::success($categories, 'Catégories de garanties récupérées avec succès');
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -49,22 +61,39 @@ class ContratController extends Controller
      */
     public function store(StoreContratFormRequest $request)
     {
+        dd($request->validated());
         $validatedData = $request->validated();
 
-        // Création du contrat
-        $contrat = Contrat::create(
-            [
+        try {
+            DB::beginTransaction();
+
+            // Création du contrat
+            $contrat = Contrat::create([
                 'type_contrat' => $validatedData['type_contrat'],
                 'prime_standard' => $validatedData['prime_standard'],
-                'technicien_id' => Auth::id() 
-            ]
-        );
+                'technicien_id' => Auth::user()->id,
+            ]);
 
-        // Chargement des relations nécessaires
-        $contrat->load(['technicien']);
+            // Assignation des catégories de garanties
+            if (isset($validatedData['categories_garanties'])) {
+                foreach ($validatedData['categories_garanties'] as $categorieData) {
+                    $contrat->categoriesGaranties()->attach(
+                        $categorieData['categorie_garantie_id'],
+                        ['couverture' => $categorieData['couverture']]
+                    );
+                }
+            }
 
-        return ApiResponse::success($contrat, 'Contrat créé avec succès');
-        
+            // Chargement des relations nécessaires
+            $contrat->load(['technicien', 'categoriesGaranties']);
+
+            DB::commit();
+
+            return ApiResponse::success($contrat, 'Contrat créé avec succès');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ApiResponse::error('Erreur lors de la création du contrat: ' . $e->getMessage(), 500);
+        }
     }
 
     /**
@@ -100,5 +129,21 @@ class ContratController extends Controller
         $contrat->delete();        
 
         return ApiResponse::success('Contrat supprimé avec succès');
+    }
+
+    public function stats() {
+        $stats = [
+            'total' => Contrat::count(),
+            'actifs' => Contrat::where('est_actif', true)->count(),
+            'suspendus' => Contrat::where('est_actif', false)->count(),
+            'type_contrat' => Contrat::select('type_contrat', DB::raw('COUNT(*) as count'))
+                ->groupBy('type_contrat')
+                ->get()
+                ->mapWithKeys(function ($item) {
+                    return [$item->type_contrat ?? 'Non spécifié' => $item->count];
+                }),
+        ];
+
+        return ApiResponse::success($stats, 'Statistiques des contrats');
     }
 }

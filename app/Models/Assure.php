@@ -12,7 +12,6 @@ class Assure extends Model
 
     protected $fillable = [
         'user_id',
-        'client_id',
         'entreprise_id',
         'assure_principal_id',
         'contrat_id',
@@ -22,19 +21,14 @@ class Assure extends Model
         'sexe', // ✅ Ajouté pour les bénéficiaires
         'lien_parente',
         'est_principal',
-        'statut',
-        'date_debut_contrat',
-        'date_fin_contrat',
-        'photo_url',
+        'photo',
+        'demande_adhesion_id',
     ];
 
     protected $casts = [
         'est_principal' => 'boolean',
-        'date_debut_contrat' => 'date',
-        'date_fin_contrat' => 'date',
         'date_naissance' => 'date', // ✅ Ajouté
         'lien_parente' => \App\Enums\LienParenteEnum::class,
-        'statut' => \App\Enums\StatutAssureEnum::class,
         'sexe' => \App\Enums\SexeEnum::class, // ✅ Ajouté
     ];
 
@@ -44,14 +38,6 @@ class Assure extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
-    }
-
-    /**
-     * Get the client that owns the assure.
-     */
-    public function client()
-    {
-        return $this->belongsTo(Client::class);
     }
 
     /**
