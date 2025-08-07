@@ -73,16 +73,6 @@ class DemandeAdhesion extends Model
     }
 
     /**
-     * Get the beneficiaires associated with this demande
-     */
-    public function beneficiaires()
-    {
-        return $this->hasMany(
-            Assure::class
-        )->where('est_principal', false);
-    }
-
-    /**
      * Get the employes (assures principaux) associated with this demande
      */
     public function employes()
@@ -141,7 +131,6 @@ class DemandeAdhesion extends Model
         $this->statut = StatutDemandeAdhesionEnum::VALIDEE;
         $this->valide_par_id = $valideParId;
         $this->valider_a = now();
-        $this->reponsesQuestionnaire()->update(['' => true, 'demande_adhesion_id' => $this->id]);
         $this->save();
     }
 
@@ -153,8 +142,7 @@ class DemandeAdhesion extends Model
         $this->statut = StatutDemandeAdhesionEnum::REJETEE;
         $this->motif_rejet = $motifRejet;
         $this->valide_par_id = $valideParId;
-        $this->valider_a = now();
-        $this->reponsesQuestionnaire()->update(['' => true, 'demande_adhesion_id' => $this->id]);
+        $this->valider_a = now();   
         $this->save();
     }
 

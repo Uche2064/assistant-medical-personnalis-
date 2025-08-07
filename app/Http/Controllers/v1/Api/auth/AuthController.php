@@ -28,6 +28,7 @@ use App\Models\Otp;
 use App\Models\Prestataire;
 use App\Models\User;
 use App\Services\AuthService;
+use App\Services\NotificationService;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -40,10 +41,12 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 class AuthController extends Controller
 {
     protected AuthService $authService;
+    protected NotificationService $notificationService;
 
-    public function __construct(AuthService $authService)
+    public function __construct(AuthService $authService, NotificationService $notificationService)
     {
         $this->authService = $authService;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -86,16 +89,22 @@ class AuthController extends Controller
                 case TypeDemandeurEnum::PHYSIQUE->value:
                     $this->authService->createClientPhysique($user, $validated);
                     $user->assignRole(RoleEnum::PHYSIQUE->value);
+                    // Notifier les techniciens d'un nouveau compte physique
+                    $this->notificationService->notifyTechniciensNouveauCompte($user, 'physique');
                     break;
 
                 case TypeDemandeurEnum::ENTREPRISE->value: // Client moral (entreprise)
                     $this->authService->createEntreprise($user, $validated);
                     $user->assignRole(RoleEnum::ENTREPRISE->value);
+                    // Notifier les techniciens d'un nouveau compte entreprise
+                    $this->notificationService->notifyTechniciensNouveauCompte($user, 'entreprise');
                     break;
 
                 default: // Prestataires de soins
                     $this->authService->createPrestataire($user, $validated);
                     $user->assignRole(RoleEnum::PRESTATAIRE->value);
+                    // Notifier les médecins contrôleurs d'un nouveau prestataire
+                    $this->notificationService->notifyMedecinsControleursNouveauPrestataire($user);
                     break;
             }
 
@@ -243,6 +252,7 @@ class AuthController extends Controller
 
         // Générer un nouveau OTP
         $otp = Otp::generateOtp($validated['email'], 10, $validated['type']);
+        Log::info("Email:".$validated['email']." otp: ".$otp);
 
         // Envoyer l'OTP par email
        

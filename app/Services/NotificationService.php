@@ -87,4 +87,134 @@ class NotificationService
 
         $this->sendEmail($demande->user->email, $subject, $view, $data);
     }
+
+    /**
+     * Notifier les techniciens d'un nouveau compte créé
+     *
+     * @param User $user L'utilisateur qui a créé le compte
+     * @param string $userType Le type d'utilisateur (physique, entreprise)
+     * @return void
+     */
+    public function notifyTechniciensNouveauCompte(User $user, string $userType): void
+    {
+        // Récupérer tous les techniciens
+        $techniciens = User::whereHas('roles', function ($query) {
+            $query->where('name', 'technicien');
+        })->get();
+
+        foreach ($techniciens as $technicien) {
+            $this->createNotification(
+                $technicien->id,
+                'Nouveau compte créé',
+                "Un nouveau compte de type {$userType} a été créé : {$user->email}",
+                'info',
+                [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'user_type' => $userType,
+                    'date_creation' => now()->format('d/m/Y à H:i'),
+                    'type_notification' => 'nouveau_compte'
+                ]
+            );
+        }
+    }
+
+    /**
+     * Notifier les médecins contrôleurs d'un nouveau prestataire
+     *
+     * @param User $user L'utilisateur prestataire
+     * @return void
+     */
+    public function notifyMedecinsControleursNouveauPrestataire(User $user): void
+    {
+        // Récupérer tous les médecins contrôleurs
+        $medecinsControleurs = User::whereHas('roles', function ($query) {
+            $query->where('name', 'medecin_controleur');
+        })->get();
+
+        foreach ($medecinsControleurs as $medecin) {
+            $this->createNotification(
+                $medecin->id,
+                'Nouveau prestataire inscrit',
+                "Un nouveau prestataire s'est inscrit : {$user->email}",
+                'info',
+                [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'prestataire_id' => $user->prestataire->id ?? null,
+                    'date_inscription' => now()->format('d/m/Y à H:i'),
+                    'type_notification' => 'nouveau_prestataire'
+                ]
+            );
+        }
+    }
+
+    /**
+     * Notifier les techniciens d'une nouvelle demande d'adhésion
+     *
+     * @param \App\Models\DemandeAdhesion $demande La demande d'adhésion
+     * @return void
+     */
+    public function notifyTechniciensNouvelleDemande(\App\Models\DemandeAdhesion $demande): void
+    {
+        // Récupérer tous les techniciens
+        $techniciens = User::whereHas('roles', function ($query) {
+            $query->where('name', 'technicien');
+        })->get();
+
+        $userType = $demande->type_demandeur->value;
+        $userEmail = $demande->user->email;
+
+        foreach ($techniciens as $technicien) {
+            $this->createNotification(
+                $technicien->id,
+                'Nouvelle demande d\'adhésion',
+                "Une nouvelle demande d'adhésion {$userType} a été soumise : {$userEmail}",
+                'info',
+                [
+                    'demande_id' => $demande->id,
+                    'user_id' => $demande->user->id,
+                    'user_email' => $userEmail,
+                    'type_demandeur' => $userType,
+                    'date_soumission' => $demande->created_at->format('d/m/Y à H:i'),
+                    'type_notification' => 'nouvelle_demande_adhésion'
+                ]
+            );
+        }
+    }
+
+    /**
+     * Notifier les médecins contrôleurs d'une demande prestataire
+     *
+     * @param \App\Models\DemandeAdhesion $demande La demande d'adhésion prestataire
+     * @return void
+     */
+    public function notifyMedecinsControleursDemandePrestataire(\App\Models\DemandeAdhesion $demande): void
+    {
+        // Récupérer tous les médecins contrôleurs
+        $medecinsControleurs = User::whereHas('roles', function ($query) {
+            $query->where('name', 'medecin_controleur');
+        })->get();
+
+        $prestataireEmail = $demande->user->email;
+
+        foreach ($medecinsControleurs as $medecin) {
+            $this->createNotification(
+                $medecin->id,
+                'Nouvelle demande prestataire',
+                "Une nouvelle demande d'adhésion prestataire a été soumise : {$prestataireEmail}",
+                'info',
+                [
+                    'demande_id' => $demande->id,
+                    'user_id' => $demande->user->id,
+                    'user_email' => $prestataireEmail,
+                    'prestataire_id' => $demande->user->prestataire->id ?? null,
+                    'date_soumission' => $demande->created_at->format('d/m/Y à H:i'),
+                    'type_notification' => 'nouvelle_demande_prestataire'
+                ]
+            );
+        }
+    }
+
+
 }

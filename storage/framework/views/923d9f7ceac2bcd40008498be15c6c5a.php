@@ -179,8 +179,18 @@
             <?php if($demande->type_demandeur == \App\Enums\TypeDemandeurEnum::PHYSIQUE): ?>
                  <div class="info-row">
                      <span class="info-label">Nom complet :</span>
-                     <span class="info-value"><?php echo e($demande->user->client->nom ?? 'N/A'); ?> <?php echo e($demande->user->client->prenoms ?? ''); ?></span>
+                     <span class="info-value"><?php echo e($demande->user->assure->nom ?? 'N/A'); ?> <?php echo e($demande->user->assure->prenoms ?? ''); ?></span>
                  </div>
+                 <?php if($demande->user->assure->photo_url): ?>
+                 <div class="info-row">
+                     <span class="info-label">Photo :</span>
+                     <span class="info-value">
+                         <img src="<?php echo e($baseUrl); ?>/storage/<?php echo e($demande->user->assure->photo_url); ?>" 
+                              style="max-width: 100px; max-height: 100px; border-radius: 5px;" 
+                              alt="Photo de l'assuré">
+                     </span>
+                 </div>
+                 <?php endif; ?>
              <?php else: ?>
                  <div class="info-row">
                      <span class="info-label">Nom de l'entreprise :</span>
@@ -203,8 +213,59 @@
                 <span class="info-value"><?php echo e($demande->user->contact); ?></span>
             </div>
             <?php endif; ?>
+            <?php if($demande->user->assure && $demande->user->assure->profession): ?>
+            <div class="info-row">
+                <span class="info-label">Profession :</span>
+                <span class="info-value"><?php echo e($demande->user->assure->profession); ?></span>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
+
+    <?php if(isset($statistiques)): ?>
+    <div class="section">
+        <div class="section-title">Statistiques de la demande</div>
+        <div class="user-info">
+            <div class="info-row">
+                <span class="info-label">Total de personnes :</span>
+                <span class="info-value"><?php echo e($statistiques['total_personnes']); ?></span>
+            </div>
+            <?php if($statistiques['total_employes'] > 0): ?>
+            <div class="info-row">
+                <span class="info-label">Total d'employés :</span>
+                <span class="info-value"><?php echo e($statistiques['total_employes']); ?></span>
+            </div>
+            <?php endif; ?>
+            <?php if($statistiques['total_beneficiaires'] > 0): ?>
+            <div class="info-row">
+                <span class="info-label">Total de bénéficiaires :</span>
+                <span class="info-value"><?php echo e($statistiques['total_beneficiaires']); ?></span>
+            </div>
+            <?php endif; ?>
+            
+            <div class="info-row">
+                <span class="info-label">Répartition par sexe :</span>
+                <span class="info-value">
+                    Hommes: <?php echo e($statistiques['repartition_sexe']['hommes']); ?>, 
+                    Femmes: <?php echo e($statistiques['repartition_sexe']['femmes']); ?>
+
+                </span>
+            </div>
+            
+            <div class="info-row">
+                <span class="info-label">Répartition par âge :</span>
+                <span class="info-value">
+                    18-25 ans: <?php echo e($statistiques['repartition_age']['18-25']); ?>, 
+                    26-35 ans: <?php echo e($statistiques['repartition_age']['26-35']); ?>, 
+                    36-45 ans: <?php echo e($statistiques['repartition_age']['36-45']); ?>, 
+                    46-55 ans: <?php echo e($statistiques['repartition_age']['46-55']); ?>, 
+                    55+ ans: <?php echo e($statistiques['repartition_age']['55+']); ?>
+
+                </span>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <?php if($demande->reponsesQuestionnaire && $demande->reponsesQuestionnaire->count() > 0): ?>
     <div class="section reponses-section">
@@ -244,22 +305,35 @@
     </div>
     <?php endif; ?>
 
-    <?php if($demande->assures && $demande->assures->count() > 0): ?>
+    <?php
+        $beneficiaires = $demande->user->assure->beneficiaires;
+    ?>
+    <?php if($beneficiaires && $beneficiaires->count() > 0): ?>
     <div class="section beneficiaires-section">
-        <div class="section-title">Personnes associées</div>
-        <?php $__currentLoopData = $demande->assures; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $assure): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+        <div class="section-title">Bénéficiaires associés</div>
+        <?php $__currentLoopData = $beneficiaires; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $assure): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
         <div class="beneficiaire-item">
             <div class="info-row">
                 <span class="info-label">Nom complet :</span>
                 <span class="info-value"><?php echo e($assure->nom); ?> <?php echo e($assure->prenoms); ?></span>
             </div>
+            <?php if($assure->photo_url): ?>
+            <div class="info-row">
+                <span class="info-label">Photo :</span>
+                <span class="info-value">
+                    <img src="<?php echo e($baseUrl); ?>/storage/<?php echo e($assure->photo_url); ?>" 
+                         style="max-width: 80px; max-height: 80px; border-radius: 5px;" 
+                         alt="Photo du bénéficiaire">
+                </span>
+            </div>
+            <?php endif; ?>
             <div class="info-row">
                 <span class="info-label">Date de naissance :</span>
                 <span class="info-value"><?php echo e($assure->date_naissance ? \Carbon\Carbon::parse($assure->date_naissance)->format('d/m/Y') : 'N/A'); ?></span>
             </div>
             <div class="info-row">
                 <span class="info-label">Sexe :</span>
-                <span class="info-value"><?php echo e(ucfirst($assure->sexe)); ?></span>
+                <span class="info-value"><?php echo e(ucfirst($assure->sexe->value)); ?></span>
             </div>
             <?php if($assure->contact): ?>
             <div class="info-row">
@@ -282,13 +356,9 @@
             <?php if($assure->lien_parente): ?>
             <div class="info-row">
                 <span class="info-label">Lien de parenté :</span>
-                <span class="info-value"><?php echo e(ucfirst($assure->lien_parente)); ?></span>
+                <span class="info-value"><?php echo e(ucfirst($assure->lien_parente->value)); ?></span>
             </div>
             <?php endif; ?>
-            <div class="info-row">
-                <span class="info-label">Statut :</span>
-                <span class="info-value"><?php echo e(ucfirst($assure->statut)); ?></span>
-            </div>
             <div class="info-row">
                 <span class="info-label">Type :</span>
                 <span class="info-value"><?php echo e($assure->est_principal ? 'Principal' : 'Bénéficiaire'); ?></span>
@@ -299,7 +369,7 @@
                 <div style="font-weight: bold; margin-bottom: 5px; color: #2c5aa0;">Réponses au questionnaire :</div>
                 <?php $__currentLoopData = $assure->reponsesQuestionnaire; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $reponse): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                 <div style="margin-bottom: 5px; padding-left: 10px;">
-                    <div style="font-weight: bold; font-size: 12px;"><?php echo e($reponse->question->question ?? 'Question non trouvée'); ?></div>
+                    <div style="font-weight: bold; font-size: 12px;"><?php echo e($reponse->question->libelle ?? 'Question non trouvée'); ?></div>
                     <div style="font-size: 12px; color: #6c757d;">
                         <?php if($reponse->reponse_text): ?>
                             <?php echo e($reponse->reponse_text); ?>

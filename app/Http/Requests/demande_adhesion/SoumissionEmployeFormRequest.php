@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\demande_adhesion;
 
+use App\Enums\TypeDonneeEnum;
 use App\Helpers\ApiResponse;
+use App\Models\Question;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Log;
 
 class SoumissionEmployeFormRequest extends FormRequest
 {
@@ -16,16 +19,17 @@ class SoumissionEmployeFormRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+
+        $rules = [
             'nom' => 'required|string|max:255',
             'prenoms' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
             'date_naissance' => 'required|date|before:today',
             'sexe' => 'required|in:M,F',
-            'contact' => 'nullable|string|max:30',
+            'contact' => 'nullable|string|max:30|unique:users,contact|unique:assures,contact',
             'profession' => 'nullable|string|max:255',
             'adresse' => 'nullable|string|max:255',
             'photo' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp',
+            'email' => 'required|email|max:255|unique:users,email|unique:assures,email',
             'reponses' => 'required|array|min:1',
             'reponses.*.question_id' => 'required|integer|exists:questions,id',
             // Les champs de réponse sont validés dynamiquement côté contrôleur selon le type de question
@@ -41,6 +45,70 @@ class SoumissionEmployeFormRequest extends FormRequest
             'beneficiaires.*.reponses' => 'nullable|array',
             'beneficiaires.*.reponses.*.question_id' => 'required_with:beneficiaires.*.reponses|integer|exists:questions,id',
         ];
+
+        $questions = Question::forDestinataire('physique')->get()->keyBy('id');
+        $questionIds = $questions->pluck('id')->toArray();
+        foreach ($this->input('reponses', []) as $index => $reponse) {
+            $questionId = $reponse['question_id'] ?? null;
+            if (!$questionId || !$questions->has($questionId)) continue;
+            $question = $questions->get($questionId);
+            $ruleKey = 'reponses.' . $index;
+            $required = $question->isRequired() ? 'required' : 'nullable';
+            switch ($question->type_donnee) {
+                case TypeDonneeEnum::TEXT:
+                case TypeDonneeEnum::RADIO:
+                    $rules[$ruleKey . '.reponse_text'] = [$required, 'string'];
+                    break;
+                case TypeDonneeEnum::NUMBER:
+                    $rules[$ruleKey . '.reponse_number'] = [$required, 'numeric'];
+                    break;
+                case TypeDonneeEnum::BOOLEAN:
+                    $rules[$ruleKey . '.reponse_bool'] = [$required, 'boolean'];
+                    break;
+                case TypeDonneeEnum::DATE:
+                    $rules[$ruleKey . '.reponse_date'] = [$required, 'date'];
+                    break;
+                case TypeDonneeEnum::FILE:
+                    $rules[$ruleKey . '.reponse_fichier'] = [$required, 'file', 'mimes:jpeg,png,pdf,jpg', 'max:2048'];
+                    break;
+            }
+        }
+        // Validation des réponses des bénéficiaires
+        $beneficiaires = $this->input('beneficiaires', []);
+        foreach ($beneficiaires as $beneficiaireIndex => $beneficiaire) {
+            if (isset($beneficiaire['reponses']) && is_array($beneficiaire['reponses'])) {
+                foreach ($beneficiaire['reponses'] as $reponseIndex => $reponse) {
+                    $questionId = $reponse['question_id'] ?? null;
+                    if (!$questionId || !$questions->has($questionId)) continue;
+                    
+                    $question = $questions->get($questionId);
+                    $ruleKey = "beneficiaires.{$beneficiaireIndex}.reponses.{$reponseIndex}";
+                    $required = $question->isRequired() ? 'required' : 'nullable';
+                    
+                    switch ($question->type_donnee) {
+                        case TypeDonneeEnum::TEXT:
+                        case TypeDonneeEnum::RADIO:
+                            $rules[$ruleKey . '.reponse_text'] = [$required, 'string'];
+                            break;
+                        case TypeDonneeEnum::NUMBER:
+                            $rules[$ruleKey . '.reponse_number'] = [$required, 'numeric'];
+                            break;
+                        case TypeDonneeEnum::BOOLEAN:
+                            $rules[$ruleKey . '.reponse_bool'] = [$required, 'boolean'];
+                            break;
+                        case TypeDonneeEnum::DATE:
+                            $rules[$ruleKey . '.reponse_date'] = [$required, 'date'];
+                            break;
+                        case TypeDonneeEnum::FILE:
+                            $rules[$ruleKey . '.reponse_fichier'] = [$required, 'file', 'mimes:jpeg,png,pdf,jpg', 'max:2048'];
+                            break;
+                    }
+                }
+            }
+        }
+        Log::info($rules);
+
+        return $rules;
     }
 
     public function failedValidation(Validator $validator)
@@ -60,6 +128,8 @@ class SoumissionEmployeFormRequest extends FormRequest
             'date_naissance.before' => 'La date de naissance doit être antérieure à aujourd\'hui.',
             'sexe.required' => 'Le sexe est obligatoire.',
             'sexe.in' => 'Le sexe doit être M ou F.',
+            'contact.unique' => 'Le contact est déjà utilisé.',
+            'email.unique' => 'L\'email est déjà utilisé.',
             'reponses.required' => 'Le questionnaire médical est obligatoire.',
             'reponses.array' => 'Le questionnaire médical doit être un tableau.',
             'reponses.*.question_id.required' => 'Chaque réponse doit référencer une question.',

@@ -22,7 +22,9 @@ class DatabaseSeeder extends Seeder
             PersonnelSeeder::class,
             ProspectPhysiqueMedicalQuestionSeeder::class,
             PrestataireMedicalQuestionSeeder::class,
-            // ContratSeeder::class, // Commenté car nécessite des données de test
+            CategorieGarantieSeeder::class,
+            GarantieSeeder::class,
+            ContratSeeder::class,
         ]); 
     }
 }

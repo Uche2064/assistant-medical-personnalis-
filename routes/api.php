@@ -21,6 +21,7 @@ use App\Http\Controllers\v1\Api\StatsController;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\v1\Api\contrat\ContratController;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\v1\Api\NotificationController;
 
 // Route publique pour les fichiers (en dehors du middleware verifyApiKey)
 Route::get('/v1/files/{filename}', function ($filename) {
@@ -138,12 +139,32 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
         // Téléchargement PDF, listing, détails, etc.
         Route::get('/{id}/download', [DemandeAdhesionController::class, 'download'])->name('api.demandes-adhesions.download');
-        Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware('checkRole:medecin_controleur,technicien,admin_global');
+        Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware('checkRole:medecin_controleur,technicien');
 
         // Actions sur les demandes (proposer contrat, valider, rejeter)
         Route::put('/{demande_id}/proposer-contrat', [DemandeAdhesionController::class, 'proposerContrat'])->middleware('checkRole:technicien');
         Route::put('/{demande_id}/valider-prestataire', [DemandeAdhesionController::class, 'validerPrestataire'])->middleware('checkRole:medecin_controleur');
         Route::put('/{demande_id}/rejeter', [DemandeAdhesionController::class, 'rejeter'])->middleware('checkRole:technicien,medecin_controleur');
+        
+        // Nouvelles routes pour le workflow de proposition et acceptation
+        Route::get('/contrats-disponibles', [DemandeAdhesionController::class, 'getContratsDisponibles'])->middleware('checkRole:technicien');
+        
+        // Routes pour la gestion des bénéficiaires existants
+        Route::get('/beneficiaires-existants', [DemandeAdhesionController::class, 'getBeneficiairesExistants'])->middleware('checkRole:physique');
+        Route::delete('/beneficiaires/{beneficiaireId}', [DemandeAdhesionController::class, 'supprimerBeneficiaire'])->middleware('checkRole:physique');
+    });
+    
+    // Routes pour les clients (physique/entreprise)
+    Route::middleware(['auth:api'])->prefix('client')->group(function () {
+        Route::get('/contrats-proposes', [DemandeAdhesionController::class, 'getContratsProposes']);
+        Route::post('/contrats-proposes/{proposition_id}/accepter', [DemandeAdhesionController::class, 'accepterContrat']);
+    });
+    
+    // Routes pour les techniciens
+    Route::middleware(['auth:api', 'checkRole:technicien'])->prefix('technicien')->group(function () {
+        Route::get('/clients', [DemandeAdhesionController::class, 'getClientsTechnicien']);
+        Route::get('/prestataires', [DemandeAdhesionController::class, 'getPrestatairesTechnicien']);
+        Route::post('/assigner-reseau-prestataires', [DemandeAdhesionController::class, 'assignerReseauPrestataires']);
     });
     // Anciennes routes spécifiques supprimées ou commentées pour éviter toute confusion.
 
@@ -218,6 +239,12 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         // Routes pour consulter les demandes des employés
         Route::get('/demandes-employes', [DemandeAdhesionController::class, 'demandesEmployes']);
         Route::get('/demandes-employes/{id}', [DemandeAdhesionController::class, 'demandeEmploye']);
+        
+        // Route pour le dashboard - liste des employés avec leurs demandes
+        Route::get('/employes-avec-demandes', [DemandeAdhesionController::class, 'employesAvecDemandes']);
+        
+        // Route pour les statistiques des employés
+        Route::get('/statistiques-employes', [DemandeAdhesionController::class, 'statistiquesEmployes']);
     });
     Route::prefix('employes/formulaire')->group(function () {
         Route::get('/{token}', [DemandeAdhesionController::class, 'showFormulaireEmploye']);
@@ -262,8 +289,18 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         })->where('filename', '.*');
     });
 
+    // --------------------- Routes pour les notifications ---------------------
+    Route::middleware(['auth:api'])->prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'index']);
+        Route::get('/stats', [NotificationController::class, 'stats']);
+        Route::patch('/{id}/mark-as-read', [NotificationController::class, 'markAsRead']);
+        Route::patch('/{id}/mark-as-unread', [NotificationController::class, 'markAsUnread']);
+        Route::patch('/mark-all-as-read', [NotificationController::class, 'markAllAsRead']);
+        Route::delete('/{id}', [NotificationController::class, 'destroy']);
+        Route::delete('/destroy-read', [NotificationController::class, 'destroyRead']);
+    });
 
-    // ---------------------- Routes pour l'acceptation des contrats par les clients -------------------
+    // --------------------- Routes pour l'acceptation des contrats par les clients -------------------
     Route::prefix('contrats')->group(function () {
         // Accepter un contrat (accessible sans authentification via le token)
         Route::post('/accepter/{token}', [DemandeAdhesionController::class, 'accepterContrat']);
@@ -294,13 +331,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/stats', [StatsController::class, 'dashboardStats']);
     });
 
-    Route::middleware(['auth:api'])->prefix('clients')->group(function () {
-        Route::get('/', [ClientControlleur::class, 'index']);
-        Route::get('/stats', [ClientControlleur::class, 'clientStats']);
-        Route::get('/{id}', [ClientControlleur::class, 'show']);
-        Route::put('/{id}', [ClientControlleur::class, 'update']);
-        Route::delete('/{id}', [ClientControlleur::class, 'destroy']);
-    });
+
 
     // --------------------- Routes pour le Commercial ---------------------
     Route::middleware(['auth:api', 'checkRole:commercial'])->prefix('commercial')->group(function () {

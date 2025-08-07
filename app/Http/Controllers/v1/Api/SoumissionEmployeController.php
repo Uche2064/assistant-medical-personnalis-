@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\demande_adhesion\SoumissionEmployeFormRequest;
 use App\Models\BeneficiaireTemp;
 use App\Models\EmployesTemp;
-use App\Models\InvitationEmployes;
+use App\Models\InvitationEmploye;
 use App\Models\Personnes;
 use App\Models\Question;
 use App\Models\ReponsesQuestionnaire;
@@ -26,7 +26,7 @@ class SoumissionEmployeController extends Controller
     }
    public function showForm($token)
     {
-        $invitation = InvitationEmployes::where('token', $token)
+        $invitation = InvitationEmploye::where('token', $token)
             ->where('expire_at', '>', now())
             ->first();
 
@@ -76,7 +76,7 @@ class SoumissionEmployeController extends Controller
         foreach ($data['reponses'] as $r) {
             ReponsesQuestionnaire::create([
                 'question_id' => $r['question_id'],
-                'personne_type' => Personnes::class,
+                'personne_type' => Personanes::class,
                 'personne_id' => $employe->id,
                 'reponses_text' => $r['reponses_text'] ?? null,
                 'reponse_bool' => $r['reponse_bool'] ?? null,

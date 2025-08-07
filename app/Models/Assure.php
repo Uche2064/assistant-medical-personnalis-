@@ -14,6 +14,7 @@ class Assure extends Model
         'user_id',
         'entreprise_id',
         'assure_principal_id',
+        'email',
         'contrat_id',
         'nom', // ✅ Ajouté pour les bénéficiaires
         'prenoms', // ✅ Ajouté pour les bénéficiaires
@@ -73,6 +74,12 @@ class Assure extends Model
     {
         return $this->belongsTo(Contrat::class);
     }
+
+    public function reponsesQuestionnaire()
+    {
+        return $this->hasMany(ReponseQuestionnaire::class, 'personne_id');
+    }
+
 
     /**
      * Get the sinistres for this assure.

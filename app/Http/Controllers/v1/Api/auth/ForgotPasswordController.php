@@ -14,6 +14,7 @@ use App\Models\Otp;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -43,6 +44,8 @@ class ForgotPasswordController extends Controller
 
         // Générer un OTP unique
         $otp = Otp::generateOtp($email, 10, OtpTypeEnum::FORGOT_PASSWORD->value);
+        Log::info("Email:".$email." otp: ".$otp);
+
 
         // Envoyer l'email avec l'OTP
         dispatch(new SendEmailJob(

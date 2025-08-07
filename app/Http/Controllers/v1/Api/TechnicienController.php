@@ -139,6 +139,33 @@ class TechnicienController extends Controller
             'notes_techniques' => $validated['notes_techniques'],
         ]);
 
+        // Notifier le client via l'application
+        $notificationService = app(\App\Services\NotificationService::class);
+        $notificationService->createNotification(
+            $demande->user->id,
+            'Demande d\'adhésion validée',
+            "Votre demande d'adhésion a été validée par notre équipe technique. Vous pouvez maintenant procéder à la souscription.",
+            'demande_validee',
+            [
+                'demande_id' => $demande->id,
+                'valide_par' => $technicien->nom . ' ' . ($technicien->prenoms ?? ''),
+                'date_validation' => now()->format('d/m/Y à H:i'),
+                'motif_validation' => $validated['motif_validation'] ?? null,
+                'type' => 'demande_validee'
+            ]
+        );
+
+        // Envoyer l'email
+        dispatch(new \App\Jobs\SendEmailJob(
+            $demande->user->email,
+            'Demande d\'adhésion validée',
+            \App\Enums\EmailType::ACCEPTED->value,
+            [
+                'demande' => $demande,
+                'technicien' => $technicien,
+            ]
+        ));
+
         return ApiResponse::success($demande, 'Demande d\'adhésion validée avec succès');
     }
 
@@ -176,6 +203,33 @@ class TechnicienController extends Controller
             'motif_rejet' => $validated['motif_rejet'],
             'notes_techniques' => $validated['notes_techniques'],
         ]);
+
+        // Notifier le client via l'application
+        $notificationService = app(\App\Services\NotificationService::class);
+        $notificationService->createNotification(
+            $demande->user->id,
+            'Demande d\'adhésion rejetée',
+            "Votre demande d'adhésion a été rejetée. Consultez votre email pour plus de détails.",
+            'demande_rejetee',
+            [
+                'demande_id' => $demande->id,
+                'motif_rejet' => $validated['motif_rejet'],
+                'rejetee_par' => $technicien->nom . ' ' . ($technicien->prenoms ?? ''),
+                'date_rejet' => now()->format('d/m/Y à H:i'),
+                'type' => 'demande_rejetee'
+            ]
+        );
+
+        // Envoyer l'email
+        dispatch(new \App\Jobs\SendEmailJob(
+            $demande->user->email,
+            'Demande d\'adhésion rejetée',
+            \App\Enums\EmailType::REJETEE->value,
+            [
+                'demande' => $demande,
+                'technicien' => $technicien,
+            ]
+        ));
 
         return ApiResponse::success($demande, 'Demande d\'adhésion rejetée avec succès');
     }
@@ -235,6 +289,36 @@ class TechnicienController extends Controller
 
             return $contrat;
         });
+
+        // Notifier le client via l'application
+        $notificationService = app(\App\Services\NotificationService::class);
+        $notificationService->createNotification(
+            $demande->user->id,
+            'Proposition de contrat reçue',
+            "Un technicien a analysé votre demande et vous propose un contrat d'assurance. Consultez votre email pour les détails.",
+            'contrat_propose',
+            [
+                'demande_id' => $demande->id,
+                'contrat_id' => $contrat->id,
+                'type_contrat' => $contrat->type_contrat,
+                'prime_standard' => $contrat->prime_standard,
+                'propose_par' => $technicien->nom . ' ' . ($technicien->prenoms ?? ''),
+                'date_proposition' => now()->format('d/m/Y à H:i'),
+                'type' => 'contrat_propose'
+            ]
+        );
+
+        // Envoyer l'email
+        dispatch(new \App\Jobs\SendEmailJob(
+            $demande->user->email,
+            'Votre proposition de contrat d\'assurance',
+            \App\Enums\EmailType::CONTRAT_PRET->value,
+            [
+                'demande' => $demande,
+                'contrat' => $contrat,
+                'technicien' => $technicien,
+            ]
+        ));
 
         return ApiResponse::success($contrat, 'Contrat proposé avec succès');
     }

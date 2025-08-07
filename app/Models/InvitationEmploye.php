@@ -20,6 +20,8 @@ class InvitationEmploye extends Model
         'expire_at' => 'datetime',
     ];
 
+
+
     /**
      * Get the entreprise that owns the invitation.
      */

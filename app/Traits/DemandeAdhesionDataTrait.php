@@ -31,7 +31,6 @@ trait DemandeAdhesionDataTrait
             'demandeur' => [
                 'user' => $demande->user,
                 'entreprise' => $demande->entreprise,
-                'client' => $demande->client,
                 // Réponses questionnaire selon le type de demandeur
                 'reponses_questionnaire' => $this->getDemandeurReponses($demande),
             ],
@@ -88,15 +87,14 @@ trait DemandeAdhesionDataTrait
         return DemandeAdhesion::with([
             'user',
             'user.entreprise',
-            'user.client',
             'validePar',
             'reponsesQuestionnaire' => function ($query) use ($id) {
                 $query->where('demande_adhesion_id', $id);
             },
             'reponsesQuestionnaire.question',
-            'assures',
+            'user.assure',
+            'user.assure.beneficiaires',
             'employes',
-            'beneficiaires'
         ])->find($id);
     }
 
@@ -112,7 +110,6 @@ trait DemandeAdhesionDataTrait
             'reponsesQuestionnaire.question',
             'user.prestataire',
             'user.entreprise',
-            'user.client',
         ])->find($id);
     }
     /**

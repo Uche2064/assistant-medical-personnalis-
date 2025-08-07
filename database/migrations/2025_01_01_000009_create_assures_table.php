@@ -25,6 +25,7 @@ return new class extends Migration
             $table->string('sexe')->nullable();
             $table->string('profession')->nullable();
             $table->string('contact')->unique()->nullable();
+            $table->string('email')->unique()->nullable();
             $table->string('lien_parente')->nullable();
             $table->foreignId('commercial_id')->nullable()->constrained('personnels')->onDelete('set null');
             $table->boolean('est_principal')->default(false);

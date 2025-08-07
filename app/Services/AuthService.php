@@ -11,6 +11,7 @@ use App\Http\Resources\UserResource;
 use App\Models\Assure;
 use App\Models\Client;
 use App\Models\Entreprise;
+use App\Models\InvitationEmploye;
 use App\Models\Prestataire;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -66,6 +67,12 @@ class AuthService
         Entreprise::create([
             'user_id' => $user->id,
             'raison_sociale' => $validated['raison_sociale'],
+        ]);
+
+        $invitation = InvitationEmploye::create([
+            'entreprise_id' => $user->entreprise->id,
+            'token' => InvitationEmploye::generateToken(),
+            'expire_at' => now()->addDays(7),
         ]);
     }
 
