@@ -28,8 +28,9 @@ class StoreContratFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type_contrat' => ['required', Rule::in(TypeContratEnum::values())],
+            'type_contrat' => ['required'],
             'prime_standard' => ['required', 'numeric', 'min:0'],
+            'couverture' => ['required', 'numeric', 'min:0', 'max:100'],
             'categories_garanties' => ['required', 'array', 'min:1'],
             'categories_garanties.*.categorie_garantie_id' => ['required', 'integer', 'exists:categories_garanties,id'],
             'categories_garanties.*.couverture' => ['required', 'numeric', 'min:0', 'max:100'],

@@ -14,19 +14,14 @@ class Contrat extends Model
         'type_contrat',
         'technicien_id',
         'prime_standard',
-        'date_debut',
-        'date_fin',
-        'est_actif',
         'categories_garanties_standard',
+        'est_actif',
     ];
 
     protected $casts = [
         'prime_standard' => 'decimal:2',
         'est_actif' => 'boolean',
-        'type_contrat' => \App\Enums\TypeContratEnum::class,
         'categories_garanties_standard' => 'array',
-        'date_debut' => 'date',
-        'date_fin' => 'date',
     ];
 
     /**
@@ -104,7 +99,7 @@ class Contrat extends Model
      */
     public function isExpired()
     {
-        return $this->statut === \App\Enums\StatutContratEnum::EXPIRE || $this->date_fin < now();
+        return $this->statut === \App\Enums\StatutContratEnum::EXPIRE;
     }
 
     /**
@@ -167,6 +162,6 @@ class Contrat extends Model
      */
     public function isValid()
     {
-        return $this->isActive() && $this->date_fin >= now();
+        return $this->isActive();
     }
 }

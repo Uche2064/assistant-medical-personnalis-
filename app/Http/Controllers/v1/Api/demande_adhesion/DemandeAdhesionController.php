@@ -1842,8 +1842,8 @@ class DemandeAdhesionController extends Controller
                     'client_id' => $client->id,
                     'contrat_id' => $contrat->id,
                     'type_client' => $client->type_demandeur ?? 'physique',
-                    'date_debut' => $contrat->date_debut,
-                    'date_fin' => $contrat->date_fin,
+                    'date_debut' => now(),
+                    'date_fin' => now()->addYear(),
                     'statut' => 'ACTIF'
                 ]);
 

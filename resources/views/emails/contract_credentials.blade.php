@@ -87,9 +87,7 @@
         <h2>📋 Détails de votre contrat</h2>
         <div class="contract-details">
             <p><strong>Numéro de police :</strong> {{ $contrat->numero_police ?? 'N/A' }}</p>
-            <p><strong>Date de début :</strong> {{ $contrat->date_debut ? $contrat->date_debut->format('d/m/Y') : 'N/A' }}</p>
-            <p><strong>Date de fin :</strong> {{ $contrat->date_fin ? $contrat->date_fin->format('d/m/Y') : 'N/A' }}</p>
-            <p><strong>Prime annuelle :</strong> {{ $contrat->prime ? number_format($contrat->prime, 0, ',', ' ') : '0' }} FCFA</p>
+            <p><strong>Prime annuelle :</strong> {{ $contrat->prime_standard ? number_format($contrat->prime_standard, 0, ',', ' ') : '0' }} FCFA</p>
             <p><strong>Statut :</strong> <span style="color: #28a745;">✅ Actif</span></p>
         </div>
 

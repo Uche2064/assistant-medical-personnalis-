@@ -184,11 +184,7 @@ class AssureController extends Controller
 
         $contrat = $assure->contrat;
 
-        if (
-            !$contrat ||
-            ($contrat->date_debut && $contrat->date_debut > now()) ||
-            ($contrat->date_fin && $contrat->date_fin < now())
-        ) {
+        if (!$contrat) {
             return ApiResponse::error('Aucun contrat trouvé', 404, ['existing' => false]);
         }
 

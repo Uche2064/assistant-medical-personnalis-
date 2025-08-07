@@ -47,7 +47,6 @@ Route::get('/v1/files/{filename}', function ($filename) {
 
 Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
-
     // ----------------------- Authentification et gestion des mots de passe ---------------------
     Route::prefix('auth')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
@@ -211,13 +210,15 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
     Route::middleware(['auth:api'])->prefix('contrats')->group(function () {
         Route::get('/', [ContratController::class, 'index']);
-       Route::middleware(['auth:api', 'checkRole:technicien'])->group(function () {
-        Route::get('/stats', [ContratController::class, 'stats']);
-        Route::post('/', [ContratController::class, 'store']);
-        Route::get('/{id}', [ContratController::class, 'show']);
-        Route::put('/{id}', [ContratController::class, 'update']);
-        Route::delete('/{id}', [ContratController::class, 'destroy']);
-       });
+        Route::get('/categories-garanties', [ContratController::class, 'getCategoriesGaranties']);
+        
+        Route::middleware(['checkRole:technicien'])->group(function () {
+            Route::get('/stats', [ContratController::class, 'stats']);
+            Route::post('/', [ContratController::class, 'store']);
+            Route::get('/{id}', [ContratController::class, 'show']);
+            Route::put('/{id}', [ContratController::class, 'update']);
+            Route::delete('/{id}', [ContratController::class, 'destroy']);
+        });
     });
 
     Route::prefix('employes/formulaire')->group(function () {

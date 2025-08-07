@@ -29,8 +29,9 @@ class UpdateContratFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type_contrat' => ['sometimes', Rule::in(TypeContratEnum::values())],
+            'type_contrat' => ['sometimes'],
             'prime_standard' => ['sometimes', 'numeric', 'min:0'],
+            'couverture' => ['sometimes', 'numeric', 'min:0', 'max:100'],
         ];
     }
 
@@ -54,6 +55,10 @@ class UpdateContratFormRequest extends FormRequest
             'prime_standard.required' => 'La prime standard est obligatoire.',
             'prime_standard.numeric' => 'La prime standard doit être un nombre.',
             'prime_standard.min' => 'La prime standard doit être supérieure ou égale à 0.',
+            'couverture.required' => 'La couverture est obligatoire.',
+            'couverture.numeric' => 'La couverture doit être un nombre.',
+            'couverture.min' => 'La couverture doit être supérieure ou égale à 0.',
+            'couverture.max' => 'La couverture doit être inférieure ou égale à 100.',
         ];
     }
 }
