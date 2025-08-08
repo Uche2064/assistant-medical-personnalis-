@@ -35,6 +35,7 @@ use App\Http\Requests\demande_adhesion\ProposerContratRequest;
 use App\Http\Resources\DemandeAdhesionResource;
 use App\Http\Resources\DemandeAdhesionEntrepriseResource;
 use App\Http\Resources\DemandeAdhesionPrestataireResource;
+use App\Http\Resources\PropositionContratResource;
 use App\Http\Resources\QuestionResource;
 use App\Jobs\SendEmailJob;
 use App\Models\Assure;
@@ -499,183 +500,10 @@ class DemandeAdhesionController extends Controller
 
 
 
-    /**
-     * Proposer un contrat à un prospect (client physique ou entreprise) par un technicien
-     */
-    public function proposerContrat(ProposerContratRequest $request, int $id)
-    {
-        try {
-            $validatedData = $request->validated();
-            $technicien = Auth::user();
-            $demande = DemandeAdhesion::with(['user'])->find($id);
-
-            if (!$demande) {
-                return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
-            }
-
-            // Vérifier que la demande est en attente
-            if (!$demande->isPending()) {
-                return ApiResponse::error('Cette demande a déjà été traitée', 400);
-            }
-
-            // Vérifier que le contrat existe et est actif
-            $contrat = Contrat::with(['garanties'])->find($validatedData['contrat_id']);
-            if (!$contrat || !$contrat->est_actif) {
-                return ApiResponse::error('Contrat non valide ou introuvable', 400);
-            }
-
-            DB::beginTransaction();
-
-            // Créer la proposition de contrat
-            $propositionContrat = PropositionContrat::create([
-                'demande_adhesion_id' => $demande->id,
-                'contrat_id' => $contrat->id,
-                'prime_proposee' => $validatedData['prime_proposee'],
-                'taux_couverture' => $validatedData['taux_couverture'] ?? 80,
-                'frais_gestion' => $validatedData['frais_gestion'] ?? 20,
-                'commentaires_technicien' => $validatedData['commentaires'],
-                'technicien_id' => $technicien->personnel->id,
-                'statut' => StatutPropositionContratEnum::PROPOSEE->value,
-                'date_proposition' => now(),
-            ]);
-
-            // Associer les garanties si fournies
-            if (!empty($validatedData['garanties_incluses'])) {
-                foreach ($validatedData['garanties_incluses'] as $garantieId) {
-                    $propositionContrat->garanties()->attach($garantieId);
-                }
-            } else {
-                // Associer toutes les garanties du contrat par défaut
-                foreach ($contrat->garanties as $garantie) {
-                    $propositionContrat->garanties()->attach($garantie->id);
-                }
-            }
-
-            // Générer un token pour l'acceptation du contrat
-            $token = Str::random(60);
-            $tokenExpiration = now()->addDays(7); // Lien valable 7 jours
-
-            // Stocker le token
-            Cache::put("proposition_contrat_{$propositionContrat->id}", [
-                'proposition_id' => $propositionContrat->id,
-                'demande_id' => $demande->id,
-                'user_id' => $demande->demandeur->id,
-                'expires_at' => $tokenExpiration,
-            ], $tokenExpiration);
-
-            // Notifier le prospect via l'application
-            $this->notificationService->createNotification(
-                $demande->demandeur->id,
-                'Proposition de contrat reçue',
-                "Un technicien a analysé votre demande et vous propose un contrat d'assurance. Consultez votre email pour les détails.",
-                'contrat_propose',
-                [
-                    'demande_id' => $demande->id,
-                    'contrat_id' => $contrat->id,
-                    'type_contrat' => $contrat->type_contrat,
-                    'prime_standard' => $contrat->prime_standard,
-                    'propose_par' => $technicien->personnel->nom . ' ' . ($technicien->personnel->prenoms ?? ''),
-                    'date_proposition' => now()->format('d/m/Y à H:i'),
-                    'type' => 'contrat_propose'
-                ]
-            );
-
-            // Envoyer l'email avec le lien d'acceptation
-            $acceptationUrl = config('app.frontend_url', 'http://localhost:3000') . "/contrat/accepter/" . $token;
-
-            dispatch(new SendEmailJob(
-                $demande->demandeur->email,
-                'Votre proposition de contrat d\'assurance',
-                EmailType::CONTRAT_PRET->value,
-                [
-                    'demande' => $demande,
-                    'proposition' => $propositionContrat,
-                    'contrat' => $contrat,
-                    'acceptationUrl' => $acceptationUrl,
-                    'technicien' => $technicien->personnel,
-                ]
-            ));
-
-            DB::commit();
-
-            Log::info('Proposition de contrat créée', [
-                'demande_id' => $demande->id,
-                'proposition_id' => $propositionContrat->id,
-                'contrat_id' => $contrat->id,
-                'technicien_id' => $technicien->id,
-                'type_demandeur' => $demande->type_demandeur->value,
-            ]);
-
-            return ApiResponse::success([
-                'proposition_id' => $propositionContrat->id,
-                'contrat_id' => $contrat->id,
-                'type_contrat' => $contrat->type_contrat,
-                'prime_proposee' => $propositionContrat->prime_proposee,
-                'token_acceptation' => $token,
-                'expiration_token' => $tokenExpiration,
-                'statut' => $propositionContrat->statut?->value ?? $propositionContrat->statut,
-                'propose_par' => $technicien->personnel->nom . ' ' . ($technicien->personnel->prenoms ?? ''),
-            ], 'Proposition de contrat envoyée avec succès. Le client doit maintenant accepter ou refuser.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Erreur lors de la proposition de contrat', [
-                'error' => $e->getMessage(),
-                'demande_id' => $id,
-                'technicien_id' => Auth::id(),
-            ]);
-
-            return ApiResponse::error('Erreur lors de la proposition de contrat: ' . $e->getMessage(), 500);
-        }
-    }
 
 
-    /**
-     * Valider une demande d'adhésion prestataire par un médecin contrôleur
-     */
-    public function validerPrestataire(int $id)
-    {
-        try {
-            $medecinControleur = Auth::user();
-            $demande = DemandeAdhesion::find($id);
 
-            if (!$demande) {
-                return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
-            }
 
-            // Vérifier que la demande est en attente
-            if (!$demande->isPending()) {
-                return ApiResponse::error('Cette demande a déjà été traitée', 400);
-            }
-
-            DB::beginTransaction();
-
-            // Valider la demande via le service
-            $demande = $this->demandeAdhesionService->validerDemande($demande, $medecinControleur->personnel);
-
-            // Envoyer l'email
-            dispatch(new SendEmailJob($demande->user->email, 'Demande d\'adhésion prestataire validée', EmailType::ACCEPTED->value, [
-                'demande' => $demande,
-                'medecin_controleur' => $medecinControleur->personnel,
-            ]));
-
-            DB::commit();
-
-            return ApiResponse::success([
-                'demande_id' => $demande,
-                'statut' => $demande->statut?->value ?? $demande->statut,
-                'valide_par' => $medecinControleur->personnel->nom . ' ' . ($medecinControleur->personnel->prenoms ?? ''),
-            ], 'Demande d\'adhésion prestataire validée avec succès.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Erreur lors de la validation de la demande prestataire', [
-                'error' => $e->getMessage(),
-                'demande_id' => $id,
-                'medecin_controleur_id' => Auth::user()->personnel->id,
-            ]);
-
-            return ApiResponse::error('Erreur lors de la validation de la demande: ' . $e->getMessage(), 500);
-        }
-    }
 
     /**
      * Rejeter une demande d'adhésion (réservé au personnel)
@@ -723,21 +551,9 @@ class DemandeAdhesionController extends Controller
 
 
 
-    /**
-     * Récupérer les contrats disponibles pour proposition
-     */
-    public function getContratsDisponibles()
-    {
-        return $this->demandeAdhesionService->getContratsDisponibles();
-    }
 
-    /**
-     * Consulter les liens d'invitation existants pour une entreprise
-     */
-    public function consulterLiensInvitation(Request $request)
-    {
-        return $this->demandeAdhesionService->getLiensInvitation(Auth::user());
-    }
+
+
 
     /**
      * Consulter les demandes d'adhésion d'une entreprise
@@ -1646,8 +1462,7 @@ class DemandeAdhesionController extends Controller
             // Récupérer les propositions de contrats pour ce client
             $propositions = PropositionContrat::with([
                 'demandeAdhesion.user',
-                'contrat.garanties.categorieGarantie',
-                'technicien.personnel'
+                'contrat.categoriesGaranties.garanties',
             ])
             ->whereHas('demandeAdhesion', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
@@ -1657,13 +1472,13 @@ class DemandeAdhesionController extends Controller
 
             $contratsProposes = $propositions->map(function ($proposition) {
                 // Grouper les garanties par catégorie
-                $categoriesGaranties = $proposition->contrat->garanties->groupBy('categorie_garantie_id')
+                $categoriesGaranties = $proposition->contrat->categoriesGaranties->groupBy('categorie_garantie_id')
                     ->map(function ($garanties, $categorieId) {
                         $categorie = $garanties->first()->categorieGarantie;
                         $garantiesList = $garanties->pluck('nom')->implode(', ');
                         
                         return [
-                            'libelle' => $categorie->nom,
+                            'libelle' => $categorie->libelle,
                             'garanties' => $garantiesList
                         ];
                     })->values();
@@ -1728,17 +1543,13 @@ class DemandeAdhesionController extends Controller
             DB::beginTransaction();
 
             try {
-                // 1. Créer le contrat final
-                $contrat = Contrat::create([
+                // 1. Créer l'entrée dans client_contrats (pivot table)
+                $clientContrat = ClientContrat::create([
                     'user_id' => $proposition->demandeAdhesion->user_id,
-                    'proposition_contrat_id' => $proposition->id,
-                    'type_contrat' => $proposition->contrat->type_contrat,
-                    'prime' => $proposition->prime_proposee,
-                    'taux_couverture' => $proposition->taux_couverture,
-                    'frais_gestion' => $proposition->frais_gestion,
-                    'statut' => StatutContratEnum::ACTIF->value,
+                    'contrat_id' => $proposition->contrat->id,
                     'date_debut' => now(),
                     'date_fin' => now()->addYear(),
+                    'statut' => StatutContratEnum::ACTIF->value,
                 ]);
 
                 // 2. Mettre à jour la proposition
@@ -1750,19 +1561,19 @@ class DemandeAdhesionController extends Controller
                 // 3. Mettre à jour la demande d'adhésion
                 $proposition->demandeAdhesion->update([
                     'statut' => StatutDemandeAdhesionEnum::ACCEPTEE->value,
-                    'contrat_id' => $contrat->id
+                    'contrat_id' => $clientContrat->id
                 ]);
 
                 // 4. Notification au technicien
                 $this->notificationService->createNotification(
                     $proposition->technicien->user_id,
                     'Contrat accepté par le client',
-                    "Le client {$proposition->demandeAdhesion->user->nom} a accepté votre proposition de contrat.",
+                    "Le client {$proposition->demandeAdhesion->user->assure->nom} a accepté votre proposition de contrat.",
                     'contrat_accepte_technicien',
                     [
-                        'client_nom' => $proposition->demandeAdhesion->user->nom,
-                        'contrat_nom' => $proposition->contrat->nom,
-                        'prime' => $contrat->prime,
+                        'client_nom' => $proposition->demandeAdhesion->user->assure->nom,
+                        'contrat_nom' => $proposition->contrat->type_contrat,
+                        'prime' => $proposition->prime,
                         'type' => 'contrat_accepte_technicien'
                     ]
                 );
@@ -1774,9 +1585,9 @@ class DemandeAdhesionController extends Controller
                     "Votre contrat d'assurance est maintenant actif.",
                     'contrat_accepte',
                     [
-                        'contrat_id' => $contrat->id,
-                        'date_debut' => $contrat->date_debut,
-                        'prime' => $contrat->prime,
+                        'contrat_id' => $clientContrat->id,
+                        'date_debut' => $clientContrat->date_debut,
+                        'prime' => $clientContrat->prime,
                         'type' => 'contrat_accepte'
                     ]
                 );
@@ -1784,7 +1595,7 @@ class DemandeAdhesionController extends Controller
                 DB::commit();
 
                 return ApiResponse::success([
-                    'contrat_id' => $contrat->id,
+                    'contrat_id' => $clientContrat->id,
                     'message' => 'Contrat accepté avec succès'
                 ], 'Contrat accepté avec succès');
 
@@ -1804,111 +1615,7 @@ class DemandeAdhesionController extends Controller
         }
     }
 
-    /**
-     * Assigner un réseau de prestataires à un client
-     */
-    public function assignerReseauPrestataires(Request $request)
-    {
-        try {
-            // Vérifier que l'utilisateur est un technicien
-            if (!Auth::user()->hasRole('technicien')) {
-                return ApiResponse::error('Accès non autorisé', 403);
-            }
 
-            $request->validate([
-                'client_id' => 'required|exists:users,id',
-                'contrat_id' => 'required|exists:contrats,id',
-                'prestataires' => 'required|array',
-                'prestataires.pharmacies' => 'array',
-                'prestataires.centres_soins' => 'array',
-                'prestataires.optiques' => 'array',
-                'prestataires.laboratoires' => 'array',
-                'prestataires.centres_diagnostic' => 'array',
-            ]);
-
-            $client = User::findOrFail($request->client_id);
-            $contrat = Contrat::findOrFail($request->contrat_id);
-
-            // Vérifier que le contrat appartient au client
-            if ($contrat->user_id !== $client->id) {
-                return ApiResponse::error('Ce contrat n\'appartient pas au client spécifié', 400);
-            }
-
-            DB::beginTransaction();
-
-            try {
-                // 1. Créer l'entrée dans la table client_contrat
-                $clientContrat = ClientContrat::create([
-                    'client_id' => $client->id,
-                    'contrat_id' => $contrat->id,
-                    'type_client' => $client->type_demandeur ?? 'physique',
-                    'date_debut' => now(),
-                    'date_fin' => now()->addYear(),
-                    'statut' => 'ACTIF'
-                ]);
-
-                // 2. Assigner les prestataires
-                $prestatairesAssignes = [];
-                foreach ($request->prestataires as $type => $prestataireIds) {
-                    foreach ($prestataireIds as $prestataireId) {
-                        // Vérifier que le prestataire existe
-                        $prestataire = Prestataire::find($prestataireId);
-                        if (!$prestataire) {
-                            throw new \Exception("Prestataire ID {$prestataireId} non trouvé");
-                        }
-
-                        $clientPrestataire = ClientPrestataire::create([
-                            'client_contrat_id' => $clientContrat->id,
-                            'prestataire_id' => $prestataireId,
-                            'type_prestataire' => $type,
-                            'statut' => 'ACTIF'
-                        ]);
-
-                        $prestatairesAssignes[] = [
-                            'id' => $prestataire->id,
-                            'nom' => $prestataire->nom,
-                            'type' => $type,
-                            'adresse' => $prestataire->adresse
-                        ];
-                    }
-                }
-
-                // 3. Notification au client
-                $this->notificationService->createNotification(
-                    $client->id,
-                    'Réseau de prestataires assigné',
-                    "Un réseau de prestataires vous a été assigné. Vous pouvez maintenant vous soigner chez ces prestataires.",
-                    'reseau_assigne',
-                    [
-                        'client_contrat_id' => $clientContrat->id,
-                        'nombre_prestataires' => count($prestatairesAssignes),
-                        'type' => 'reseau_assigne'
-                    ]
-                );
-
-                DB::commit();
-
-                return ApiResponse::success([
-                    'client_contrat_id' => $clientContrat->id,
-                    'prestataires_assignes' => $prestatairesAssignes,
-                    'message' => 'Réseau de prestataires assigné avec succès'
-                ], 'Réseau de prestataires assigné avec succès');
-
-            } catch (\Exception $e) {
-                DB::rollBack();
-                throw $e;
-            }
-
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de l\'assignation du réseau de prestataires', [
-                'error' => $e->getMessage(),
-                'request_data' => $request->all(),
-                'user_id' => Auth::id()
-            ]);
-
-            return ApiResponse::error('Erreur lors de l\'assignation du réseau: ' . $e->getMessage(), 500);
-        }
-    }
 
     /**
      * Récupérer la liste des clients pour le technicien (avec recherche)
@@ -2013,4 +1720,143 @@ class DemandeAdhesionController extends Controller
             return ApiResponse::error('Erreur lors de la récupération des prestataires: ' . $e->getMessage(), 500);
         }
     }
+
+    /**
+     * Récupérer les propositions de contrat d'une demande d'adhésion
+     */
+    public function getPropositionsContrat(int $id)
+    {
+        $demande = DemandeAdhesion::find($id);
+        
+        if (!$demande) {
+            return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
+        }
+
+        $propositions = $demande->propositionsContrat()
+            ->with(['contrat', 'technicien', 'garanties'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return ApiResponse::success(
+            PropositionContratResource::collection($propositions),
+            'Propositions de contrat récupérées avec succès'
+        );
+    }
+
+    /**
+     * Récupérer une proposition de contrat spécifique
+     */
+    public function getPropositionContrat(int $demandeId, int $propositionId)
+    {
+        $demande = DemandeAdhesion::find($demandeId);
+        
+        if (!$demande) {
+            return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
+        }
+
+        $proposition = $demande->propositionsContrat()
+            ->with(['contrat', 'technicien', 'categoriesGaranties.garanties', 'demandeAdhesion.user'])
+            ->find($propositionId);
+
+        if (!$proposition) {
+            return ApiResponse::error('Proposition de contrat non trouvée', 404);
+        }
+
+        return ApiResponse::success(
+            new PropositionContratResource($proposition),
+            'Proposition de contrat récupérée avec succès'
+        );
+    }
+
+    /**
+     * Refuser une proposition de contrat
+     */
+    public function refuserContrat(Request $request, int $propositionId)
+    {
+        try {
+            $user = Auth::user();
+            
+            // Récupérer la proposition
+            $proposition = PropositionContrat::with([
+                'demandeAdhesion.user',
+                'contrat',
+                'technicien.personnel'
+            ])->findOrFail($propositionId);
+
+            // Vérifier que la proposition appartient à l'utilisateur connecté
+            if ($proposition->demandeAdhesion->user_id !== $user->id) {
+                return ApiResponse::error('Accès non autorisé', 403);
+            }
+
+            // Vérifier que la proposition est en statut PROPOSEE
+            if ($proposition->statut !== StatutPropositionContratEnum::PROPOSEE->value) {
+                return ApiResponse::error('Cette proposition a déjà été traitée', 400);
+            }
+
+            DB::beginTransaction();
+
+            try {
+                // 1. Mettre à jour la proposition
+                $proposition->update([
+                    'statut' => StatutPropositionContratEnum::REFUSEE->value,
+                    'raison_refus' => $request->raison_refus,
+                    'date_refus' => now()
+                ]);
+
+                // 2. Mettre à jour la demande d'adhésion (revenir en attente)
+                $proposition->demandeAdhesion->update([
+                    'statut' => StatutDemandeAdhesionEnum::EN_ATTENTE->value
+                ]);
+
+                // 3. Notification au technicien
+                $this->notificationService->createNotification(
+                    $proposition->technicien->user_id,
+                    'Proposition de contrat refusée',
+                    "Le client {$proposition->demandeAdhesion->user->nom} a refusé votre proposition de contrat.",
+                    'contrat_refuse_technicien',
+                    [
+                        'client_nom' => $proposition->demandeAdhesion->user->nom,
+                        'contrat_type' => $proposition->contrat->type_contrat,
+                        'prime' => $proposition->prime_proposee,
+                        'type' => 'contrat_refuse_technicien'
+                    ]
+                );
+
+                // 4. Notification au client
+                $this->notificationService->createNotification(
+                    $user->id,
+                    'Proposition refusée',
+                    "Vous avez refusé la proposition de contrat. Vous pouvez attendre une nouvelle proposition ou contacter le technicien.",
+                    'contrat_refuse',
+                    [
+                        'proposition_id' => $proposition->id,
+                        'contrat_type' => $proposition->contrat->type_contrat,
+                        'prime' => $proposition->prime_proposee,
+                        'type' => 'contrat_refuse'
+                    ]
+                );
+
+                DB::commit();
+
+                return ApiResponse::success([
+                    'proposition_id' => $proposition->id,
+                    'message' => 'Proposition refusée avec succès'
+                ], 'Proposition refusée avec succès');
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Erreur lors du refus du contrat', [
+                'error' => $e->getMessage(),
+                'proposition_id' => $propositionId,
+                'user_id' => Auth::id()
+            ]);
+
+            return ApiResponse::error('Erreur lors du refus du contrat: ' . $e->getMessage(), 500);
+        }
+    }
+
 }

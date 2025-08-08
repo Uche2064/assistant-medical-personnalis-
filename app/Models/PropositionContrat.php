@@ -14,9 +14,6 @@ class PropositionContrat extends Model
     protected $fillable = [
         'demande_adhesion_id',
         'contrat_id',
-        'prime_proposee',
-        'taux_couverture',
-        'frais_gestion',
         'commentaires_technicien',
         'technicien_id',
         'statut',
@@ -30,9 +27,6 @@ class PropositionContrat extends Model
         'date_proposition' => 'datetime',
         'date_acceptation' => 'datetime',
         'date_refus' => 'datetime',
-        'taux_couverture' => 'decimal:2',
-        'frais_gestion' => 'decimal:2',
-        'prime_proposee' => 'decimal:2',
     ];
 
     /**
@@ -73,6 +67,56 @@ class PropositionContrat extends Model
     public function isProposee()
     {
         return $this->statut === StatutPropositionContratEnum::PROPOSEE;
+    }
+
+    /**
+     * Get the prime from the associated contract.
+     */
+    public function getPrimeAttribute()
+    {
+        return $this->contrat->prime_standard ?? 0;
+    }
+
+    /**
+     * Get the formatted prime from the associated contract.
+     */
+    public function getPrimeFormattedAttribute()
+    {
+        return number_format($this->getPrimeAttribute(), 0, ',', ' ') . ' FCFA';
+    }
+
+    /**
+     * Get the taux_couverture from the associated contract (default 80%).
+     */
+    public function getTauxCouvertureAttribute()
+    {
+        return 80; // Valeur par défaut
+    }
+
+    /**
+     * Get the frais_gestion from the associated contract (default 20%).
+     */
+    public function getFraisGestionAttribute()
+    {
+        return 20; // Valeur par défaut
+    }
+
+    /**
+     * Get the total prime with fees.
+     */
+    public function getPrimeTotaleAttribute()
+    {
+        $prime = $this->getPrimeAttribute();
+        $fraisGestion = $this->getFraisGestionAttribute();
+        return $prime + ($prime * $fraisGestion / 100);
+    }
+
+    /**
+     * Get the formatted total prime.
+     */
+    public function getPrimeTotaleFormattedAttribute()
+    {
+        return number_format($this->getPrimeTotaleAttribute(), 0, ',', ' ') . ' FCFA';
     }
 
     /**

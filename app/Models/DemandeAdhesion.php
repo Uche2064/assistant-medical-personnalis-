@@ -100,6 +100,14 @@ class DemandeAdhesion extends Model
     }
 
     /**
+     * Get the propositions de contrat for this demande.
+     */
+    public function propositionsContrat()
+    {
+        return $this->hasMany(PropositionContrat::class, 'demande_adhesion_id');
+    }
+
+    /**
      * Check if demande is pending.
      */
     public function isPending()

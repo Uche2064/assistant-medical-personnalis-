@@ -15,9 +15,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('demande_adhesion_id')->constrained('demandes_adhesions')->onDelete('cascade');
             $table->foreignId('contrat_id')->constrained('contrats')->onDelete('cascade');
-            $table->decimal('prime_proposee', 10, 2);
-            $table->decimal('taux_couverture', 5, 2)->default(80.00);
-            $table->decimal('frais_gestion', 5, 2)->default(20.00);
             $table->text('commentaires_technicien')->nullable();
             $table->foreignId('technicien_id')->constrained('personnels')->onDelete('cascade');
             $table->string('statut')->default('proposee'); // Sera casté vers StatutPropositionContratEnum

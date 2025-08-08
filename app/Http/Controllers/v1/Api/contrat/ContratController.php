@@ -65,7 +65,6 @@ class ContratController extends Controller
             'Liste des contrats récupérée avec succès'
         );
     }
-    
 
     /**
      * Display the specified resource.

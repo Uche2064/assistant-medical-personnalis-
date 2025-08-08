@@ -23,11 +23,8 @@ class ProposerContratRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'contrat_id' => 'required|exists:contrats,id',
-            'prime_proposee' => 'required|numeric|min:0',
+            'type_contrat' => 'required|string',
             'commentaires' => 'nullable|string|max:1000',
-            'taux_couverture' => 'nullable|numeric|min:0|max:100',
-            'frais_gestion' => 'nullable|numeric|min:0|max:100',
         ];
     }
 
@@ -37,18 +34,9 @@ class ProposerContratRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'contrat_id.required' => 'Le contrat sélectionné est requis.',
-            'contrat_id.exists' => 'Le contrat sélectionné n\'existe pas.',
-            'prime_proposee.required' => 'La prime proposée est requise.',
-            'prime_proposee.numeric' => 'La prime proposée doit être un nombre.',
-            'prime_proposee.min' => 'La prime proposée ne peut pas être négative.',
+            'type_contrat.required' => 'Le type de contrat est requis.',
+            'type_contrat.in' => 'Le type de contrat doit être basic, standard, premium ou team.',
             'commentaires.max' => 'Les commentaires ne peuvent pas dépasser 1000 caractères.',
-            'taux_couverture.numeric' => 'Le taux de couverture doit être un nombre.',
-            'taux_couverture.min' => 'Le taux de couverture ne peut pas être négatif.',
-            'taux_couverture.max' => 'Le taux de couverture ne peut pas dépasser 100%.',
-            'frais_gestion.numeric' => 'Les frais de gestion doivent être un nombre.',
-            'frais_gestion.min' => 'Les frais de gestion ne peuvent pas être négatifs.',
-            'frais_gestion.max' => 'Les frais de gestion ne peuvent pas dépasser 100%.',
         ];
     }
 } 
