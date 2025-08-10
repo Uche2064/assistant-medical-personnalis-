@@ -97,10 +97,6 @@ class ContratController extends Controller
             // Récupérer l'utilisateur connecté (technicien)
             $technicien = Auth::user()->personnel;
 
-            if (!$technicien) {
-                throw new \Exception('Utilisateur non autorisé à créer des contrats');
-            }
-
             // Création du contrat
             $contrat = Contrat::create([
                 'type_contrat' => $validatedData['type_contrat'],
@@ -111,6 +107,10 @@ class ContratController extends Controller
                     ->pluck('categorie_garantie_id')
                     ->toArray(),
                 'couverture' => $validatedData['couverture'],
+                'couverture_moyenne' => collect($validatedData['categories_garanties'])
+                    ->pluck('couverture')
+                    ->filter()
+                    ->avg(),
             ]);
 
             // Assignation des catégories de garanties

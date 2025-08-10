@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\v1\Api;
+namespace App\Http\Controllers\v1\Api\statistiques;
 
 use App\Enums\RoleEnum;
 use App\Enums\TypeDemandeurEnum;
@@ -160,94 +160,16 @@ class StatsController extends Controller
     }
 
     /**
-     * Statistiques des clients
-     */
-    private function getClientStats()
-    {
-        return [
-            'total' => Client::count(),
-            
-            'prospects' => Client::where('statut', 'prospect')->count(),
-            
-            'clients' => Client::where('statut', 'client')->count(),
-            
-            'assures' => Client::where('statut', 'assure')->count(),
-            
-            'physiques' => Client::where('type_client', 'physique')->count(),
-            
-            'moraux' => Client::where('type_client', 'moral')->count(),
-            
-            'repartition_par_sexe' => Client::selectRaw('sexe, COUNT(*) as count')
-                ->groupBy('sexe')
-                ->get()
-                ->mapWithKeys(function ($item) {
-                    // CORRECTION: Gérer l'enum sexe
-                    $sexe = $item->sexe;
-                    if (is_object($sexe) && method_exists($sexe, 'value')) {
-                        $sexe = $sexe->value;
-                    }
-                    return [($sexe !== null ? (string) $sexe : 'Non spécifié') => $item->count];
-                }),
-            
-            'repartition_par_profession' => Client::selectRaw('profession, COUNT(*) as count')
-                ->whereNotNull('profession')
-                ->groupBy('profession')
-                ->orderBy('count', 'desc')
-                ->limit(10)
-                ->get()
-                ->mapWithKeys(function ($item) {
-                    return [($item->profession !== null ? (string) $item->profession : 'Non spécifié') => $item->count];
-                }),
-            
-            'repartition_statut_par_type' => Client::selectRaw('type_client, statut, COUNT(*) as count')
-                ->groupBy('type_client', 'statut')
-                ->get()
-                ->groupBy(function ($item) {
-                    // CORRECTION: Gérer l'enum type_client pour le groupBy
-                    $typeClient = $item->type_client;
-                    if (is_object($typeClient) && method_exists($typeClient, 'value')) {
-                        $typeClient = $typeClient->value;
-                    } elseif (is_string($typeClient)) {
-                        $typeClient = $typeClient;
-                    } else {
-                        $typeClient = 'Non spécifié';
-                    }
-                    return $typeClient;
-                })
-                ->map(function ($group) {
-                    return $group->mapWithKeys(function ($item) {
-                        // CORRECTION: Convertir l'enum statut en string si c'est un objet
-                        $statut = $item->statut;
-                        if (is_object($statut) && method_exists($statut, 'value')) {
-                            $statut = $statut->value;
-                        } elseif (is_string($statut)) {
-                            $statut = $statut;
-                        } else {
-                            $statut = 'Non spécifié';
-                        }
-                        return [($statut !== null ? (string) $statut : 'Non spécifié') => $item->count];
-                    });
-                }),
-        ];
-    }
-
-    /**
      * Statistiques des assurés
      */
-    private function getAssureStats()
+    public function getAssureStats()
     {
-        return [
+        $data = [
             'total' => Assure::count(),
             
             'principaux' => Assure::where('est_principal', true)->count(),
             
             'beneficiaires' => Assure::where('est_principal', false)->count(),
-            
-            'actifs' => Assure::where('statut', 'actif')->count(),
-            
-            'inactifs' => Assure::where('statut', 'inactif')->count(),
-            
-            'suspendus' => Assure::where('statut', 'suspendu')->count(),
             
             'repartition_par_sexe' => Assure::selectRaw('sexe, COUNT(*) as count')
                 ->groupBy('sexe')
@@ -258,7 +180,7 @@ class StatsController extends Controller
                     if (is_object($sexe) && method_exists($sexe, 'value')) {
                         $sexe = $sexe->value;
                     }
-                    return [($sexe !== null ? (string) $sexe : 'Non spécifié') => $item->count];
+                    return [($sexe !== null ? $sexe->value : 'Non spécifié') => $item->count];
                 }),
             
             'repartition_par_lien_parente' => Assure::selectRaw('lien_parente, COUNT(*) as count')
@@ -270,19 +192,7 @@ class StatsController extends Controller
                     if (is_object($lienParente) && method_exists($lienParente, 'value')) {
                         $lienParente = $lienParente->value;
                     }
-                    return [($lienParente !== null ? (string) $lienParente : 'Non spécifié') => $item->count];
-                }),
-            
-            'repartition_par_statut' => Assure::selectRaw('statut, COUNT(*) as count')
-                ->groupBy('statut')
-                ->get()
-                ->mapWithKeys(function ($item) {
-                    // CORRECTION: Gérer l'enum statut
-                    $statut = $item->statut;
-                    if (is_object($statut) && method_exists($statut, 'value')) {
-                        $statut = $statut->value;
-                    }
-                    return [($statut !== null ? (string) $statut : 'Non spécifié') => $item->count];
+                    return [($lienParente !== null ? $lienParente->value : 'Non spécifié') => $item->count];
                 }),
             
             'repartition_principaux_beneficiaires' => [
@@ -298,6 +208,7 @@ class StatsController extends Controller
                     return ["Contrat " . ($item->contrat_id !== null ? (string) $item->contrat_id : 'Non spécifié') => $item->count];
                 }),
         ];
+        return ApiResponse::success($data, 'Statistiques des assurés récupérées avec succès');
     }
 
     /**

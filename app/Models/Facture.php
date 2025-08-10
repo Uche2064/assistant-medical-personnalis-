@@ -87,6 +87,14 @@ class Facture extends Model
     }
 
     /**
+     * Get the lignes facture for this facture.
+     */
+    public function lignesFacture()
+    {
+        return $this->hasMany(LigneFacture::class);
+    }
+
+    /**
      * Check if facture is pending.
      */
     public function isPending()

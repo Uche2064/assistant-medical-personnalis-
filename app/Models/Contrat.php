@@ -14,12 +14,18 @@ class Contrat extends Model
         'type_contrat',
         'technicien_id',
         'prime_standard',
+        'frais_gestion',
+        'couverture_moyenne',
+        'couverture',
         'categories_garanties_standard',
         'est_actif',
     ];
 
     protected $casts = [
         'prime_standard' => 'decimal:2',
+        'frais_gestion' => 'decimal:2',
+        'couverture_moyenne' => 'decimal:2',
+        'couverture' => 'decimal:2',
         'est_actif' => 'boolean',
         'categories_garanties_standard' => 'array',
     ];

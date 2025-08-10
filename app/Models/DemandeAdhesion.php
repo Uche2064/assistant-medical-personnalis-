@@ -77,14 +77,7 @@ class DemandeAdhesion extends Model
      */
     public function employes()
     {
-        return $this->hasManyThrough(
-            Assure::class,
-            User::class,
-            'id', // Clé étrangère sur users
-            'user_id', // Clé étrangère sur assures
-            'user_id', // Clé locale sur demandes_adhesions
-            'id' // Clé locale sur users
-        )->where('est_principal', true);
+        return $this->hasMany(Assure::class)->where('est_principal', true)->where('entreprise_id', $this->user->entreprise->id);
     }
 
     /**

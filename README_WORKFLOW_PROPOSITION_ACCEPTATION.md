@@ -102,7 +102,7 @@ POST /api/technicien/assigner-reseau-prestataires
 
 ### **StatutDemandeAdhesionEnum :**
 - `EN_ATTENTE` : Demande soumise, en attente de traitement
-- `EN_PROPOSITION` : Proposition de contrat en cours
+- `PROPOSEE` : Proposition de contrat en cours
 - `ACCEPTEE` : Contrat accepté par le client
 - `VALIDEE` : Demande validée (prestataires uniquement)
 - `REJETEE` : Demande rejetée

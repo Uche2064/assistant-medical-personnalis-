@@ -16,7 +16,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
             $table->string('raison_sociale');
-            $table->string('lien_adhesion')->unique()->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

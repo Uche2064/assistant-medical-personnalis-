@@ -6,6 +6,7 @@ use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
 use App\Enums\TypePrestataireEnum;
 use App\Enums\StatutDemandeAdhesionEnum;
+use App\Enums\StatutPropositionContratEnum;
 use App\Helpers\ApiResponse;
 use App\Helpers\ImageUploadHelper;
 use App\Models\Assure;
@@ -60,11 +61,35 @@ class DemandeAdhesionService
                 'en_attente' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
                 'validee'    => StatutDemandeAdhesionEnum::VALIDEE->value,
                 'rejetee'    => StatutDemandeAdhesionEnum::REJETEE->value,
+                'en_proposition' => StatutDemandeAdhesionEnum::PROPOSEE->value,
+                'acceptee' => StatutDemandeAdhesionEnum::ACCEPTEE->value,
                 default      => null
             });
         }
         
         return $query;
+    }
+
+    public function applySearchFilter($query, $request) {
+        if ($request->filled('search')) {
+            $search = $request->search;
+        
+            $query->where(function ($q) use ($search) {
+                // User (nom/email)
+                $q->whereHas('user', function ($u) use ($search) {
+                    $u->where('email', 'like', "%{$search}%");
+                })
+                // Assuré (nom/prenoms)
+                ->orWhereHas('user.assure', function ($a) use ($search) {
+                    $a->where('nom', 'like', "%{$search}%")
+                      ->orWhere('prenoms', 'like', "%{$search}%");
+                })
+                // Entreprise (raison sociale)
+                ->orWhereHas('user.entreprise', function ($e) use ($search) {
+                    $e->where('raison_sociale', 'like', "%{$search}%");
+                });
+            });
+        }
     }
 
     /**
@@ -245,6 +270,8 @@ class DemandeAdhesionService
             'en_attente' => (clone $query)->where('statut', 'en_attente')->count(),
             'validees' => (clone $query)->where('statut', 'validee')->count(),
             'rejetees' => (clone $query)->where('statut', 'rejetee')->count(),
+            'proposees' => (clone $query)->where('statut', StatutPropositionContratEnum::PROPOSEE->value)->count(),
+            'acceptees' => (clone $query)->where('statut', 'acceptee')->count(),
             'repartition_par_type_demandeur' => (clone $query)->selectRaw('type_demandeur, COUNT(*) as count')
                 ->groupBy('type_demandeur')
                 ->get()

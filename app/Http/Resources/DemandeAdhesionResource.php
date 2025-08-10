@@ -26,7 +26,7 @@ class DemandeAdhesionResource extends JsonResource
             'updated_at' => $this->updated_at,
             'deleted_at' => $this->when($this->deleted_at, $this->deleted_at),
             'nom' => $demandeur->user->assure->nom ?? null,
-            'raison_sociale' => $demandeur->user->entreprise->raison_sociale ?? null,
+            'raison_sociale' => $demandeur->user->entreprise->raison_sociale ?? $demandeur->user->prestataire->raison_sociale ?? null,
             'prenoms' => $demandeur->user->assure->prenoms ?? null,
             'date_naissance' => $demandeur->user->assure->date_naissance ?? null,
             'sexe' => $demandeur->user->assure->sexe ?? null,

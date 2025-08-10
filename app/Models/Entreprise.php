@@ -15,7 +15,6 @@ class Entreprise extends Model
         'user_id',
         'raison_sociale',
         'statut',
-        'lien_adhesion',
     ];
 
     protected $casts = [

@@ -18,7 +18,7 @@ return new class extends Migration
             $table->text('commentaires_technicien')->nullable();
             $table->foreignId('technicien_id')->constrained('personnels')->onDelete('cascade');
             $table->string('statut')->default('proposee'); // Sera casté vers StatutPropositionContratEnum
-            $table->timestamp('date_proposition');
+            $table->timestamp('date_proposition')->default(now());
             $table->timestamp('date_acceptation')->nullable();
             $table->timestamp('date_refus')->nullable();
             $table->timestamps();

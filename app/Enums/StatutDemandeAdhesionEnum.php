@@ -5,7 +5,7 @@ namespace App\Enums;
 enum StatutDemandeAdhesionEnum: string
 {
     case EN_ATTENTE = 'en_attente';
-    case EN_PROPOSITION = 'en_proposition';
+    case PROPOSEE = 'proposee';
     case ACCEPTEE = 'acceptee';
     case VALIDEE = 'validee';
     case REJETEE = 'rejetee';
@@ -19,7 +19,7 @@ enum StatutDemandeAdhesionEnum: string
     {
         return match($this) {
             self::EN_ATTENTE => 'En Attente',
-            self::EN_PROPOSITION => 'En Proposition',
+            self::PROPOSEE => 'Proposée',
             self::ACCEPTEE => 'Acceptée',
             self::VALIDEE => 'Validée',
             self::REJETEE => 'Rejetée',
@@ -30,7 +30,7 @@ enum StatutDemandeAdhesionEnum: string
     {
         return match($this) {
             self::EN_ATTENTE => 'warning',
-            self::EN_PROPOSITION => 'info',
+            self::PROPOSEE => 'info',
             self::ACCEPTEE => 'success',
             self::VALIDEE => 'success',
             self::REJETEE => 'error',

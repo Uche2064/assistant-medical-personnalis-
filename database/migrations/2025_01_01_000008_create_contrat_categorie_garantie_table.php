@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('contrat_categorie_garantie', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('contrat_id')->constrained('contrats')->onDelete('cascade');
-            $table->foreignId('categorie_garantie_id')->constrained('categories_garanties')->onDelete('cascade');
+            $table->foreignId('contrat_id')->nullable()->constrained('contrats')->onDelete('set null');
+            $table->foreignId('categorie_garantie_id')->nullable()->constrained('categories_garanties')->onDelete('set null');
             $table->decimal('couverture', 5, 2);
             $table->timestamps();
             $table->softDeletes();

@@ -8,6 +8,7 @@ use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\BeneficiaireResource;
 use App\Models\Assure;
+use App\Models\ReponseQuestionnaire;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\JsonResponse;
@@ -33,10 +34,14 @@ class BeneficiaireController extends Controller
         }
 
         // Récupérer tous les bénéficiaires (assurés dépendants) de cet assuré principal
-        $beneficiaires = $assurePrincipal->assureEnfants()->with('user')->get();
+        $beneficiaires = Assure::where('assure_principal_id', $assurePrincipal->id)
+            ->where('est_principal', false)
+            ->with(['reponsesQuestionnaire.question'])
+            ->get();
 
         return ApiResponse::success(BeneficiaireResource::collection($beneficiaires), "Bénéficiaires récupérés avec succès");
     }
+
 
     /**
      * Affiche les informations d'un bénéficiaire spécifique.
@@ -110,12 +115,12 @@ class BeneficiaireController extends Controller
         $beneficiaire->client_id = $assurePrincipal->client_id;
         $beneficiaire->assure_parent_id = $assurePrincipal->id;
         $beneficiaire->lien_parente = $request->lien_parente;
-        
+
         // Si un user_id est fourni ou créé, l'associer
         if (isset($newUserId)) {
             $beneficiaire->user_id = $newUserId;
         }
-        
+
         $beneficiaire->save();
 
         // Associer les garanties de l'assuré principal au bénéficiaire si nécessaire
@@ -205,13 +210,21 @@ class BeneficiaireController extends Controller
         }
 
         // Récupérer le bénéficiaire à supprimer et vérifier qu'il appartient bien à cet assuré principal
-        $beneficiaire = $assurePrincipal->assureEnfants()->find($id);
+        $beneficiaire = Assure::where('id', $id)
+            ->where('assure_principal_id', $assurePrincipal->id)
+            ->where('est_principal', false)
+            ->first();
 
         if (!$beneficiaire) {
             return ApiResponse::error('Bénéficiaire non trouvé ou non autorisé', 404);
         }
 
-        // Supprimer le bénéficiaire (utilise soft delete si configuré dans le modèle)
+        // Supprimer les réponses du bénéficiaire
+        ReponseQuestionnaire::where('personne_type', Assure::class)
+            ->where('personne_id', $beneficiaire->id)
+            ->delete();
+
+        // Supprimer le bénéficiaire
         $beneficiaire->delete();
 
         return ApiResponse::success('Bénéficiaire supprimé avec succès');

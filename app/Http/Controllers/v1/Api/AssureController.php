@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\beneficiaire\RegisterBeneficiaireRequest;
 use App\Http\Requests\beneficiaire\UpdateBeneficiaireRequest;
 use App\Http\Resources\BeneficiaireResource;
+use App\Http\Resources\EmployeAssureResource;
 use App\Models\Assure;
 use App\Models\Client;
 use App\Models\Contrat;
@@ -318,10 +319,7 @@ class AssureController extends Controller
     public function dashboard()
     {
         $user = Auth::user();
-        
-        if (!$user->hasRole(RoleEnum::PHYSIQUE->value)) {
-            return ApiResponse::error('Accès non autorisé', 403);
-        }
+
 
         $assure = $user->assure;
         
@@ -373,6 +371,47 @@ class AssureController extends Controller
             'factures_recentes' => $facturesRecentes,
             'beneficiaires' => $beneficiaires,
         ], 'Dashboard assuré récupéré avec succès');
+    }
+
+    /**
+     * Afficher les employés assurés d'une entreprise
+     */
+    public function getEmployeAssure(Request $request)
+    {
+        $user = Auth::user();
+        $entreprise = $user->entreprise;
+
+     
+        $perPage = $request->input('per_page', 10);
+
+        $employes = Assure::query()
+            ->where('entreprise_id', $entreprise->id)
+            ->with(['user', 'contrat'])
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $query->where(function ($q) use ($request) {
+                    $q->where('nom', 'like', '%' . $request->search . '%')
+                      ->orWhere('prenoms', 'like', '%' . $request->search . '%');
+                });
+            })
+            ->when($request->filled('sexe'), function ($query) use ($request) {
+                $query->where('sexe', $request->sexe);
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+
+        $employesCollection = $employes->getCollection();
+
+        $paginatedData = new LengthAwarePaginator(
+            EmployeAssureResource::collection($employesCollection),
+            $employes->total(),
+            $employes->perPage(),
+            $employes->currentPage(),
+            [
+                'path' => Paginator::resolveCurrentPath(),
+            ]
+        );
+
+        return ApiResponse::success($paginatedData, 'Liste des employés assurés récupérée avec succès');
     }
 
 } 

@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Mail\GenericMail;
+use App\Models\DemandeAdhesion;
+use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -56,11 +58,11 @@ class NotificationService
      * @param string $message Le message de la notification.
      * @param string $type Le type de notification.
      * @param array|null $data Les données supplémentaires.
-     * @return \App\Models\Notification
+     * @return Notification
      */
     public function createNotification(int $userId, string $titre, string $message, string $type = 'info', array $data = null)
     {
-        return \App\Models\Notification::create([
+        return Notification::create([
             'user_id' => $userId,
             'type' => $type,
             'titre' => $titre,
@@ -73,10 +75,10 @@ class NotificationService
     /**
      * Envoie un email de confirmation de demande d'adhésion
      *
-     * @param \App\Models\DemandeAdhesion $demande La demande d'adhésion
+     * @param DemandeAdhesion $demande La demande d'adhésion
      * @return void
      */
-    public function sendDemandeAdhesionConfirmation(\App\Models\DemandeAdhesion $demande): void
+    public function sendDemandeAdhesionConfirmation(DemandeAdhesion $demande): void
     {
         $subject = 'Confirmation de votre demande d\'adhésion - SUNU Santé';
         $view = 'emails.demande_adhesion_physique';
@@ -152,10 +154,10 @@ class NotificationService
     /**
      * Notifier les techniciens d'une nouvelle demande d'adhésion
      *
-     * @param \App\Models\DemandeAdhesion $demande La demande d'adhésion
+     * @param DemandeAdhesion $demande La demande d'adhésion
      * @return void
      */
-    public function notifyTechniciensNouvelleDemande(\App\Models\DemandeAdhesion $demande): void
+    public function notifyTechniciensNouvelleDemande(DemandeAdhesion $demande): void
     {
         // Récupérer tous les techniciens
         $techniciens = User::whereHas('roles', function ($query) {
@@ -186,10 +188,10 @@ class NotificationService
     /**
      * Notifier les médecins contrôleurs d'une demande prestataire
      *
-     * @param \App\Models\DemandeAdhesion $demande La demande d'adhésion prestataire
+     * @param DemandeAdhesion $demande La demande d'adhésion prestataire
      * @return void
      */
-    public function notifyMedecinsControleursDemandePrestataire(\App\Models\DemandeAdhesion $demande): void
+    public function notifyMedecinsControleursDemandePrestataire(DemandeAdhesion $demande): void
     {
         // Récupérer tous les médecins contrôleurs
         $medecinsControleurs = User::whereHas('roles', function ($query) {

@@ -5,8 +5,10 @@ namespace App\Http\Controllers\v1\Api\prestataire;
 use App\Enums\StatutDemandeAdhesionEnum;
 use App\Enums\StatutPrestataireEnum;
 use App\Enums\EmailType;
+use App\Enums\TypeDemandeurEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\demande_adhesion\StoreDemandeAdhesionRequest;
 use App\Jobs\SendEmailJob;
 use App\Models\ClientContrat;
 use App\Models\ClientPrestataire;
@@ -15,6 +17,7 @@ use App\Models\DemandeAdhesion;
 use App\Models\Prestataire;
 use App\Models\User;
 use App\Services\DemandeAdhesionService;
+use App\Services\DemandeValidatorService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -24,14 +27,55 @@ use Illuminate\Support\Facades\Log;
 class PrestataireController extends Controller
 {
     protected NotificationService $notificationService;
+    protected DemandeValidatorService $demandeValidatorService;
     protected DemandeAdhesionService $demandeAdhesionService;
 
     public function __construct(
         NotificationService $notificationService,
+        DemandeValidatorService $demandeValidatorService,
         DemandeAdhesionService $demandeAdhesionService
     ) {
         $this->notificationService = $notificationService;
         $this->demandeAdhesionService = $demandeAdhesionService;
+    }
+
+        /**
+     * Soumission d'une demande d'adhésion pour une personne physique
+     */
+    public function storeDemande(StoreDemandeAdhesionRequest $request)
+    {
+        $user = Auth::user();
+        $data = $request->validated();
+        $typeDemandeur = $data['type_demandeur'];
+
+
+        Log::info('Demande d\'adhésion soumise', ['data' => $data]);
+
+        // Vérifier si l'utilisateur a déjà une demande en cours ou validée (optionnel)
+        if ($this->demandeValidatorService->hasPendingDemande($data)) {
+            return ApiResponse::error('Vous avez déjà une demande d\'adhésion en cours de traitement. Veuillez attendre la réponse.', 400);
+        }
+        if ($this->demandeValidatorService->hasValidatedDemande($data)) {
+            return ApiResponse::error('Vous avez déjà une demande d\'adhésion validée. Vous ne pouvez plus soumettre une nouvelle demande.', 400);
+        }
+
+        DB::beginTransaction();
+        try {
+           if($typeDemandeur === TypeDemandeurEnum::PHYSIQUE->value || $typeDemandeur === TypeDemandeurEnum::ENTREPRISE->value){
+            $demande = $this->demandeValidatorService->createDemandeAdhesionPhysique($data, $user);
+           }else{
+            $demande = $this->demandeValidatorService->createDemandeAdhesionPrestataire($data, $user);
+           }
+
+            // Notifier selon le type de demandeur via le service
+            $this->demandeAdhesionService->notifyByDemandeurType($demande, $typeDemandeur);
+
+            DB::commit();
+            return ApiResponse::success(null, 'Demande d\'adhésion soumise avec succès.', 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ApiResponse::error('Erreur lors de la soumission de la demande d\'adhésion : ' . $e->getMessage(), 500);
+        }
     }
 
     /**
@@ -79,112 +123,6 @@ class PrestataireController extends Controller
             ]);
 
             return ApiResponse::error('Erreur lors de la validation de la demande: ' . $e->getMessage(), 500);
-        }
-    }
-
-    /**
-     * Assigner un réseau de prestataires à un client
-     */
-    public function assignerReseauPrestataires(Request $request)
-    {
-        try {
-            // Vérifier que l'utilisateur est un technicien
-            if (!Auth::user()->hasRole('technicien')) {
-                return ApiResponse::error('Accès non autorisé', 403);
-            }
-
-            $request->validate([
-                'client_id' => 'required|exists:users,id',
-                'contrat_id' => 'required|exists:contrats,id',
-                'prestataires' => 'required|array',
-                'prestataires.pharmacies' => 'array',
-                'prestataires.centres_soins' => 'array',
-                'prestataires.optiques' => 'array',
-                'prestataires.laboratoires' => 'array',
-                'prestataires.centres_diagnostic' => 'array',
-            ]);
-
-            $client = User::findOrFail($request->client_id);
-            $contrat = Contrat::findOrFail($request->contrat_id);
-
-            // Vérifier que le contrat appartient au client
-            if ($contrat->user_id !== $client->id) {
-                return ApiResponse::error('Ce contrat n\'appartient pas au client spécifié', 400);
-            }
-
-            DB::beginTransaction();
-
-            try {
-                // 1. Créer l'entrée dans la table client_contrat
-                $clientContrat = ClientContrat::create([
-                    'client_id' => $client->id,
-                    'contrat_id' => $contrat->id,
-                    'type_client' => $client->type_demandeur ?? 'physique',
-                    'date_debut' => now(),
-                    'date_fin' => now()->addYear(),
-                    'statut' => 'ACTIF'
-                ]);
-
-                // 2. Assigner les prestataires
-                $prestatairesAssignes = [];
-                foreach ($request->prestataires as $type => $prestataireIds) {
-                    foreach ($prestataireIds as $prestataireId) {
-                        // Vérifier que le prestataire existe
-                        $prestataire = Prestataire::find($prestataireId);
-                        if (!$prestataire) {
-                            throw new \Exception("Prestataire ID {$prestataireId} non trouvé");
-                        }
-
-                        $clientPrestataire = ClientPrestataire::create([
-                            'client_contrat_id' => $clientContrat->id,
-                            'prestataire_id' => $prestataireId,
-                            'type_prestataire' => $type,
-                            'statut' => 'ACTIF'
-                        ]);
-
-                        $prestatairesAssignes[] = [
-                            'id' => $prestataire->id,
-                            'nom' => $prestataire->nom,
-                            'type' => $type,
-                            'adresse' => $prestataire->adresse
-                        ];
-                    }
-                }
-
-                // 3. Notification au client
-                $this->notificationService->createNotification(
-                    $client->id,
-                    'Réseau de prestataires assigné',
-                    "Un réseau de prestataires vous a été assigné. Vous pouvez maintenant vous soigner chez ces prestataires.",
-                    'reseau_assigne',
-                    [
-                        'client_contrat_id' => $clientContrat->id,
-                        'nombre_prestataires' => count($prestatairesAssignes),
-                        'type' => 'reseau_assigne'
-                    ]
-                );
-
-                DB::commit();
-
-                return ApiResponse::success([
-                    'client_contrat_id' => $clientContrat->id,
-                    'prestataires_assignes' => $prestatairesAssignes,
-                    'message' => 'Réseau de prestataires assigné avec succès'
-                ], 'Réseau de prestataires assigné avec succès');
-
-            } catch (\Exception $e) {
-                DB::rollBack();
-                throw $e;
-            }
-
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de l\'assignation du réseau de prestataires', [
-                'error' => $e->getMessage(),
-                'request_data' => $request->all(),
-                'user_id' => Auth::id()
-            ]);
-
-            return ApiResponse::error('Erreur lors de l\'assignation du réseau: ' . $e->getMessage(), 500);
         }
     }
 

@@ -17,7 +17,6 @@ class PropositionContrat extends Model
         'commentaires_technicien',
         'technicien_id',
         'statut',
-        'date_proposition',
         'date_acceptation',
         'date_refus',
     ];

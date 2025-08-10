@@ -4,210 +4,180 @@ namespace App\Http\Controllers\v1\Api\client;
 
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\StatutDemandeAdhesionEnum;
+use App\Enums\StatutPropositionContratEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\DemandeAdhesion;
+use App\Models\PropositionContrat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\Validator;
 
 class ClientController extends Controller
 {
+    private $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
+    
     /**
-     * Récupérer la liste des clients pour le technicien (avec recherche)
+     * Récupérer les contrats proposés pour un client
      */
-    public function getClientsTechnicien(Request $request)
+    public function getContratsProposes()
     {
         try {
-            // Vérifier que l'utilisateur est un technicien
-            if (!Auth::user()->hasRole('technicien')) {
-                return ApiResponse::error('Accès non autorisé', 403);
-            }
+            $user = Auth::user();
+            
+            // Récupérer les propositions de contrats pour ce client
+            $propositions = PropositionContrat::with([
+                'demandeAdhesion.user.entreprise',
+                'demandeAdhesion.user.assure',
+                'contrat.categoriesGaranties.garanties',
+            ])
+            ->whereHas('demandeAdhesion', function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+            ->where('statut', StatutPropositionContratEnum::PROPOSEE->value)
+            ->get();
 
-            $query = DemandeAdhesion::with(['user', 'user.assure', 'user.entreprise'])
-                ->whereIn('type_demandeur', [TypeDemandeurEnum::PHYSIQUE->value, TypeDemandeurEnum::ENTREPRISE->value])
-                ->whereIn('statut', [
-                    StatutDemandeAdhesionEnum::EN_ATTENTE->value,
-                    StatutDemandeAdhesionEnum::EN_PROPOSITION->value,
-                    StatutDemandeAdhesionEnum::ACCEPTEE->value
-                ]);
+            $contratsProposes = $propositions->map(function ($proposition) {
+                // Grouper les garanties par catégorie
+                $categoriesGaranties = $proposition->contrat->categoriesGaranties->groupBy('categorie_garantie_id')
+                    ->map(function ($garanties, $categorieId) {
+                        $categorie = $garanties->first()->categorieGarantie;
+                        $garantiesList = $garanties->pluck('nom')->implode(', ');
+                        
+                        return [
+                            'libelle' => $categorie->libelle,
+                            'garanties' => $garantiesList
+                        ];
+                    })->values();
 
-            // Recherche par nom ou email
-            if ($request->has('search') && $request->search) {
-                $search = $request->search;
-                $query->whereHas('user', function ($q) use ($search) {
-                    $q->where('nom', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
-                });
-            }
-
-            $demandes = $query->get()->map(function ($demande) {
                 return [
-                    'id' => $demande->id,
-                    'client_id' => $demande->user->id,
-                    'nom' => $demande->user->nom ?? $demande->user->name,
-                    'email' => $demande->user->email,
-                    'type_demandeur' => $demande->type_demandeur?->value ?? $demande->type_demandeur,
-                    'statut' => $demande->statut?->value ?? $demande->statut,
-                    'date_soumission' => $demande->created_at->format('Y-m-d'),
-                    'duree_attente' => $demande->created_at->diffForHumans()
+                    'proposition_id' => $proposition->id,
+                    'contrat' => [
+                        'id' => $proposition->contrat->id,
+                        'nom' => $proposition->contrat->nom,
+                        'type_contrat' => $proposition->contrat->type_contrat,
+                        'description' => $proposition->contrat->description
+                    ],
+                    'details_proposition' => [
+                        'prime_proposee' => $proposition->contrat->prime_standard,
+                        'taux_couverture' => $proposition->contrat->taux_couverture,
+                        'frais_gestion' => $proposition->contrat->frais_gestion,
+                        'commentaires_technicien' => $proposition->commentaires_technicien,
+                        'date_proposition' => $proposition->date_proposition
+                    ],
+                    'categories_garanties' => $categoriesGaranties,
+                    'statut' => $proposition->statut?->value ?? $proposition->statut
                 ];
             });
 
-            return ApiResponse::success($demandes, 'Liste des clients récupérée avec succès');
+            return ApiResponse::success($contratsProposes, 'Contrats proposés récupérés avec succès');
 
         } catch (\Exception $e) {
-            Log::error('Erreur lors de la récupération des clients', [
+            Log::error('Erreur lors de la récupération des contrats proposés', [
                 'error' => $e->getMessage(),
                 'user_id' => Auth::id()
             ]);
 
-            return ApiResponse::error('Erreur lors de la récupération des clients: ' . $e->getMessage(), 500);
+            return ApiResponse::error('Erreur lors de la récupération des contrats proposés: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Récupérer les statistiques des clients pour le technicien
+
+     /**
+     * Refuser une proposition de contrat
      */
-    public function getStatistiquesClients()
+    public function refuserContrat(Request $request, int $propositionId)
     {
-        try {
-            // Vérifier que l'utilisateur est un technicien
-            if (!Auth::user()->hasRole('technicien')) {
-                return ApiResponse::error('Accès non autorisé', 403);
-            }
+        $validatedData = Validator::make($request->all(), [
+            'raison_refus' => 'required|string|max:1000',
+        ]);
 
-            $totalClients = DemandeAdhesion::whereIn('type_demandeur', [
-                TypeDemandeurEnum::PHYSIQUE->value, 
-                TypeDemandeurEnum::ENTREPRISE->value
-            ])->count();
-
-            $clientsEnAttente = DemandeAdhesion::whereIn('type_demandeur', [
-                TypeDemandeurEnum::PHYSIQUE->value, 
-                TypeDemandeurEnum::ENTREPRISE->value
-            ])->where('statut', StatutDemandeAdhesionEnum::EN_ATTENTE->value)->count();
-
-            $clientsEnProposition = DemandeAdhesion::whereIn('type_demandeur', [
-                TypeDemandeurEnum::PHYSIQUE->value, 
-                TypeDemandeurEnum::ENTREPRISE->value
-            ])->where('statut', StatutDemandeAdhesionEnum::EN_PROPOSITION->value)->count();
-
-            $clientsAcceptes = DemandeAdhesion::whereIn('type_demandeur', [
-                TypeDemandeurEnum::PHYSIQUE->value, 
-                TypeDemandeurEnum::ENTREPRISE->value
-            ])->where('statut', StatutDemandeAdhesionEnum::ACCEPTEE->value)->count();
-
-            $repartitionParType = [
-                'physique' => DemandeAdhesion::where('type_demandeur', TypeDemandeurEnum::PHYSIQUE->value)->count(),
-                'entreprise' => DemandeAdhesion::where('type_demandeur', TypeDemandeurEnum::ENTREPRISE->value)->count(),
-            ];
-
-            $statistiques = [
-                'total_clients' => $totalClients,
-                'clients_en_attente' => $clientsEnAttente,
-                'clients_en_proposition' => $clientsEnProposition,
-                'clients_acceptes' => $clientsAcceptes,
-                'repartition_par_type' => $repartitionParType,
-                'taux_acceptation' => $totalClients > 0 ? round(($clientsAcceptes / $totalClients) * 100, 2) : 0
-            ];
-
-            return ApiResponse::success($statistiques, 'Statistiques des clients récupérées avec succès');
-
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de la récupération des statistiques des clients', [
-                'error' => $e->getMessage(),
-                'user_id' => Auth::id()
-            ]);
-
-            return ApiResponse::error('Erreur lors de la récupération des statistiques: ' . $e->getMessage(), 500);
+        if($validatedData->fails()) {
+            return ApiResponse::error('Erreur de validation: ' . $validatedData->errors()->first(), 422);
         }
-    }
 
-    /**
-     * Récupérer les détails d'un client spécifique
-     */
-    public function show(int $id)
-    {
         try {
-            // Vérifier que l'utilisateur est un technicien
-            if (!Auth::user()->hasRole('technicien')) {
+            $user = Auth::user();
+            
+            // Récupérer la proposition
+            $proposition = PropositionContrat::with([
+                'demandeAdhesion.user',
+                'contrat',
+                'technicien.personnel'
+            ])->find($propositionId);
+
+            if(!$proposition) {
+                return ApiResponse::error('Proposition de contrat non trouvée', 404);
+            }
+
+            // Vérifier que la proposition appartient à l'utilisateur connecté
+            if ($proposition->demandeAdhesion->user_id !== $user->id) {
                 return ApiResponse::error('Accès non autorisé', 403);
             }
 
-            $demande = DemandeAdhesion::with([
-                'user', 
-                'user.assure', 
-                'user.entreprise',
-                'reponsesQuestionnaire.question'
-            ])->find($id);
-
-            if (!$demande) {
-                return ApiResponse::error('Client non trouvé', 404);
+            // Vérifier que la proposition est en statut PROPOSEE
+            if ($proposition->statut !== StatutPropositionContratEnum::PROPOSEE->value) {
+                return ApiResponse::error('Cette proposition a déjà été traitée', 400);
             }
 
-            // Vérifier que c'est bien un client (physique ou entreprise)
-            if (!in_array($demande->type_demandeur, [
-                TypeDemandeurEnum::PHYSIQUE->value, 
-                TypeDemandeurEnum::ENTREPRISE->value
-            ])) {
-                return ApiResponse::error('Ce n\'est pas un client valide', 400);
+            DB::beginTransaction();
+
+            try {
+                // 1. Mettre à jour la proposition
+                $proposition->update([
+                    'statut' => StatutPropositionContratEnum::REFUSEE->value,
+                    'raison_refus' => $request->raison_refus,
+                    'date_refus' => now()
+                ]);
+
+                // 2. Mettre à jour la demande d'adhésion (revenir en attente)
+                $proposition->demandeAdhesion->update([
+                    'statut' => StatutDemandeAdhesionEnum::EN_ATTENTE->value
+                ]);
+
+                // 3. Notification au technicien
+                $this->notificationService->createNotification(
+                    $proposition->technicien->personnel->user_id,
+                    'Proposition de contrat refusée',
+                    "Le client {$proposition->demandeAdhesion->user->assure->nom} a refusé votre proposition de contrat.",
+                    'contrat_refuse_technicien',
+                    [
+                        'client_nom' => $proposition->demandeAdhesion->user->nom,
+                        'contrat_type' => $proposition->contrat->type_contrat,
+                        'prime' => $proposition->prime_proposee,
+                        'type' => 'contrat_refuse_technicien'
+                    ]
+                );
+
+                DB::commit();
+
+                return ApiResponse::success([
+                    'proposition_id' => $proposition->id,
+                    'message' => 'Proposition refusée avec succès'
+                ], 'Proposition refusée avec succès');
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
             }
-
-            $clientData = [
-                'id' => $demande->id,
-                'client_id' => $demande->user->id,
-                'nom' => $demande->user->nom ?? $demande->user->name,
-                'email' => $demande->user->email,
-                'contact' => $demande->user->contact,
-                'adresse' => $demande->user->adresse,
-                'type_demandeur' => $demande->type_demandeur?->value ?? $demande->type_demandeur,
-                'statut' => $demande->statut?->value ?? $demande->statut,
-                'date_soumission' => $demande->created_at,
-                'date_mise_a_jour' => $demande->updated_at,
-                'duree_attente' => $demande->created_at->diffForHumans(),
-                'reponses_questionnaire' => $demande->reponsesQuestionnaire->map(function ($reponse) {
-                    return [
-                        'question_id' => $reponse->question_id,
-                        'question_libelle' => $reponse->question->libelle,
-                        'reponse_text' => $reponse->reponse_text,
-                        'reponse_number' => $reponse->reponse_number,
-                        'reponse_bool' => $reponse->reponse_bool,
-                        'reponse_date' => $reponse->reponse_date,
-                        'reponse_fichier' => $reponse->reponse_fichier,
-                    ];
-                })
-            ];
-
-            // Ajouter les données spécifiques selon le type
-            if ($demande->type_demandeur === TypeDemandeurEnum::PHYSIQUE->value) {
-                $clientData['assure'] = $demande->user->assure ? [
-                    'id' => $demande->user->assure->id,
-                    'nom' => $demande->user->assure->nom,
-                    'prenoms' => $demande->user->assure->prenoms,
-                    'date_naissance' => $demande->user->assure->date_naissance,
-                    'sexe' => $demande->user->assure->sexe,
-                    'profession' => $demande->user->assure->profession,
-                    'photo_url' => $demande->user->assure->photo_url,
-                ] : null;
-            } elseif ($demande->type_demandeur === TypeDemandeurEnum::ENTREPRISE->value) {
-                $clientData['entreprise'] = $demande->user->entreprise ? [
-                    'id' => $demande->user->entreprise->id,
-                    'raison_sociale' => $demande->user->entreprise->raison_sociale,
-                    'nombre_employe' => $demande->user->entreprise->nombre_employe,
-                    'secteur_activite' => $demande->user->entreprise->secteur_activite,
-                ] : null;
-            }
-
-            return ApiResponse::success($clientData, 'Détails du client récupérés avec succès');
 
         } catch (\Exception $e) {
-            Log::error('Erreur lors de la récupération du client', [
+            Log::error('Erreur lors du refus du contrat', [
                 'error' => $e->getMessage(),
-                'client_id' => $id,
+                'proposition_id' => $propositionId,
                 'user_id' => Auth::id()
             ]);
 
-            return ApiResponse::error('Erreur lors de la récupération du client: ' . $e->getMessage(), 500);
+            return ApiResponse::error('Erreur lors du refus du contrat: ' . $e->getMessage(), 500);
         }
     }
 } 

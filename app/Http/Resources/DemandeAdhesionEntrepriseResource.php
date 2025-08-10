@@ -34,14 +34,6 @@ class DemandeAdhesionEntrepriseResource extends JsonResource
                     'statut' => $employe->statut ?? null,
                 ];
             }),
-            'notifications' => $this->notifications->map(function ($notif) {
-                return [
-                    'id' => $notif->id,
-                    'type' => $notif->type,
-                    'message' => $notif->message,
-                    'created_at' => $notif->created_at,
-                ];
-            }),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

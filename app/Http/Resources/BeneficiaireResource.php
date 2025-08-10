@@ -28,6 +28,18 @@ class BeneficiaireResource extends JsonResource
             'assure_principal_id' => $this->assure_principal_id,
             'contrat_id' => $this->contrat_id,
             'adresse' => $this->adresse,
+            'reponses_questionnaire' => $this->reponsesQuestionnaire->map(function ($reponse) {
+                return [
+                    'question_id' => $reponse->question_id,
+                    'question_libelle' => $reponse->question->libelle,
+                    'type_donnee' => $reponse->question->type_donnee,
+                    'reponse_text' => $reponse->reponse_text,
+                    'reponse_number' => $reponse->reponse_number,
+                    'reponse_bool' => $reponse->reponse_bool,
+                    'reponse_date' => $reponse->reponse_date,
+                    'reponse_fichier' => $reponse->reponse_fichier,
+                ];
+            }),
         ];
     }
 }

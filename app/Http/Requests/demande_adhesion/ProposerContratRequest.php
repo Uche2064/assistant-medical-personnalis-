@@ -23,8 +23,8 @@ class ProposerContratRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type_contrat' => 'required|string',
-            'commentaires' => 'nullable|string|max:1000',
+            'contrat_id' => 'required|exists:contrats,id',
+            'commentaires_technicien' => 'nullable|string|max:1000',
         ];
     }
 
@@ -34,9 +34,12 @@ class ProposerContratRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'type_contrat.required' => 'Le type de contrat est requis.',
-            'type_contrat.in' => 'Le type de contrat doit être basic, standard, premium ou team.',
-            'commentaires.max' => 'Les commentaires ne peuvent pas dépasser 1000 caractères.',
+            'contrat_id.required' => 'Le contrat est requis.',
+            'contrat_id.exists' => 'Le contrat n\'existe pas.',
+            'commentaires_technicien.max' => 'Les commentaires ne peuvent pas dépasser 1000 caractères.',
+            'pourcentage_gestion.numeric' => 'Le pourcentage de gestion doit être un nombre.',
+            'pourcentage_gestion.min' => 'Le pourcentage de gestion doit être supérieur à 0.',
+            'pourcentage_gestion.max' => 'Le pourcentage de gestion doit être inférieur à 100.',
         ];
     }
 } 
