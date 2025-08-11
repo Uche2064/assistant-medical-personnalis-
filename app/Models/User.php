@@ -2,39 +2,34 @@
 
 namespace App\Models;
 
-use App\Enums\SexeEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
+use Tymon\JWTAuth\Contracts\JWTSubject;
 
-class User extends Authenticatable
+class User extends Authenticatable implements JWTSubject
 {
-    use HasFactory, Notifiable, HasApiTokens, SoftDeletes, HasRoles;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
      */
-
-    protected $table = "users";
     protected $fillable = [
-        'nom',
-        'prenoms',
-        'username',
         'email',
         'contact',
-        'adresse',
-        'sexe',
-        'date_naissance',
-        'est_actif',
         'password',
+        'adresse',
         'photo',
-        'must_change_password',
+        'est_actif',
+        'email_verified_at',
+        'mot_de_passe_a_changer',
     ];
 
     /**
@@ -48,51 +43,113 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * The attributes that should be cast.
      *
-     * @return array<string, string>
+     * @var array<string, string>
      */
-    protected function casts(): array
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'est_actif' => 'boolean',
+        'mot_de_passe_a_changer' => 'boolean',
+    ];
+
+
+    /**
+     * Get the identifier that will be stored in the subject claim of the JWT.
+     */
+    public function getJWTIdentifier()
+    {
+        return $this->getKey();
+    }
+
+    /**
+     * Get the JWT custom claims for the user.
+     */
+    public function getJWTCustomClaims()
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'date_naissance' => 'date',
-            'adresse' => 'array',
-            'sexe' => SexeEnum::class,
-            'est_actif' => 'boolean',
-            'must_change_password' => 'boolean'
+            'user_type' => $this->getUserTypeAttribute(),
+            'email' => $this->email,
+            'user_id' => $this->id,
         ];
     }
 
-    /**
-     * Get the role that owns the user.
-     */
     public function role()
     {
-        return $this->belongsTo(Role::class);
+        return $this->belongsTo(Role::class, 'role_id');
     }
 
     /**
-     * Get the OTPs for the user.
+     * Get the personnel record associated with the user.
      */
-    public function otps()
+    public function personnel()
     {
-        return $this->hasMany(Otp::class);
+        return $this->hasOne(Personnel::class);
     }
-
-    static function genererMotDePasse($longueur = 8)
-    {
-        return substr(bin2hex(random_bytes($longueur)), 0, $longueur);
-    }
-
 
     /**
-     * Get the conversations for the user.
+     * Get the entreprise record associated with the user.
+     */
+    public function entreprise()
+    {
+        return $this->hasOne(Entreprise::class);
+    }
+
+    /**
+     * Get the assure record associated with the user.
+     */
+    public function assure()
+    {
+        return $this->hasOne(Assure::class);
+    }
+
+    /**
+     * Get the prestataire record associated with the user.
+     */
+    public function prestataire()
+    {
+        return $this->hasOne(Prestataire::class);
+    }
+
+    /**
+     * Get the demandes d'adhésion associated with the user.
+     */
+    public function demandes()
+    {
+        return $this->hasMany(DemandeAdhesion::class);
+    }
+
+    /**
+     * Get the notifications for the user.
+     */
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    /**
+     * Get the conversations where the user is participant 1.
+     */
+    public function conversationsAsUser1()
+    {
+        return $this->hasMany(Conversation::class, 'user_id_1');
+    }
+
+    /**
+     * Get the conversations where the user is participant 2.
+     */
+    public function conversationsAsUser2()
+    {
+        return $this->hasMany(Conversation::class, 'user_id_2');
+    }
+
+    /**
+     * Get all conversations for the user.
      */
     public function conversations()
     {
-        return $this->hasMany(Conversation::class);
+        return $this->conversationsAsUser1()->union($this->conversationsAsUser2());
     }
 
     /**
@@ -104,42 +161,50 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user is active
+     * Check if user has a specific role
      */
-    public function isActive(): bool
+    public function hasRole($role)
     {
-        return $this->est_actif;
+        return $this->roles()->where('name', $role)->exists();
     }
 
     /**
-     * Scope to get only active users
+     * Get the user's full name
      */
-    public function scopeActive($query)
+    public function getFullNameAttribute()
     {
-        return $query->where('est_actif', true);
+        if ($this->personnel) {
+            return $this->personnel->nom . ' ' . $this->personnel->prenoms;
+        }
+        
+        if ($this->entreprise) {
+            return $this->entreprise->raison_sociale;
+        }
+        
+        return $this->email;
     }
 
-    public function client()
+    /**
+     * Get the user's type
+     */
+    public function getUserTypeAttribute()
     {
-        return $this->hasOne(Client::class, 'user_id');
+        if ($this->personnel) return 'personnel';
+        if ($this->client) return 'client';
+        if ($this->entreprise) return 'entreprise';
+        if ($this->assure) return 'assure';
+        if ($this->prestataire) return 'prestataire';
+        if($this->prestataire) return 'prestataire';
+        
+        
+        return 'user';
     }
 
-     public function assure()
+    /**
+     * Generate a random password
+     */
+    public static function genererMotDePasse()
     {
-        return $this->hasOne(Assure::class, 'user_id');
-    }
-
-    public function personnel()
-    {
-        return $this->hasOne(Personnel::class, 'user_id');
-    }
-
-    public function gestionnaire() {
-        return $this->hasOne(Gestionnaire::class, 'user_id');
-    }
-
-    public function prestataire()
-    {
-        return $this->hasOne(Prestataire::class, 'user_id');
+        return Str::random(8);
     }
 }

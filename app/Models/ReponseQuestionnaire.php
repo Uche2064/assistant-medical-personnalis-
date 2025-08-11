@@ -10,20 +10,26 @@ class ReponseQuestionnaire extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $table = 'reponses_questionnaire';
+
     protected $fillable = [
         'question_id',
-        'demande_adhesion_id',
-        'reponse',
-        'est_valide'
+        'personne_type',
+        'personne_id',
+        'reponse_text',
+        'reponse_bool',
+        'reponse_decimal',
+        'reponse_date',
+        'reponse_fichier',
+        '',
+        'demande_adhesion_id'
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'reponse' => 'json',
-            'est_valide' => 'boolean'
-        ];
-    }
+    protected $casts = [
+        'reponse_bool' => 'boolean',
+        'reponse_decimal' => 'decimal:2',
+        'reponse_date' => 'date',
+    ];
 
     /**
      * Get the question that owns the reponse.
@@ -34,42 +40,57 @@ class ReponseQuestionnaire extends Model
     }
 
     /**
-     * Get the demande adhesion that owns the reponse.
+     * Get the polymorphic personne relationship.
      */
-    public function demandeAdhesion()
+    public function personne()
     {
-        return $this->belongsTo(DemandeAdhesion::class);
+        return $this->morphTo();
     }
 
     /**
-     * Get the response value based on question type.
+     * Get the reponse value based on the question type.
      */
-    public function getFormattedReponse()
+    public function getReponseValueAttribute()
     {
-        if (!$this->question) {
-            return $this->reponse;
-        }
-
-        switch ($this->question->type_donnees) {
+        switch ($this->question->type_donnee) {
+            case 'text':
+                return $this->reponse_text;
+            case 'number':
+                return $this->reponse_decimal;
+            case 'boolean':
+                return $this->reponse_bool;
             case 'date':
-                return is_string($this->reponse) ? \Carbon\Carbon::parse($this->reponse) : $this->reponse;
-            case 'bool':
-                return (bool) $this->reponse;
-            case 'nombre':
-                return is_numeric($this->reponse) ? (float) $this->reponse : $this->reponse;
-            case 'fichier':
-                return is_array($this->reponse) ? $this->reponse : [$this->reponse];
+                return $this->reponse_date;
+            case 'file':
+                return $this->reponse_fichier;
             default:
-                return $this->reponse;
+                return $this->reponse_text;
         }
     }
 
     /**
-     * Check if response is empty.
+     * Set the reponse value based on the question type.
      */
-    public function isEmpty(): bool
+    public function setReponseValueAttribute($value)
     {
-        return empty($this->reponse) || 
-               (is_array($this->reponse) && empty(array_filter($this->reponse)));
+        switch ($this->question->type_donnee) {
+            case 'text':
+                $this->reponse_text = $value;
+                break;
+            case 'number':
+                $this->reponse_decimal = $value;
+                break;
+            case 'boolean':
+                $this->reponse_bool = $value;
+                break;
+            case 'date':
+                $this->reponse_date = $value;
+                break;
+            case 'file':
+                $this->reponse_fichier = $value;
+                break;
+            default:
+                $this->reponse_text = $value;
+        }
     }
-}
+} 

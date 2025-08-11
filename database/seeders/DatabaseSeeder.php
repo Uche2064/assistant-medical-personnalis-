@@ -17,7 +17,14 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             RoleSeeder::class,
-            AdminSeeder::class
+            AdminSeeder::class,
+            GestionnaireSeeder::class,
+            PersonnelSeeder::class,
+            ProspectPhysiqueMedicalQuestionSeeder::class,
+            PrestataireMedicalQuestionSeeder::class,
+            CategorieGarantieSeeder::class,
+            GarantieSeeder::class,
+            ContratSeeder::class,
         ]); 
     }
 }

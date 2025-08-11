@@ -9,15 +9,11 @@ use Symfony\Component\HttpFoundation\Response;
 
 class VerifyApiKey
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
     public function handle(Request $request, Closure $next): Response
     {
-        $apiKey = $request->header('X-API-KEY');
+        $apiKey = $request->header('x-api-key');
         $validApiKey = env('API_KEY');
+
         if (!$apiKey || $apiKey !== $validApiKey) {
             return ApiResponse::error('Clef API invalide', 401);
         }

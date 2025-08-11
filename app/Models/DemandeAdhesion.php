@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use App\Enums\StatutValidationEnum;
-use App\Enums\TypeDemandeurEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Enums\StatutDemandeAdhesionEnum;
+use App\Enums\TypeDemandeurEnum;
 
 class DemandeAdhesion extends Model
 {
@@ -15,97 +15,143 @@ class DemandeAdhesion extends Model
     protected $table = 'demandes_adhesions';
 
     protected $fillable = [
-        'nom',
-        'raison_sociale',
-        'prenoms',
-        'email',
-        'contact',
-        'type_demande',
+        'user_id',
+        'type_demandeur',
         'statut',
+        'motif_rejet',
         'valide_par_id',
-        'fait_par',
-        'valider_a'
+        'code_parainage',
+        'valider_a',
     ];
 
-    protected function casts(): array
+    protected $casts = [
+        'valider_a' => 'datetime',
+        'statut' => StatutDemandeAdhesionEnum::class,
+        'type_demandeur' => TypeDemandeurEnum::class,
+    ];
+
+    /**
+     * Get the user that owns the demande adhesion.
+     */
+    public function user()
     {
-        return [
-            'type_demande' => TypeDemandeurEnum::class,
-            'statut' => StatutValidationEnum::class,
-            'valider_a' => 'datetime',
-        ];
+        return $this->belongsTo(User::class);
     }
 
-  
+
+    /**
+     * Get the personnel that validated this demande.
+     */
     public function validePar()
     {
         return $this->belongsTo(Personnel::class, 'valide_par_id');
     }
 
-    
-    public function faitPar()
-    {
-        return $this->belongsTo(Personnel::class, 'fait_par');
-    }
-
-   
+    /**
+     * Get the reponses questionnaire for this demande.
+     */
     public function reponsesQuestionnaire()
     {
-        return $this->hasMany(ReponseQuestionnaire::class);
+        // Pour l'assuré principal
+        return $this->hasMany(ReponseQuestionnaire::class, 'personne_id', 'user_id');
     }
 
-   
-    public function isPending(): bool
+
+    /**
+     * Get the assures (employees) associated with this demande
+     */
+    public function assures()
     {
-        return $this->statut === StatutValidationEnum::EN_ATTENTE;
+        return $this->hasManyThrough(
+            Assure::class,
+            User::class,
+            'id', // Clé étrangère sur users
+            'user_id', // Clé étrangère sur assures
+            'user_id', // Clé locale sur demandes_adhesions
+            'id' // Clé locale sur users
+        );
     }
 
- 
-    public function isValidated(): bool
+    /**
+     * Get the employes (assures principaux) associated with this demande
+     */
+    public function employes()
     {
-        return $this->statut === StatutValidationEnum::VALIDE;
+        return $this->hasMany(Assure::class)->where('est_principal', true)->where('entreprise_id', $this->user->entreprise->id);
     }
 
-    public function isRejected(): bool
+    /**
+     * Get all reponses questionnaire for this demande (including beneficiaires and employes)
+     */
+    public function allReponsesQuestionnaire()
     {
-        return $this->statut === StatutValidationEnum::REJETE;
+        return $this->hasMany(ReponseQuestionnaire::class, 'personne_id', 'user_id')
+            ->orWhere(function($query) {
+                $query->whereIn('personne_id', $this->assures()->pluck('assures.id'))
+                    ->where('personne_type', Assure::class);
+            });
     }
 
-
-    public function validate(Personnel $personnel): void
+    /**
+     * Get the propositions de contrat for this demande.
+     */
+    public function propositionsContrat()
     {
-        $this->update([
-            'statut' => StatutValidationEnum::VALIDE,
-            'valide_par_id' => $personnel->id,
-            'valider_a' => now()
-        ]);
+        return $this->hasMany(PropositionContrat::class, 'demande_adhesion_id');
     }
 
-
-    public function reject(Personnel $personnel): void
+    /**
+     * Check if demande is pending.
+     */
+    public function isPending()
     {
-        $this->update([
-            'statut' => StatutValidationEnum::REJETE,
-            'valide_par_id' => $personnel->id,
-            'valider_a' => now()
-        ]);
+        return $this->statut === StatutDemandeAdhesionEnum::EN_ATTENTE;
     }
 
-
-    public function scopePending($query)
+    /**
+     * Check if demande is validated.
+     */
+    public function isValidated()
     {
-        return $query->where('statut', StatutValidationEnum::EN_ATTENTE);
+        return $this->statut === StatutDemandeAdhesionEnum::VALIDEE;
     }
 
-
-    public function scopeValidated($query)
+    /**
+     * Check if demande is rejected.
+     */
+    public function isRejected()
     {
-        return $query->where('statut', StatutValidationEnum::VALIDE);
+        return $this->statut === StatutDemandeAdhesionEnum::REJETEE;
     }
 
-   
-    public function scopeRejected($query)
+    /**
+     * Validate the demande.
+     */
+    public function validate($valideParId = null)
     {
-        return $query->where('statut', StatutValidationEnum::REJETE);
+        $this->statut = StatutDemandeAdhesionEnum::VALIDEE;
+        $this->valide_par_id = $valideParId;
+        $this->valider_a = now();
+        $this->save();
     }
-}
+
+    /**
+     * Reject the demande.
+     */
+    public function reject($motifRejet, $valideParId = null)
+    {
+        $this->statut = StatutDemandeAdhesionEnum::REJETEE;
+        $this->motif_rejet = $motifRejet;
+        $this->valide_par_id = $valideParId;
+        $this->valider_a = now();   
+        $this->save();
+    }
+
+    /**
+     * Get the demandeur type in French.
+     */
+    public function getTypeDemandeurFrancaisAttribute()
+    {
+        return $this->type_demandeur->getLabel();
+    }
+} 

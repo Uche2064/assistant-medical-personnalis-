@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\StatutFactureEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -13,41 +12,39 @@ class Facture extends Model
 
     protected $fillable = [
         'numero_facture',
+        'sinistre_id',
+        'prestataire_id',
         'montant_reclame',
         'montant_a_rembourser',
         'diagnostic',
         'photo_justificatifs',
         'ticket_moderateur',
         'statut',
-        'sinistre_id',
-        'prestataire_id',
-        'medecin_id',
-        'technicien_id',
-        'comptable_id',
-        'est_valide_par_medecin',
+        'motif_rejet',
         'est_valide_par_technicien',
-        'est_autorise_par_comptable',
-        'valide_par_medecin_a',
+        'technicien_id',
         'valide_par_technicien_a',
-        'autorise_par_comptable_a'
+        'est_valide_par_medecin',
+        'medecin_id',
+        'valide_par_medecin_a',
+        'est_autorise_par_comptable',
+        'comptable_id',
+        'autorise_par_comptable_a',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'montant_reclame' => 'decimal:2',
-            'montant_a_rembourser' => 'decimal:2',
-            'ticket_moderateur' => 'decimal:2',
-            'photo_justificatifs' => 'array',
-            'statut' => StatutFactureEnum::class,
-            'est_valide_par_medecin' => 'boolean',
-            'est_valide_par_technicien' => 'boolean',
-            'est_autorise_par_comptable' => 'boolean',
-            'valide_par_medecin_a' => 'datetime',
-            'valide_par_technicien_a' => 'datetime',
-            'autorise_par_comptable_a' => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'montant_reclame' => 'decimal:2',
+        'montant_a_rembourser' => 'decimal:2',
+        'ticket_moderateur' => 'decimal:2',
+        'photo_justificatifs' => 'array',
+        'est_valide_par_technicien' => 'boolean',
+        'est_valide_par_medecin' => 'boolean',
+        'est_autorise_par_comptable' => 'boolean',
+        'valide_par_technicien_a' => 'datetime',
+        'valide_par_medecin_a' => 'datetime',
+        'autorise_par_comptable_a' => 'datetime',
+        'statut' => \App\Enums\StatutFactureEnum::class,
+    ];
 
     /**
      * Get the sinistre that owns the facture.
@@ -66,15 +63,7 @@ class Facture extends Model
     }
 
     /**
-     * Get the medecin controleur who validated the facture.
-     */
-    public function medecin()
-    {
-        return $this->belongsTo(Personnel::class, 'medecin_id');
-    }
-
-    /**
-     * Get the technicien who validated the facture.
+     * Get the technicien that validated this facture.
      */
     public function technicien()
     {
@@ -82,7 +71,15 @@ class Facture extends Model
     }
 
     /**
-     * Get the comptable who authorized the facture.
+     * Get the medecin that validated this facture.
+     */
+    public function medecin()
+    {
+        return $this->belongsTo(Personnel::class, 'medecin_id');
+    }
+
+    /**
+     * Get the comptable that authorized this facture.
      */
     public function comptable()
     {
@@ -90,120 +87,129 @@ class Facture extends Model
     }
 
     /**
-     * Check if facture is validated by medecin.
+     * Get the lignes facture for this facture.
      */
-    public function isValidatedByMedecin(): bool
+    public function lignesFacture()
     {
-        return $this->valide_medecin;
+        return $this->hasMany(LigneFacture::class);
+    }
+
+    /**
+     * Check if facture is pending.
+     */
+    public function isPending()
+    {
+        return $this->statut === \App\Enums\StatutFactureEnum::EN_ATTENTE;
     }
 
     /**
      * Check if facture is validated by technicien.
      */
-    public function isValidatedByTechnicien(): bool
+    public function isValidatedByTechnicien()
     {
-        return $this->valide_technicien;
+        return $this->statut === \App\Enums\StatutFactureEnum::VALIDEE_TECHNICIEN && $this->est_valide_par_technicien;
+    }
+
+    /**
+     * Check if facture is validated by medecin.
+     */
+    public function isValidatedByMedecin()
+    {
+        return $this->statut === \App\Enums\StatutFactureEnum::VALIDEE_MEDECIN && $this->est_valide_par_medecin;
     }
 
     /**
      * Check if facture is authorized by comptable.
      */
-    public function isAuthorizedByComptable(): bool
+    public function isAuthorizedByComptable()
     {
-        return $this->valide_comptable;
+        return $this->statut === \App\Enums\StatutFactureEnum::AUTORISEE_COMPTABLE && $this->est_autorise_par_comptable;
     }
 
     /**
-     * Check if facture is fully validated.
+     * Check if facture is reimbursed.
      */
-    public function isFullyValidated(): bool
+    public function isReimbursed()
     {
-        return $this->valide_medecin && $this->valide_technicien && $this->valide_comptable;
+        return $this->statut === \App\Enums\StatutFactureEnum::REMBOURSEE;
     }
 
     /**
-     * Validate by medecin controleur.
+     * Check if facture is rejected.
      */
-    public function validateByMedecin(Personnel $medecin): void
+    public function isRejected()
     {
-        $this->update([
-            'valide_medecin' => true,
-            'medecin_id' => $medecin->id,
-            'valide_medecin_a' => now(),
-            'statut' => StatutFactureEnum::VALIDE_MEDECIN
-        ]);
+        return $this->statut === \App\Enums\StatutFactureEnum::REJETEE;
     }
 
     /**
-     * Validate by technicien.
+     * Validate facture by technicien.
      */
-    public function validateByTechnicien(Personnel $technicien): void
+    public function validateByTechnicien($technicienId)
     {
-        $this->update([
-            'valide_technicien' => true,
-            'technicien_id' => $technicien->id,
-            'valide_technicien_a' => now(),
-            'statut' => StatutFactureEnum::VALIDE_TECHNICIEN
-        ]);
+        $this->est_valide_par_technicien = true;
+        $this->technicien_id = $technicienId;
+        $this->valide_par_technicien_a = now();
+        $this->statut = \App\Enums\StatutFactureEnum::VALIDEE_TECHNICIEN;
+        $this->save();
     }
 
     /**
-     * Authorize by comptable.
+     * Validate facture by medecin.
      */
-    public function authorizeByComptable(Personnel $comptable): void
+    public function validateByMedecin($medecinId)
     {
-        $this->update([
-            'valide_comptable' => true,
-            'comptable_id' => $comptable->id,
-            'valide_comptable_a' => now(),
-            'statut' => StatutFactureEnum::AUTORISER_PAIEMENT
-        ]);
+        $this->est_valide_par_medecin = true;
+        $this->medecin_id = $medecinId;
+        $this->valide_par_medecin_a = now();
+        $this->statut = \App\Enums\StatutFactureEnum::VALIDEE_MEDECIN;
+        $this->save();
     }
 
     /**
-     * Calculate the ticket moderateur.
+     * Authorize facture by comptable.
      */
-    public function calculateTicketModerateur(): float
+    public function authorizeByComptable($comptableId)
     {
-        // This would contain business logic for calculating ticket moderateur
-        // Based on insurance coverage, type of care, etc.
+        $this->est_autorise_par_comptable = true;
+        $this->comptable_id = $comptableId;
+        $this->autorise_par_comptable_a = now();
+        $this->statut = \App\Enums\StatutFactureEnum::AUTORISEE_COMPTABLE;
+        $this->save();
+    }
+
+    /**
+     * Reject facture.
+     */
+    public function reject($motifRejet)
+    {
+        $this->statut = \App\Enums\StatutFactureEnum::REJETEE;
+        $this->motif_rejet = $motifRejet;
+        $this->save();
+    }
+
+    /**
+     * Mark facture as reimbursed.
+     */
+    public function markAsReimbursed()
+    {
+        $this->statut = \App\Enums\StatutFactureEnum::REMBOURSEE;
+        $this->save();
+    }
+
+    /**
+     * Get the facture's status in French.
+     */
+    public function getStatutFrancaisAttribute()
+    {
+        return $this->statut->getLabel();
+    }
+
+    /**
+     * Calculate the difference between claimed and reimbursed amounts.
+     */
+    public function getDifferenceAttribute()
+    {
         return $this->montant_reclame - $this->montant_a_rembourser;
-    }
-
-    /**
-     * Scope to get factures pending medecin validation.
-     */
-    public function scopePendingMedecinValidation($query)
-    {
-        return $query->where('valide_medecin', false);
-    }
-
-    /**
-     * Scope to get factures pending technicien validation.
-     */
-    public function scopePendingTechnicienValidation($query)
-    {
-        return $query->where('valide_medecin', true)
-                    ->where('valide_technicien', false);
-    }
-
-    /**
-     * Scope to get factures pending comptable authorization.
-     */
-    public function scopePendingComptableAuthorization($query)
-    {
-        return $query->where('valide_medecin', true)
-                    ->where('valide_technicien', true)
-                    ->where('valide_comptable', false);
-    }
-
-    /**
-     * Scope to get fully validated factures.
-     */
-    public function scopeFullyValidated($query)
-    {
-        return $query->where('valide_medecin', true)
-                    ->where('valide_technicien', true)
-                    ->where('valide_comptable', true);
     }
 }

@@ -163,4 +163,38 @@ class PdfUploadHelper
         $dateFolder = date('Y/m');
         return $baseFolder . '/' . $dateFolder;
     }
+
+    /**
+     * Upload un fichier et retourne son URL
+     *
+     * @param \Illuminate\Http\UploadedFile $file
+     * @param string $folder
+     * @param string|null $customFilename
+     * @return string|null
+     */
+    public static function uploadFile($file, $folder = 'uploads', $customFilename = null)
+    {
+        try {
+            // Générer un nom unique pour le fichier
+            $filename = $customFilename ?? (Str::uuid() . '.' . $file->getClientOriginalExtension());
+            
+            // Chemin de stockage
+            $path = $folder . '/' . $filename;
+            
+            // Stocker le fichier dans le système de fichiers
+            Storage::disk('public')->putFileAs($folder, $file, $filename);
+            
+            // Ajouter un log pour débogage
+            Log::info('File uploaded successfully: ' . $path);
+            
+            // Retourner l'URL du fichier
+            return asset('storage/' . $path);
+        } catch (\Exception $e) {
+            // Logger l'erreur
+            Log::error('File upload failed: ' . $e->getMessage());
+            report($e);
+            
+            return null;
+        }
+    }
 }

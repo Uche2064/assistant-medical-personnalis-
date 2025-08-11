@@ -1,0 +1,31 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('contrat_categorie_garantie', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('contrat_id')->nullable()->constrained('contrats')->onDelete('set null');
+            $table->foreignId('categorie_garantie_id')->nullable()->constrained('categories_garanties')->onDelete('set null');
+            $table->decimal('couverture', 5, 2);
+            $table->timestamps();
+            $table->softDeletes();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('contrat_categorie_garantie');
+    }
+}; 

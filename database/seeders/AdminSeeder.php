@@ -3,10 +3,13 @@
 namespace Database\Seeders;
 
 use App\Enums\RoleEnum;
+use App\Jobs\SendCredentialsJob;
+use App\Models\Personnel;
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Services\NotificationService;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class AdminSeeder extends Seeder
 {
@@ -15,26 +18,35 @@ class AdminSeeder extends Seeder
      */
     public function run(): void
     {
-        
 
-        $adminEmail = 'globaladmin@sunu-sante.com';
-        $adminContact = '+22890000000';
-        $adminUsername = 'globaladmin';
+        $adminEmail = 'tutowordpress2064@gmail.com';
+        $nom = 'admin';
+        $prenoms = 'global';
+        $contact = '22871610653';
+        $plainPassword = User::genererMotDePasse();
+        // creer l'entrée dans user
+        $user = User::updateOrCreate(
+            ['email' => $adminEmail],
+            [
+                'password' => Hash::make($plainPassword),
+                'adresse' => 'nyekonakpoè',
+                'contact' => $contact,
+            ]
+        );
 
-     $user = User::firstOrCreate([
-            'email' => $adminEmail,
-            'username'=> $adminUsername,
-            'contact' => $adminContact
-        ], [
-            'nom' => 'Global',
-            'prenoms' => 'Admin',
-            'contact' => $adminContact,
-            'password' => bcrypt('globaladmin@sunusante'),
-            'adresse' => 'nyekonakpoè',
-            'username' => 'globaladmin',
-            'est_actif' => true
-        ]);
+        // on créer l'entrée dans personnel
 
+        Personnel::updateOrCreate(
+            [
+                'nom' => $nom,
+                'prenoms' => $prenoms,
+                'user_id' => $user->id,
+            ],
+        );
+
+        Log::info("Admin created with password: " . $plainPassword);
         $user->assignRole(RoleEnum::ADMIN_GLOBAL->value);
+
+        dispatch(new SendCredentialsJob($user->load('personnel'), $plainPassword));
     }
 }

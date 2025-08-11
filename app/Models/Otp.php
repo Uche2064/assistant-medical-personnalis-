@@ -2,71 +2,89 @@
 
 namespace App\Models;
 
+use App\Enums\OtpTypeEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
 
 class Otp extends Model
 {
     use HasFactory;
 
+    protected $table = 'otp';
+
     protected $fillable = [
-        'code_otp',
+        'email',
+        'otp',
+        'expire_at',
         'verifier_a',
-        'phone',
-        'expires_a'
+        'type',
     ];
 
-    protected function casts(): array
+    protected $casts = [
+        'expire_at' => 'datetime',
+        'verifier_a' => 'datetime',
+        'type' => OtpTypeEnum::class,
+
+    ];
+
+    /**
+     * Check if OTP is expired.
+     */
+    public function isExpired()
     {
-        return [
-            'verifier_a' => 'datetime',
-            'expires_a' => 'datetime',
-        ];
+        return $this->expire_at < now();
     }
 
     /**
-     * Get the user that owns the OTP.
+     * Check if OTP is valid.
      */
-    public function user()
+    public function isValid()
     {
-        return $this->belongsTo(User::class);
+        return !$this->isExpired();
     }
 
     /**
-     * Checker si l'otp est expiré
+     * Generate a new OTP.
      */
-    public function isExpired(): bool
+    public static function generateOtp($email, $minutes = 10, string $type)
     {
-        return $this->expires_a < Carbon::now();
-    }
+        // Delete existing OTPs for this email
+        self::where('email', $email)->delete();
 
-
-    /**
-     * Generate a new OTP code.
-     */
-    public static function generateCode(int $length = 6): string
-    {
-        return str_pad(random_int(0, pow(10, $length) - 1), $length, '0', STR_PAD_LEFT);
-    }
-
-    /**
-     * Create a new OTP for a user.
-     */
-    public static function updateOrCreateOtp($phone, $otp)
-    {
-        return self::updateOrCreate(
-            ['phone' => $phone],
-            ['code_otp' => $otp, 'expires_a' => Carbon::now()->addMinutes((int) env('OTP_EXPIRE_TIME', 5)), 'verifier_a' => null]
-        );
+        // Generate new OTP
+        $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+        self::create([
+            'email' => $email,
+            'otp' => $otp,
+            'type' => $type,
+            'expire_at' => now()->addMinutes($minutes),
+        ]);
+        return $otp;
     }
 
     /**
-     * Scope to get valid OTPs.
+     * Verify OTP.
      */
-    public function scopeValid($query)
+    public static function verifyOtp($email, $otp)
     {
-        return $query->where('verifier_a', '>', Carbon::now());
+        $otpRecord = self::where('email', $email)
+                         ->where('otp', $otp)
+                         ->where('expire_at', '>', now())
+                         ->first();
+
+        if ($otpRecord) {
+            $otpRecord->delete(); // Delete after successful verification
+            return true;
+        }
+
+        return false;
     }
 
+    /**
+     * Clean expired OTPs.
+     */
+    public static function cleanExpired()
+    {
+        return self::where('expire_at', '<', now())->delete();
+    }
 }

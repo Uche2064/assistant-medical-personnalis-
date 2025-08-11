@@ -26,7 +26,7 @@ class ImageUploadHelper
              }
 
              // Vérifier si le type MIME est une image autorisée
-             $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+             $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
              if (!in_array($file->getMimeType(), $allowedMimeTypes)) {
                  throw new \Exception('Invalid file type. Only JPEG, PNG, GIF, and WEBP are allowed.');
              }
@@ -73,5 +73,69 @@ class ImageUploadHelper
             report($e);
             return false;
         }
+    }
+
+    /**
+     * Obtient l'URL publique d'un fichier.
+     *
+     * @param string $path
+     * @return string|null
+     */
+    public static function getFileUrl($path)
+    {
+        try {
+            if (empty($path)) {
+                return null;
+            }
+
+            // Si le chemin commence déjà par http, le retourner tel quel
+            if (str_starts_with($path, 'http')) {
+                return $path;
+            }
+
+            // Retirer le préfixe 'storage/' s'il existe
+            $cleanPath = str_replace('storage/', '', $path);
+
+            // Vérifier si le fichier existe
+            if (Storage::disk('public')->exists($cleanPath)) {
+                // Utiliser l'URL de l'API pour les fichiers
+                return url('/api/v1/files/' . basename($cleanPath));
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Error getting file URL: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Obtient le nom du fichier à partir du chemin.
+     *
+     * @param string $path
+     * @return string
+     */
+    public static function getFileName($path)
+    {
+        if (empty($path)) {
+            return 'Fichier inconnu';
+        }
+
+        return basename($path);
+    }
+
+    /**
+     * Obtient l'extension du fichier.
+     *
+     * @param string $path
+     * @return string
+     */
+    public static function getFileExtension($path)
+    {
+        if (empty($path)) {
+            return '';
+        }
+
+        return pathinfo($path, PATHINFO_EXTENSION);
     }
 }

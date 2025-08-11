@@ -19,7 +19,7 @@ class GestionnaireMiddleware
     public function handle(Request $request, Closure $next): Response
     {
         if (!Auth::check() || !Auth::user()->hasRole(RoleEnum::GESTIONNAIRE->value)) {
-            return ApiResponse::error('Accès non autorisé.', 403, 'unauthorized');
+            return ApiResponse::error('Accès non autorisé.', 401, 'unauthorized');
         }
         return $next($request);
     }

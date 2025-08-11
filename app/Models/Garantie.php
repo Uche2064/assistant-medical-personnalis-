@@ -11,23 +11,22 @@ class Garantie extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'libelle_garantie',
-        'contrat_id',
+        'libelle',
         'categorie_garantie_id',
+        'medecin_controleur_id',
         'plafond',
+        'prix_standard',
         'taux_couverture',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'plafond' => 'decimal:2',
-            'taux_couverture' => 'decimal:2',
-        ];
-    }
+    protected $casts = [
+        'plafond' => 'decimal:2',
+        'prix_standard' => 'decimal:2',
+        'taux_couverture' => 'decimal:2',
+    ];
 
     /**
-     * Get the categorie garantie that owns the garantie.
+     * Get the categorie garantie that owns this garantie.
      */
     public function categorieGarantie()
     {
@@ -35,48 +34,26 @@ class Garantie extends Model
     }
 
     /**
-     * Get the compagnie that owns the garantie.
+     * Get the medecin controleur that manages this garantie.
      */
-    public function compagnie()
+    public function medecinControleur()
     {
-        return $this->belongsTo(Compagnie::class);
+        return $this->belongsTo(Personnel::class, 'medecin_controleur_id');
     }
 
     /**
-     * Get the assures for this garantie.
+     * Calculate the coverage amount based on the standard price.
      */
-    public function assures()
+    public function getCoverageAmountAttribute()
     {
-        return $this->belongsToMany(Assure::class, 'assure_garantie')
-                    ->withPivot('date_debut', 'date_fin', 'est_actif')
-                    ->withTimestamps();
+        return $this->prix_standard * ($this->taux_couverture / 100);
     }
 
     /**
-     * Calculate coverage amount for a given claim amount.
+     * Check if garantie is within the limit.
      */
-    public function calculateCoverage(float $montantReclame): float
+    public function isWithinLimit($amount)
     {
-        // Apply percentage coverage
-        $montantCouvert = $montantReclame * ($this->taux_couverture / 100);
-        
-        // Apply maximum limit
-        return min($montantCouvert, $this->plafond);
-    }
-
-    /**
-     * Check if amount is within coverage limits.
-     */
-    public function isWithinLimits(float $montant): bool
-    {
-        return $montant <= $this->plafond;
-    }
-
-    /**
-     * Scope to get garanties by category.
-     */
-    public function scopeByCategory($query, $categorieId)
-    {
-        return $query->where('categorie_garantie_id', $categorieId);
+        return $amount <= $this->plafond;
     }
 }

@@ -15,26 +15,83 @@ class Message extends Model
         'expediteur_id',
         'contenu',
         'lu',
-        'lu_a',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'lu' => 'boolean',
-            'lu_a' => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'lu' => 'boolean',
+    ];
 
-    // Relation vers la conversation
+    /**
+     * Get the conversation that owns the message.
+     */
     public function conversation()
     {
         return $this->belongsTo(Conversation::class);
     }
 
-    // Relation vers l'expéditeur (User)
+    /**
+     * Get the sender of the message.
+     */
     public function expediteur()
     {
         return $this->belongsTo(User::class, 'expediteur_id');
+    }
+
+    /**
+     * Scope to get unread messages.
+     */
+    public function scopeUnread($query)
+    {
+        return $query->where('lu', false);
+    }
+
+    /**
+     * Scope to get read messages.
+     */
+    public function scopeRead($query)
+    {
+        return $query->where('lu', true);
+    }
+
+    /**
+     * Mark message as read.
+     */
+    public function markAsRead()
+    {
+        $this->lu = true;
+        $this->save();
+    }
+
+    /**
+     * Mark message as unread.
+     */
+    public function markAsUnread()
+    {
+        $this->lu = false;
+        $this->save();
+    }
+
+    /**
+     * Check if message is read.
+     */
+    public function isRead()
+    {
+        return $this->lu;
+    }
+
+    /**
+     * Check if message is unread.
+     */
+    public function isUnread()
+    {
+        return !$this->lu;
+    }
+
+    /**
+     * Check if message is sent by a specific user.
+     */
+    public function isSentBy($userId)
+    {
+        return $this->expediteur_id == $userId;
     }
 }

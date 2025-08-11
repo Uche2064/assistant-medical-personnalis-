@@ -10,21 +10,24 @@ class CategorieGarantie extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $table = 'categories_garanties';
+
     protected $fillable = [
-        'libelle_categories',
+        'libelle',
         'description',
-        'est_actif'
+        'medecin_controleur_id',
     ];
 
-    protected function casts(): array
+    /**
+     * Get the medecin controleur that manages this categorie.
+     */
+    public function medecinControleur()
     {
-        return [
-            'est_actif' => 'boolean',
-        ];
+        return $this->belongsTo(Personnel::class, 'medecin_controleur_id');
     }
 
     /**
-     * Get the garanties for the categorie.
+     * Get the garanties for this categorie.
      */
     public function garanties()
     {
@@ -32,18 +35,28 @@ class CategorieGarantie extends Model
     }
 
     /**
-     * Check if categorie is active.
+     * Get the contrats that use this categorie.
      */
-    public function isActive(): bool
+    public function contrats()
     {
-        return $this->est_actif;
+        return $this->belongsToMany(Contrat::class, 'contrat_categorie_garantie')
+                    ->withPivot('couverture')
+                    ->withTimestamps();
     }
 
     /**
-     * Scope to get only active categories.
+     * Check if categorie is active.
      */
-    public function scopeActive($query)
+    public function isActive()
     {
-        return $query->where('est_actif', true);
+        return $this->garanties()->where('est_actif', true)->exists();
     }
-}
+
+    /**
+     * Get the total coverage for this categorie.
+     */
+    public function getTotalCoverageAttribute()
+    {
+        return $this->garanties()->sum('plafond');
+    }
+} 

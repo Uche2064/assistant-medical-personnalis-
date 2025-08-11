@@ -2,15 +2,265 @@
 
 namespace App\Http\Controllers\v1\Api\admin;
 
+use App\Enums\RoleEnum;
 use App\Helpers\ApiResponse;
+use App\Helpers\ImageUploadHelper;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\admin\AuthFormRequest;
-use App\Models\Gestionnaire;
+use App\Http\Requests\admin\StoreGestionnaireRequest;
+use App\Http\Resources\UserResource;
+use App\Jobs\SendCredentialsJob;
+use App\Models\Personnel;
 use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class AdminController extends Controller
 {
-    
-}
 
+     /**
+     * Lister tous les gestionnaires avec filtres
+     */
+    public function indexGestionnaires(Request $request)
+    {
+        $perPage = $request->input('per_page', 10);
+        $adminId = Auth::user()?->personnel?->id;
+    
+        $query = Personnel::with(['user.roles'])
+            ->whereHas('user.roles', fn ($q) => 
+                $q->where('name', RoleEnum::GESTIONNAIRE->value)
+            )
+            ->when($adminId, fn ($q) => $q->where('id', '!=', $adminId))
+            ->when($request->filled('est_actif'), function ($q) use ($request) {
+                $estActif = filter_var($request->input('est_actif'), FILTER_VALIDATE_BOOLEAN);
+                $q->whereHas('user', fn ($q) => $q->where('est_actif', $estActif));
+            })
+            ->when($request->filled('sexe'), fn ($q) => 
+                $q->where('sexe', $request->input('sexe'))
+            )
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = $request->input('search');
+                $q->where(fn ($q) => 
+                    $q->where('nom', 'like', "%$search%")
+                      ->orWhere('prenoms', 'like', "%$search%")
+                      ->orWhereHas('user', fn ($q) => 
+                          $q->where('email', 'like', "%$search%")
+                      )
+                );
+            })
+            ->orderBy(
+                $request->input('sort_by', 'created_at'),
+                $request->input('sort_order', 'desc')
+            );
+    
+        $gestionnaires = $query->paginate($perPage);
+    
+        // Extraire et transformer en UserResource
+        $users = UserResource::collection($gestionnaires->pluck('user'));
+    
+        // Re-créer la pagination sur les UserResource
+        $paginated = new LengthAwarePaginator(
+            $users,
+            $gestionnaires->total(),
+            $gestionnaires->perPage(),
+            $gestionnaires->currentPage(),
+            ['path' => Paginator::resolveCurrentPath()]
+        );
+    
+        return ApiResponse::success($paginated, 'Liste des gestionnaires récupérée avec succès');
+    }
+    
+    /**
+     * Créer un nouveau gestionnaire
+     */
+    public function storeGestionnaire(StoreGestionnaireRequest $request)
+    {
+        $validated = $request->validated();
+        $password = User::genererMotDePasse();
+        $photoUrl = null;
+
+        // Gestion de l'upload de la photo
+        if (isset($validated['photo'])) {
+            $photoUrl = ImageUploadHelper::uploadImage($validated['photo'], 'uploads/users/gestionnaires/'.$validated['email'].'/');
+            if (!$photoUrl) {
+                return ApiResponse::error('Erreur lors de l\'upload de la photo', 422);
+            }
+        }
+
+        DB::beginTransaction();
+
+        try {
+            // Créer l'utilisateur
+            $user = User::create([
+                'email' => $validated['email'],
+                'contact' => $validated['contact'],
+                'adresse' => $validated['adresse'] ?? null,
+                'password' => Hash::make($password),
+                'est_actif' => false,
+                'mot_de_passe_a_changer' => true,
+                'email_verified_at' => now(),
+                'photo' => $photoUrl,
+            ]);
+
+            // Assigner le rôle gestionnaire
+            $user->assignRole(RoleEnum::GESTIONNAIRE->value);
+
+            // Créer le personnel gestionnaire
+            Personnel::create([
+                'user_id' => $user->id,
+                'nom' => $validated['nom'],
+                'prenoms' => $validated['prenoms'] ?? null,
+                'sexe' => $validated['sexe'] ?? null,
+                'date_naissance' => $validated['date_naissance'] ?? null,
+            ]);
+            // Envoyer les identifiants par email
+            dispatch(new SendCredentialsJob($user, $password));
+            
+            Log::info("Gestionnaire créé - Email: {$user->email}, Mot de passe: {$password}");
+
+            DB::commit();
+
+            return ApiResponse::success([
+                'gestionnaire' => new UserResource($user->load(['roles', 'personnel'])),
+            ], 'Gestionnaire créé avec succès. Les identifiants ont été envoyés par email.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Erreur lors de la création du gestionnaire: ' . $e->getMessage());
+            return ApiResponse::error('Erreur lors de la création du gestionnaire', 500);
+        }
+    }
+
+   
+
+    /**
+     * Afficher les détails d'un gestionnaire
+     */
+    public function showGestionnaire($id)
+    {
+        $gestionnaire = Personnel::with(['user', 'user.roles'])
+            ->whereHas('user', function ($q) {
+                $q->whereHas('roles', function ($roleQuery) {
+                    $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
+                });
+            })
+            ->find($id);
+
+        if (!$gestionnaire) {
+            return ApiResponse::error('Gestionnaire non trouvé', 404);
+        }
+
+        return ApiResponse::success(
+            new UserResource($gestionnaire->user), 
+            'Détails du gestionnaire'
+        );
+    }
+
+    /**
+     * Suspendre/désactiver un gestionnaire
+     */
+    public function toggleGestionnaireStatus($id)
+    {
+        $gestionnaire = Personnel::with('user')
+            ->whereHas('user', function ($q) {
+                $q->whereHas('roles', function ($roleQuery) {
+                    $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
+                });
+            })
+            ->find($id);
+
+        if (!$gestionnaire) {
+            return ApiResponse::error('Gestionnaire non trouvé', 404);
+        }
+
+        if ($gestionnaire->user->mot_de_passe_a_changer) {
+            return ApiResponse::error('Le gestionnaire doit changer son mot de passe avant de pouvoir être réactivé', 400, null);
+        }
+
+        $gestionnaire->user->update(['est_actif' => !$gestionnaire->user->est_actif]);
+
+        Log::info("Gestionnaire suspendu - ID: {$gestionnaire->id}, Email: {$gestionnaire->user->email}");
+
+        return ApiResponse::success(null, 'Gestionnaire ' . ($gestionnaire->user->est_actif ? 'suspendu' : 'réactivé') . ' avec succès');
+    }
+
+    /**
+     * Supprimer définitivement un gestionnaire
+     */
+    public function destroyGestionnaire($id)
+    {
+        $gestionnaire = Personnel::with('user')
+            ->whereHas('user', function ($q) {
+                $q->whereHas('roles', function ($roleQuery) {
+                    $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
+                });
+            })
+            ->find($id);
+
+        if (!$gestionnaire) {
+            return ApiResponse::error('Gestionnaire non trouvé', 404);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            // Supprimer le personnel (cascade vers user)
+            $gestionnaire->delete();
+            
+            Log::info("Gestionnaire supprimé - ID: {$gestionnaire->id}, Email: {$gestionnaire->user->email}");
+
+            DB::commit();
+
+            return ApiResponse::success(null, 'Gestionnaire supprimé avec succès', 204);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Erreur lors de la suppression du gestionnaire: ' . $e->getMessage());
+            return ApiResponse::error('Erreur lors de la suppression du gestionnaire', 500);
+        }
+    }
+
+    /**
+     * Statistiques des gestionnaires
+     */
+    public function gestionnaireStats()
+    {
+        $stats = [
+            'total' => Personnel::whereHas('user', function ($q) {
+                $q->whereHas('roles', function ($roleQuery) {
+                    $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
+                });
+            })->count(),
+            
+            'actifs' => Personnel::whereHas('user', function ($q) {
+                $q->whereHas('roles', function ($roleQuery) {
+                    $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
+                })->where('est_actif', true);
+            })->count(),
+            
+            'inactifs' => Personnel::whereHas('user', function ($q) {
+                $q->whereHas('roles', function ($roleQuery) {
+                    $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
+                })->where('est_actif', false);
+            })->count(),
+            
+            'repartition_par_sexe' => Personnel::whereHas('user', function ($q) {
+                $q->whereHas('roles', function ($roleQuery) {
+                    $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
+                });
+            })
+            ->selectRaw('sexe, COUNT(*) as count')
+            ->groupBy('sexe')
+            ->get()
+            ->mapWithKeys(function ($item) {
+                return [$item->sexe ?? 'Non spécifié' => $item->count];
+            }),
+        ];
+
+        return ApiResponse::success($stats, 'Statistiques des gestionnaires récupérées avec succès');
+    }
+}

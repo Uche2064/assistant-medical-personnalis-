@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\LienEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -13,52 +12,77 @@ class Assure extends Model
 
     protected $fillable = [
         'user_id',
-        'client_id',
+        'entreprise_id',
+        'assure_principal_id',
+        'email',
+        'contrat_id',
+        'nom', // ✅ Ajouté pour les bénéficiaires
+        'prenoms', // ✅ Ajouté pour les bénéficiaires
+        'date_naissance', // ✅ Ajouté pour les bénéficiaires
+        'sexe', // ✅ Ajouté pour les bénéficiaires
         'lien_parente',
-        'assure_parent_id'
+        'est_principal',
+        'profession',
+        'contact',
+        'photo',
+        'demande_adhesion_id',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'lien_parente' => LienEnum::class,
-        ];
-    }
+    protected $casts = [
+        'est_principal' => 'boolean',
+        'date_naissance' => 'date', // ✅ Ajouté
+        'lien_parente' => \App\Enums\LienParenteEnum::class,
+        'sexe' => \App\Enums\SexeEnum::class, // ✅ Ajouté
+    ];
 
     /**
      * Get the user that owns the assure.
      */
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class);
     }
 
     /**
-     * Get the client that owns the assure.
+     * Get the entreprise that owns the assure.
      */
-    public function client()
+    public function entreprise()
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(Entreprise::class);
     }
 
     /**
-     * Get the parent assure (for dependents).
+     * Get the principal assure for this beneficiary.
      */
-    public function assureParent()
+    public function assurePrincipal()
     {
-        return $this->belongsTo(Assure::class, 'assure_parent_id');
+        return $this->belongsTo(Assure::class, 'assure_principal_id');
     }
 
     /**
-     * Get the children assures (dependents).
+     * Get the beneficiaries for this principal assure.
      */
-    public function assureEnfants()
+    public function beneficiaires()
     {
-        return $this->hasMany(Assure::class, 'assure_parent_id');
+        return $this->hasMany(Assure::class, 'assure_principal_id');
     }
 
     /**
-     * Get the sinistres for the assure.
+     * Get the contrat for this assure.
+     */
+    public function contrat()
+    {
+        return $this->belongsTo(Contrat::class);
+    }
+
+    public function reponsesQuestionnaire()
+    {
+        return $this->hasMany(ReponseQuestionnaire::class, 'personne_id');
+    }
+
+
+    /**
+     * Get the sinistres for this assure.
      */
     public function sinistres()
     {
@@ -66,113 +90,78 @@ class Assure extends Model
     }
 
     /**
-     * Get the prestataires linked to this assure.
+     * Check if assure is principal.
      */
-    public function prestataires()
+    public function isPrincipal()
     {
-        return $this->belongsToMany(Prestataire::class, 'prestataire_assure');
+        return $this->est_principal;
     }
 
     /**
-     * Get the garanties for this assure.
+     * Check if assure is a beneficiary.
      */
-    public function garanties()
+    public function isBeneficiaire()
     {
-        return $this->belongsToMany(Garantie::class, 'assure_garantie')
-                    ->withPivot('date_debut', 'date_fin', 'est_actif')
-                    ->withTimestamps();
+        return !$this->est_principal;
     }
 
     /**
-     * Check if assure is the principal (main) insured.
+     * Check if assure is active.
      */
-    public function isPrincipal(): bool
+    public function isActive()
     {
-        return $this->lien_parente === LienEnum::PRINCIPAL;
+        return $this->statut === 'actif';
     }
 
     /**
-     * Check if assure is a dependent.
+     * Check if assure is inactive.
      */
-    public function isDependent(): bool
+    public function isInactive()
     {
-        return !$this->isPrincipal() && $this->assure_parent_id !== null;
+        return $this->statut === 'inactif';
     }
 
     /**
-     * Get active garanties for this assure.
+     * Check if assure is suspended.
      */
-    public function getActiveGaranties()
+    public function isSuspended()
     {
-        return $this->garanties()
-                    ->wherePivot('est_actif', true)
-                    ->wherePivot('date_debut', '<=', now())
-                    ->where(function($query) {
-                        $query->wherePivot('date_fin', '>=', now())
-                              ->orWherePivot('date_fin', null);
-                    });
+        return $this->statut === 'suspendu';
     }
 
     /**
-     * Check if assure has a specific garantie.
+     * Get the assure's full name.
      */
-    public function hasGarantie(Garantie $garantie): bool
+    public function getFullNameAttribute()
     {
-        return $this->getActiveGaranties()
-                    ->where('garanties.id', $garantie->id)
-                    ->exists();
+        if ($this->user) {
+            return $this->user->full_name;
+        }
+        
+        return 'Assuré #' . $this->id;
     }
 
     /**
-     * Get total amount claimed by this assure.
+     * Get the assure's type (principal or beneficiary).
      */
-    public function getTotalMontantReclame(): float
+    public function getTypeAttribute()
     {
-        return $this->sinistres()
-                    ->with('factures')
-                    ->get()
-                    ->sum(function($sinistre) {
-                        return $sinistre->factures->sum('montant_reclame');
-                    });
+        return $this->est_principal ? 'Principal' : 'Bénéficiaire';
     }
 
     /**
-     * Get total amount reimbursed to this assure.
+     * Get the assure's source (client or entreprise).
      */
-    public function getTotalMontantRembourse(): float
+    public function getSourceAttribute()
     {
-        return $this->sinistres()
-                    ->with('factures')
-                    ->get()
-                    ->sum(function($sinistre) {
-                        return $sinistre->factures
-                                       ->where('valide_comptable', true)
-                                       ->sum('montant_a_rembourser');
-                    });
-    }
-
-    /**
-     * Scope to get principal assures only.
-     */
-    public function scopePrincipal($query)
-    {
-        return $query->where('lien_parente', LienEnum::PRINCIPAL);
-    }
-
-    /**
-     * Scope to get dependent assures only.
-     */
-    public function scopeDependents($query)
-    {
-        return $query->where('lien_parente', '!=', LienEnum::PRINCIPAL)
-                    ->whereNotNull('assure_parent_id');
-    }
-
-    /**
-     * Scope to get assures by family relationship.
-     */
-    public function scopeByLienParente($query, LienEnum $lienParente)
-    {
-        return $query->where('lien_parente', $lienParente);
+        if ($this->client) {
+            return $this->client->isPhysique() ? 'Client Physique' : 'Client Moral';
+        }
+        
+        if ($this->entreprise) {
+            return 'Employé Entreprise';
+        }
+        
+        return 'Inconnu';
     }
 }
