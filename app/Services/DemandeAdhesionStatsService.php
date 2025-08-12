@@ -80,7 +80,7 @@ class DemandeAdhesionStatsService
             $beneficiaires = $beneficiaires->merge($employe->beneficiaires);
         }
 
-
+        
         // Calculer les statistiques des employés
         $statsEmployes = $this->calculateEmployesStats($employesPrincipaux);
 
@@ -95,6 +95,7 @@ class DemandeAdhesionStatsService
                 'sexe' => $employe->sexe,
                 'profession' => $employe->profession,
                 'contact' => $employe->contact,
+                'adresse' => $employe->adresse,
                 'photo' => $employe->photo,
                 'reponses_questionnaire' => $this->formaterReponsesQuestionnaire($employe->reponsesQuestionnaire),
                 'beneficiaires' => $employe->beneficiaires->map(function ($beneficiaire) {
@@ -119,6 +120,7 @@ class DemandeAdhesionStatsService
                 'raison_sociale' => $entreprise->raison_sociale,
                 'email' => $demande->user->email,
                 'contact' => $demande->user->contact,
+                'adresse' => $demande->user->adresse,
             ],
             'contrat_propose' => $contratPropose,
             'employes' => $employesAvecReponsesFormatees,
@@ -225,7 +227,7 @@ class DemandeAdhesionStatsService
 
         foreach ($personnes as $personne) {
             if ($personne->date_naissance) {
-                $age = now()->diffInYears($personne->date_naissance);
+                $age = \Carbon\Carbon::parse($personne->date_naissance)->diffInYears(now());
                 
                 if ($age <= 18) {
                     $tranches['0-18']++;
@@ -240,6 +242,8 @@ class DemandeAdhesionStatsService
                 }
             }
         }
+
+        Log::info($tranches);
 
         return $tranches;
     }

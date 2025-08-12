@@ -17,7 +17,6 @@ class Facture extends Model
         'montant_reclame',
         'montant_a_rembourser',
         'diagnostic',
-        'photo_justificatifs',
         'ticket_moderateur',
         'statut',
         'motif_rejet',

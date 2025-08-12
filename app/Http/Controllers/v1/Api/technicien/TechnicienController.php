@@ -5,6 +5,7 @@ namespace App\Http\Controllers\v1\Api\technicien;
 use App\Enums\RoleEnum;
 use App\Enums\StatutDemandeAdhesionEnum;
 use App\Enums\StatutFactureEnum;
+use App\Enums\StatutPrestataireEnum;
 use App\Enums\StatutPropositionContratEnum;
 use App\Enums\TypeDemandeurEnum;
 use App\Helpers\ApiResponse;
@@ -36,10 +37,10 @@ class TechnicienController extends Controller
     public function __construct(
         NotificationService $notificationService,
     ) {
-            $this->notificationService = $notificationService;
+        $this->notificationService = $notificationService;
     }
 
-  /**
+    /**
      * Assigner un réseau de prestataires à un client
      */
     public function assignerReseauPrestataires(Request $request)
@@ -52,60 +53,61 @@ class TechnicienController extends Controller
 
             $request->validate([
                 'client_id' => 'required|exists:users,id',
-                'contrat_id' => 'required|exists:contrats,id',
-                'prestataires' => 'required|array',
-                'prestataires.pharmacies' => 'array',
-                'prestataires.centres_soins' => 'array',
-                'prestataires.optiques' => 'array',
-                'prestataires.laboratoires' => 'array',
-                'prestataires.centres_diagnostic' => 'array',
+                'prestataires_ids' => 'array',
             ]);
 
             $client = User::findOrFail($request->client_id);
-            $contrat = Contrat::findOrFail($request->contrat_id);
 
-            // Vérifier que le contrat appartient au client
-            if ($contrat->user_id !== $client->id) {
-                return ApiResponse::error('Ce contrat n\'appartient pas au client spécifié', 400);
-            }
 
             DB::beginTransaction();
 
             try {
-                // 1. Créer l'entrée dans la table client_contrat
-                $clientContrat = ClientContrat::create([
-                    'client_id' => $client->id,
-                    'contrat_id' => $contrat->id,
-                    'type_client' => $client->type_demandeur ?? 'physique',
-                    'date_debut' => now(),
-                    'date_fin' => now()->addYear(),
-                    'statut' => 'ACTIF'
-                ]);
+
+                $clientContrat = ClientContrat::where('user_id', $client->id)->firstOrFail();
+
+                foreach ($request->prestataires_ids as $prestataireId) {
+
+                    // Vérifie si déjà assigné pour ce contrat
+                    $dejaAssigne = ClientPrestataire::where('client_contrat_id', $clientContrat->id)
+                        ->where('prestataire_id', $prestataireId)
+                        ->exists();
+
+                    if ($dejaAssigne) {
+                        $prestataire = Prestataire::find($prestataireId);
+                        return ApiResponse::error(
+                            "Le prestataire '{$prestataire->raison_sociale}' est déjà assigné à ce client.",
+                            422
+                        );
+                    }
+                }
+
+
+
+                if ($clientContrat === null) {
+                    return ApiResponse::error('Contrat n\'ont enregistré');
+                }
 
                 // 2. Assigner les prestataires
                 $prestatairesAssignes = [];
-                foreach ($request->prestataires as $type => $prestataireIds) {
-                    foreach ($prestataireIds as $prestataireId) {
-                        // Vérifier que le prestataire existe
-                        $prestataire = Prestataire::find($prestataireId);
-                        if (!$prestataire) {
-                            throw new \Exception("Prestataire ID {$prestataireId} non trouvé");
-                        }
-
-                        $clientPrestataire = ClientPrestataire::create([
-                            'client_contrat_id' => $clientContrat->id,
-                            'prestataire_id' => $prestataireId,
-                            'type_prestataire' => $type,
-                            'statut' => 'ACTIF'
-                        ]);
-
-                        $prestatairesAssignes[] = [
-                            'id' => $prestataire->id,
-                            'nom' => $prestataire->nom,
-                            'type' => $type,
-                            'adresse' => $prestataire->adresse
-                        ];
+                foreach ($request->prestataires_ids as $prestataireId) {
+                    Log::info('ids ' . $prestataireId);
+                    // Vérifier que le prestataire existe
+                    $prestataire = Prestataire::find($prestataireId);
+                    if (!$prestataire) {
+                        throw new \Exception("Prestataire ID {$prestataireId} non trouvé");
                     }
+
+                    ClientPrestataire::create([
+                        'client_contrat_id' => $clientContrat->id,
+                        'prestataire_id' => $prestataireId,
+                        'statut' => 'actif'
+                    ]);
+
+                    $prestatairesAssignes[] = [
+                        'id' => $prestataire->id,
+                        'nom' => $prestataire->nom,
+                        'adresse' => $prestataire->adresse
+                    ];
                 }
 
                 // 3. Notification au client
@@ -128,12 +130,10 @@ class TechnicienController extends Controller
                     'prestataires_assignes' => $prestatairesAssignes,
                     'message' => 'Réseau de prestataires assigné avec succès'
                 ], 'Réseau de prestataires assigné avec succès');
-
             } catch (\Exception $e) {
                 DB::rollBack();
                 throw $e;
             }
-
         } catch (\Exception $e) {
             Log::error('Erreur lors de l\'assignation du réseau de prestataires', [
                 'error' => $e->getMessage(),
@@ -195,7 +195,7 @@ class TechnicienController extends Controller
         ], 'Dashboard technicien récupéré avec succès');
     }
 
-        /**
+    /**
      * Détails d'une demande d'adhésion
      */
     public function showDemande($id)
@@ -504,7 +504,7 @@ class TechnicienController extends Controller
         return ApiResponse::success($facture, 'Facture récupérée avec succès');
     }
 
-        /**
+    /**
      * Récupérer la liste des clients pour le technicien (avec recherche)
      */
     public function getClientsTechnicien(Request $request)
@@ -528,7 +528,7 @@ class TechnicienController extends Controller
                 $search = $request->search;
                 $query->whereHas('user', function ($q) use ($search) {
                     $q->where('nom', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
+                        ->orWhere('email', 'like', "%{$search}%");
                 });
             }
 
@@ -546,7 +546,6 @@ class TechnicienController extends Controller
             });
 
             return ApiResponse::success($demandes, 'Liste des clients récupérée avec succès');
-
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des clients', [
                 'error' => $e->getMessage(),
@@ -569,22 +568,22 @@ class TechnicienController extends Controller
             }
 
             $totalClients = DemandeAdhesion::whereIn('type_demandeur', [
-                TypeDemandeurEnum::PHYSIQUE->value, 
+                TypeDemandeurEnum::PHYSIQUE->value,
                 TypeDemandeurEnum::ENTREPRISE->value
             ])->count();
 
             $clientsEnAttente = DemandeAdhesion::whereIn('type_demandeur', [
-                TypeDemandeurEnum::PHYSIQUE->value, 
+                TypeDemandeurEnum::PHYSIQUE->value,
                 TypeDemandeurEnum::ENTREPRISE->value
             ])->where('statut', StatutDemandeAdhesionEnum::EN_ATTENTE->value)->count();
 
             $clientsEnProposition = DemandeAdhesion::whereIn('type_demandeur', [
-                TypeDemandeurEnum::PHYSIQUE->value, 
+                TypeDemandeurEnum::PHYSIQUE->value,
                 TypeDemandeurEnum::ENTREPRISE->value
             ])->where('statut', StatutDemandeAdhesionEnum::PROPOSEE->value)->count();
 
             $clientsAcceptes = DemandeAdhesion::whereIn('type_demandeur', [
-                TypeDemandeurEnum::PHYSIQUE->value, 
+                TypeDemandeurEnum::PHYSIQUE->value,
                 TypeDemandeurEnum::ENTREPRISE->value
             ])->where('statut', StatutDemandeAdhesionEnum::ACCEPTEE->value)->count();
 
@@ -603,7 +602,6 @@ class TechnicienController extends Controller
             ];
 
             return ApiResponse::success($statistiques, 'Statistiques des clients récupérées avec succès');
-
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des statistiques des clients', [
                 'error' => $e->getMessage(),
@@ -626,8 +624,8 @@ class TechnicienController extends Controller
             }
 
             $demande = DemandeAdhesion::with([
-                'user', 
-                'user.assure', 
+                'user',
+                'user.assure',
                 'user.entreprise',
                 'reponsesQuestionnaire.question'
             ])->find($id);
@@ -638,7 +636,7 @@ class TechnicienController extends Controller
 
             // Vérifier que c'est bien un client (physique ou entreprise)
             if (!in_array($demande->type_demandeur, [
-                TypeDemandeurEnum::PHYSIQUE->value, 
+                TypeDemandeurEnum::PHYSIQUE->value,
                 TypeDemandeurEnum::ENTREPRISE->value
             ])) {
                 return ApiResponse::error('Ce n\'est pas un client valide', 400);
@@ -690,7 +688,6 @@ class TechnicienController extends Controller
             }
 
             return ApiResponse::success($clientData, 'Détails du client récupérés avec succès');
-
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération du client', [
                 'error' => $e->getMessage(),
@@ -713,30 +710,29 @@ class TechnicienController extends Controller
             }
 
             $perPage = $request->input('per_page', 20);
-            
+
             // Récupérer les propositions de contrat acceptées
             $query = PropositionContrat::with([
                 'demandeAdhesion.user.assure',
-                'demandeAdhesion.user.entreprise', 
                 'contrat'
             ])
-            ->where('statut', StatutPropositionContratEnum::ACCEPTEE->value)
-            ->whereHas('demandeAdhesion', function ($q) {
-                $q->whereIn('type_demandeur', [
-                    TypeDemandeurEnum::PHYSIQUE->value,
-                    TypeDemandeurEnum::ENTREPRISE->value
-                ]);
-            });
+                ->where('statut', StatutPropositionContratEnum::ACCEPTEE->value)
+                ->whereHas('demandeAdhesion', function ($q) {
+                    $q->whereIn('type_demandeur', [
+                        TypeDemandeurEnum::PHYSIQUE->value,
+                        TypeDemandeurEnum::ENTREPRISE->value
+                    ]);
+                });
 
             // Recherche par nom ou email
             if ($request->filled('search')) {
                 $search = $request->search;
                 $query->whereHas('demandeAdhesion.user', function ($q) use ($search) {
                     $q->where('nom', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%")
-                      ->orWhereHas('entreprise', function ($eq) use ($search) {
-                          $eq->where('raison_sociale', 'like', "%{$search}%");
-                      });
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhereHas('entreprise', function ($eq) use ($search) {
+                            $eq->where('raison_sociale', 'like', "%{$search}%");
+                        });
                 });
             }
 
@@ -745,9 +741,9 @@ class TechnicienController extends Controller
             $clients = $propositions->getCollection()->map(function ($proposition) {
                 $demande = $proposition->demandeAdhesion;
                 $user = $demande->user;
-                
+
                 // Vérifier si des prestataires sont déjà assignés
-                $prestatairesAssignes = ClientContrat::where('client_id', $user->id)
+                $prestatairesAssignes = ClientContrat::where('user_id', $user->id)
                     ->where('contrat_id', $proposition->contrat->id)
                     ->whereHas('prestataires', function ($q) {
                         $q->where('statut', 'ACTIF');
@@ -770,7 +766,7 @@ class TechnicienController extends Controller
                         'couverture' => $proposition->contrat->couverture,
                     ],
                     'prestataires_assignes' => $prestatairesAssignes,
-                    'nombre_employes' => $user->entreprise ? 
+                    'nombre_employes' => $user->entreprise ?
                         $user->entreprise->assures()->where('est_principal', true)->count() : null,
                     'created_at' => $demande->created_at,
                 ];
@@ -785,7 +781,6 @@ class TechnicienController extends Controller
                     'last_page' => $propositions->lastPage(),
                 ]
             ], 'Clients avec contrats acceptés récupérés avec succès');
-
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des clients avec contrats acceptés', [
                 'error' => $e->getMessage(),
@@ -807,16 +802,16 @@ class TechnicienController extends Controller
             }
 
             $perPage = $request->input('per_page', 50);
-            
+
             $query = Prestataire::with('user')
-                ->where('statut', \App\Enums\StatutPrestataireEnum::VALIDE);
+                ->where('statut', \App\Enums\StatutPrestataireEnum::ACTIF);
 
             // Recherche par nom ou adresse
             if ($request->filled('search')) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
                     $q->where('raison_sociale', 'like', "%{$search}%")
-                      ->orWhere('adresse', 'like', "%{$search}%");
+                        ->orWhere('adresse', 'like', "%{$search}%");
                 });
             }
 
@@ -852,7 +847,6 @@ class TechnicienController extends Controller
                     'last_page' => $prestataires->lastPage(),
                 ]
             ], 'Prestataires pour assignation récupérés avec succès');
-
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des prestataires pour assignation', [
                 'error' => $e->getMessage(),
@@ -878,31 +872,13 @@ class TechnicienController extends Controller
                 return ApiResponse::error('Client non trouvé', 404);
             }
 
-            $clientContrats = ClientContrat::where('client_id', $clientId)
-                ->with(['contrat', 'prestataires.prestataire'])
-                ->where('statut', 'ACTIF')
+            $clientContrat = ClientContrat::where('user_id', $clientId)->where('statut', 'actif')->first();
+
+            $clientPrestataire = ClientPrestataire::where('client_contrat_id', $clientContrat->id)
+                ->with(['clientContrat', 'prestataire'])
+                ->where('statut', StatutPrestataireEnum::ACTIF->value)
                 ->get();
 
-            $assignations = $clientContrats->map(function ($clientContrat) {
-                return [
-                    'contrat' => [
-                        'id' => $clientContrat->contrat->id,
-                        'type_contrat' => $clientContrat->contrat->type_contrat,
-                        'date_debut' => $clientContrat->date_debut,
-                        'date_fin' => $clientContrat->date_fin,
-                    ],
-                    'prestataires' => $clientContrat->prestataires->where('statut', 'ACTIF')->map(function ($clientPrestataire) {
-                        return [
-                            'id' => $clientPrestataire->prestataire->id,
-                            'raison_sociale' => $clientPrestataire->prestataire->raison_sociale,
-                            'type_prestataire' => $clientPrestataire->type_prestataire,
-                            'adresse' => $clientPrestataire->prestataire->adresse,
-                            'date_assignation' => $clientPrestataire->created_at,
-                            'statut' => $clientPrestataire->statut,
-                        ];
-                    }),
-                ];
-            });
 
             return ApiResponse::success([
                 'client' => [
@@ -910,9 +886,8 @@ class TechnicienController extends Controller
                     'nom' => $client->nom ?? $client->name,
                     'email' => $client->email,
                 ],
-                'assignations' => $assignations,
+                "client_prestataire" => $clientPrestataire,
             ], 'Assignations du client récupérées avec succès');
-
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des assignations client', [
                 'error' => $e->getMessage(),

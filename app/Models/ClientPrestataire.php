@@ -13,7 +13,6 @@ class ClientPrestataire extends Model
     protected $fillable = [
         'client_contrat_id',
         'prestataire_id',
-        'type_prestataire',
         'statut',
     ];
 

@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum StatutPrestataireEnum: string
+enum StatutClientPrestataireEnum: string
 {
     case ACTIF = 'actif';
     case INACTIF = 'inactif';
@@ -19,6 +19,4 @@ enum StatutPrestataireEnum: string
             self::INACTIF => 'Inactif',
         };
     }
-
-
-} 
+}

@@ -6,6 +6,7 @@ use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
 use App\Enums\TypePrestataireEnum;
 use App\Enums\StatutDemandeAdhesionEnum;
+use App\Enums\StatutPrestataireEnum;
 use App\Enums\StatutPropositionContratEnum;
 use App\Helpers\ApiResponse;
 use App\Helpers\ImageUploadHelper;
@@ -18,6 +19,7 @@ use App\Models\ReponseQuestionnaire;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class DemandeAdhesionService
@@ -25,6 +27,8 @@ class DemandeAdhesionService
     protected NotificationService $notificationService;
     protected DemandeValidatorService $demandeValidatorService;
     protected DemandeAdhesionStatsService $statsService;
+
+
 
     public function __construct(
         NotificationService $notificationService,
@@ -36,6 +40,7 @@ class DemandeAdhesionService
         $this->statsService = $statsService;
     }
 
+
     /**
      * Appliquer les filtres de rôle sur les demandes d'adhésion
      */
@@ -46,7 +51,7 @@ class DemandeAdhesionService
         } elseif ($user->hasRole('medecin_controleur')) {
             $query->whereIn('type_demandeur', TypePrestataireEnum::values());
         }
-        
+
         return $query;
     }
 
@@ -66,28 +71,29 @@ class DemandeAdhesionService
                 default      => null
             });
         }
-        
+
         return $query;
     }
 
-    public function applySearchFilter($query, $request) {
+    public function applySearchFilter($query, $request)
+    {
         if ($request->filled('search')) {
             $search = $request->search;
-        
+
             $query->where(function ($q) use ($search) {
                 // User (nom/email)
                 $q->whereHas('user', function ($u) use ($search) {
                     $u->where('email', 'like', "%{$search}%");
                 })
-                // Assuré (nom/prenoms)
-                ->orWhereHas('user.assure', function ($a) use ($search) {
-                    $a->where('nom', 'like', "%{$search}%")
-                      ->orWhere('prenoms', 'like', "%{$search}%");
-                })
-                // Entreprise (raison sociale)
-                ->orWhereHas('user.entreprise', function ($e) use ($search) {
-                    $e->where('raison_sociale', 'like', "%{$search}%");
-                });
+                    // Assuré (nom/prenoms)
+                    ->orWhereHas('user.assure', function ($a) use ($search) {
+                        $a->where('nom', 'like', "%{$search}%")
+                            ->orWhere('prenoms', 'like', "%{$search}%");
+                    })
+                    // Entreprise (raison sociale)
+                    ->orWhereHas('user.entreprise', function ($e) use ($search) {
+                        $e->where('raison_sociale', 'like', "%{$search}%");
+                    });
             });
         }
     }
@@ -144,7 +150,7 @@ class DemandeAdhesionService
                 $data['reponse_text'] = $reponseData['reponse_text'] ?? null;
                 break;
         }
-        
+
         ReponseQuestionnaire::create($data);
     }
 
@@ -187,7 +193,7 @@ class DemandeAdhesionService
                         ->map(function ($garanties, $categorieId) {
                             $categorie = $garanties->first()->categorieGarantie;
                             $garantiesList = $garanties->pluck('nom')->implode(', ');
-                            
+
                             return [
                                 'id' => $categorie->id,
                                 'libelle' => $categorie->nom,
@@ -260,7 +266,14 @@ class DemandeAdhesionService
      */
     public function getStats(User $user)
     {
+        $driver = DB::getDriverName();
+
         $query = DemandeAdhesion::query();
+        $monthExpression = match ($driver) {
+            'pgsql' => "EXTRACT(MONTH FROM created_at)",
+            'mysql' => "MONTH(created_at)",
+            default => "MONTH(created_at)" // fallback
+        };
 
         // Appliquer les filtres de rôle
         $this->applyRoleFilters($query, $user);
@@ -279,14 +292,15 @@ class DemandeAdhesionService
                     $typeDemandeur = $item->type_demandeur?->value ?? $item->type_demandeur;
                     return [(string) $typeDemandeur => $item->count];
                 }),
-            'evolution_mensuelle' => (clone $query)->selectRaw('MONTH(created_at) as mois, COUNT(*) as count')
+            'evolution_mensuelle' => (clone $query)
+                ->selectRaw("$monthExpression as mois, COUNT(*) as count")
                 ->whereYear('created_at', now()->year)
                 ->groupBy('mois')
                 ->orderBy('mois')
                 ->get()
                 ->mapWithKeys(function ($item) {
                     return [$item->mois => $item->count];
-                })
+                }),
         ];
 
         return ApiResponse::success($stats, 'Statistiques récupérées avec succès');
@@ -335,9 +349,14 @@ class DemandeAdhesionService
         $demande->update([
             'statut' => StatutDemandeAdhesionEnum::VALIDEE,
             'valide_par_id' => $validateur->id,
-            'valide_a' => now(),
+            'valider_a' => now(),
             'motif_validation' => $motifValidation,
             'notes_techniques' => $notesTechniques,
+        ]);
+
+        $demande->user->prestataire->update([
+            'statut' => StatutPrestataireEnum::ACTIF->value,
+            'medecin_controleur_id' => $validateur->id
         ]);
 
         // Notifier le client
@@ -413,4 +432,4 @@ class DemandeAdhesionService
 
         return null; // Pas d'erreur
     }
-} 
+}

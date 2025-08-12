@@ -48,13 +48,6 @@ class Personnel extends Model
         return $this->hasMany(Personnel::class, 'gestionnaire_id');
     }
 
-    /**
-     * Get the clients managed by this commercial.
-     */
-    public function clients()
-    {
-        return $this->hasMany(Client::class, 'commercial_id');
-    }
 
     /**
      * Get the contrats managed by this technicien.

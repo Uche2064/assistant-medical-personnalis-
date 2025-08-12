@@ -15,6 +15,7 @@ use App\Models\Personnel;
 use App\Models\Question;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class StatsController extends Controller
 {
@@ -87,30 +88,30 @@ class StatsController extends Controller
                     $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
                 });
             })->count(),
-            
+
             'actifs' => Personnel::whereHas('user', function ($q) {
                 $q->whereHas('roles', function ($roleQuery) {
                     $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
                 })->where('est_actif', true);
             })->count(),
-            
+
             'inactifs' => Personnel::whereHas('user', function ($q) {
                 $q->whereHas('roles', function ($roleQuery) {
                     $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
                 })->where('est_actif', false);
             })->count(),
-            
+
             'repartition_par_sexe' => Personnel::whereHas('user', function ($q) {
                 $q->whereHas('roles', function ($roleQuery) {
                     $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
                 });
             })
-            ->selectRaw('sexe, COUNT(*) as count')
-            ->groupBy('sexe')
-            ->get()
-            ->mapWithKeys(function ($item) {
-                return [($item->sexe !== null ? (string) $item->sexe : 'Non spécifié') => $item->count];
-            }),
+                ->selectRaw('sexe, COUNT(*) as count')
+                ->groupBy('sexe')
+                ->get()
+                ->mapWithKeys(function ($item) {
+                    return [($item->sexe !== null ? (string) $item->sexe : 'Non spécifié') => $item->count];
+                }),
         ];
     }
 
@@ -129,15 +130,15 @@ class StatsController extends Controller
 
         return [
             'total' => $query->count(),
-            
+
             'actifs' => $query->clone()->whereHas('user', function ($q) {
                 $q->where('est_actif', true);
             })->count(),
-            
+
             'inactifs' => $query->clone()->whereHas('user', function ($q) {
                 $q->where('est_actif', false);
             })->count(),
-            
+
             'repartition_par_role' => $query->clone()
                 ->whereHas('user.roles')
                 ->with('user.roles')
@@ -148,7 +149,7 @@ class StatsController extends Controller
                 ->map(function ($group) {
                     return $group->count();
                 }),
-            
+
             'repartition_par_sexe' => $query->clone()
                 ->selectRaw('sexe, COUNT(*) as count')
                 ->groupBy('sexe')
@@ -166,11 +167,11 @@ class StatsController extends Controller
     {
         $data = [
             'total' => Assure::count(),
-            
+
             'principaux' => Assure::where('est_principal', true)->count(),
-            
+
             'beneficiaires' => Assure::where('est_principal', false)->count(),
-            
+
             'repartition_par_sexe' => Assure::selectRaw('sexe, COUNT(*) as count')
                 ->groupBy('sexe')
                 ->get()
@@ -182,7 +183,7 @@ class StatsController extends Controller
                     }
                     return [($sexe !== null ? $sexe->value : 'Non spécifié') => $item->count];
                 }),
-            
+
             'repartition_par_lien_parente' => Assure::selectRaw('lien_parente, COUNT(*) as count')
                 ->groupBy('lien_parente')
                 ->get()
@@ -194,12 +195,12 @@ class StatsController extends Controller
                     }
                     return [($lienParente !== null ? $lienParente->value : 'Non spécifié') => $item->count];
                 }),
-            
+
             'repartition_principaux_beneficiaires' => [
                 'principaux' => Assure::where('est_principal', true)->count(),
                 'beneficiaires' => Assure::where('est_principal', false)->count(),
             ],
-            
+
             'repartition_par_contrat' => Assure::selectRaw('contrat_id, COUNT(*) as count')
                 ->whereNotNull('contrat_id')
                 ->groupBy('contrat_id')
@@ -217,20 +218,26 @@ class StatsController extends Controller
     private function getDemandeAdhesionStats($types = null)
     {
         $query = DemandeAdhesion::query();
-        
+        $driver = DB::getDriverName();
+        $monthExpression = match ($driver) {
+            'pgsql' => "EXTRACT(MONTH FROM created_at)",
+            'mysql' => "MONTH(created_at)",
+            default => "MONTH(created_at)" // fallback
+        };
+
         if ($types) {
             $query->whereIn('type_demandeur', $types);
         }
 
         return [
             'total' => $query->count(),
-            
+
             'en_attente' => $query->clone()->where('statut', 'en_attente')->count(),
-            
+
             'validees' => $query->clone()->where('statut', 'validee')->count(),
-            
+
             'rejetees' => $query->clone()->where('statut', 'rejetee')->count(),
-            
+
             'repartition_par_type_demandeur' => $query->clone()
                 ->selectRaw('type_demandeur, COUNT(*) as count')
                 ->groupBy('type_demandeur')
@@ -247,7 +254,7 @@ class StatsController extends Controller
                     }
                     return [($typeDemandeur !== null ? (string) $typeDemandeur : 'Non spécifié') => $item->count];
                 }),
-            
+
             'repartition_par_statut' => $query->clone()
                 ->selectRaw('statut, COUNT(*) as count')
                 ->groupBy('statut')
@@ -264,7 +271,7 @@ class StatsController extends Controller
                     }
                     return [($statut !== null ? (string) $statut : 'Non spécifié') => $item->count];
                 }),
-            
+
             'repartition_statut_par_type' => $query->clone()
                 ->selectRaw('type_demandeur, statut, COUNT(*) as count')
                 ->groupBy('type_demandeur', 'statut')
@@ -295,18 +302,27 @@ class StatsController extends Controller
                         return [($statut !== null ? (string) $statut : 'Non spécifié') => $item->count];
                     });
                 }),
-            
-            'demandes_par_mois' => $query->clone()
-                ->selectRaw('MONTH(created_at) as mois, COUNT(*) as count')
+
+            'demandes_par_mois' => (clone $query)
+                ->selectRaw("$monthExpression as mois, COUNT(*) as count")
                 ->whereYear('created_at', date('Y'))
                 ->groupBy('mois')
                 ->orderBy('mois')
                 ->get()
                 ->mapWithKeys(function ($item) {
                     $mois = [
-                        1 => 'Janvier', 2 => 'Février', 3 => 'Mars', 4 => 'Avril',
-                        5 => 'Mai', 6 => 'Juin', 7 => 'Juillet', 8 => 'Août',
-                        9 => 'Septembre', 10 => 'Octobre', 11 => 'Novembre', 12 => 'Décembre'
+                        1 => 'Janvier',
+                        2 => 'Février',
+                        3 => 'Mars',
+                        4 => 'Avril',
+                        5 => 'Mai',
+                        6 => 'Juin',
+                        7 => 'Juillet',
+                        8 => 'Août',
+                        9 => 'Septembre',
+                        10 => 'Octobre',
+                        11 => 'Novembre',
+                        12 => 'Décembre'
                     ];
                     return [$mois[(int) $item->mois] ?? "Mois " . ((int) $item->mois) => $item->count];
                 }),
@@ -320,15 +336,15 @@ class StatsController extends Controller
     {
         return [
             'total' => Question::count(),
-            
+
             'actives' => Question::where('est_actif', true)->count(),
-            
+
             'inactives' => Question::where('est_actif', false)->count(),
-            
+
             'obligatoires' => Question::where('obligatoire', true)->count(),
-            
+
             'optionnelles' => Question::where('obligatoire', false)->count(),
-            
+
             'repartition_par_destinataire' => Question::selectRaw('destinataire, COUNT(*) as count')
                 ->groupBy('destinataire')
                 ->get()
@@ -344,7 +360,7 @@ class StatsController extends Controller
                     }
                     return [($destinataire !== null ? (string) $destinataire : 'Non spécifié') => $item->count];
                 }),
-            
+
             'repartition_par_type_donnee' => Question::selectRaw('type_donnee, COUNT(*) as count')
                 ->groupBy('type_donnee')
                 ->get()
@@ -360,7 +376,7 @@ class StatsController extends Controller
                     }
                     return [($typeDonnee !== null ? (string) $typeDonnee : 'Non spécifié') => $item->count];
                 }),
-            
+
             'repartition_obligatoire_par_destinataire' => Question::selectRaw('destinataire, obligatoire, COUNT(*) as count')
                 ->groupBy('destinataire', 'obligatoire')
                 ->get()
@@ -391,7 +407,7 @@ class StatsController extends Controller
     {
         return [
             'total' => Garantie::count(),
-            
+
             'repartition_par_categorie' => Garantie::selectRaw('categorie_garantie_id, COUNT(*) as count')
                 ->groupBy('categorie_garantie_id')
                 ->get()
@@ -408,7 +424,7 @@ class StatsController extends Controller
     {
         return [
             'total' => CategorieGarantie::count(),
-            
+
             'repartition_par_garanties' => CategorieGarantie::withCount('garanties')
                 ->get()
                 ->mapWithKeys(function ($item) {

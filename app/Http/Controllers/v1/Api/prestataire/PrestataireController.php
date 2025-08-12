@@ -10,6 +10,7 @@ use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\demande_adhesion\StoreDemandeAdhesionRequest;
 use App\Jobs\SendEmailJob;
+use App\Models\Assure;
 use App\Models\ClientContrat;
 use App\Models\ClientPrestataire;
 use App\Models\Contrat;
@@ -20,6 +21,8 @@ use App\Services\DemandeAdhesionService;
 use App\Services\DemandeValidatorService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -99,7 +102,8 @@ class PrestataireController extends Controller
             DB::beginTransaction();
 
             // Valider la demande via le service
-            $demande = $this->demandeAdhesionService->validerDemande($demande, $medecinControleur->personnel);
+            $demande = $this->demandeAdhesionService->validerDemande($demande, $medecinControleur);
+            $prestataire = Prestataire::where('user_id', $demande->user_id)->where('statut', StatutPrestataireEnum::ACTIF->value);
 
             // Envoyer l'email
             dispatch(new SendEmailJob($demande->user->email, 'Demande d\'adhésion prestataire validée', EmailType::ACCEPTED->value, [
@@ -123,57 +127,6 @@ class PrestataireController extends Controller
             ]);
 
             return ApiResponse::error('Erreur lors de la validation de la demande: ' . $e->getMessage(), 500);
-        }
-    }
-
-    /**
-     * Récupérer la liste des prestataires pour le technicien (avec recherche)
-     */
-    public function getPrestatairesTechnicien(Request $request)
-    {
-        try {
-            // Vérifier que l'utilisateur est un technicien
-            if (!Auth::user()->hasRole('technicien')) {
-                return ApiResponse::error('Accès non autorisé', 403);
-            }
-
-            $query = Prestataire::where('statut', StatutPrestataireEnum::VALIDE->value);
-
-            // Recherche par nom ou adresse
-            if ($request->has('search') && $request->search) {
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    $q->where('nom', 'like', "%{$search}%")
-                      ->orWhere('adresse', 'like', "%{$search}%");
-                });
-            }
-
-            // Filtrer par type de prestataire
-            if ($request->has('type_prestataire')) {
-                $query->where('type_prestataire', $request->type_prestataire);
-            }
-
-            $prestataires = $query->get()->map(function ($prestataire) {
-                return [
-                    'id' => $prestataire->id,
-                    'nom' => $prestataire->nom,
-                    'type_prestataire' => $prestataire->type_prestataire?->value ?? $prestataire->type_prestataire,
-                    'adresse' => $prestataire->adresse,
-                    'telephone' => $prestataire->telephone,
-                    'email' => $prestataire->email,
-                    'statut' => $prestataire->statut?->value ?? $prestataire->statut
-                ];
-            });
-
-            return ApiResponse::success($prestataires, 'Liste des prestataires récupérée avec succès');
-
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de la récupération des prestataires', [
-                'error' => $e->getMessage(),
-                'user_id' => Auth::id()
-            ]);
-
-            return ApiResponse::error('Erreur lors de la récupération des prestataires: ' . $e->getMessage(), 500);
         }
     }
 
@@ -242,5 +195,34 @@ class PrestataireController extends Controller
 
             return ApiResponse::error('Erreur lors de la récupération du prestataire: ' . $e->getMessage(), 500);
         }
+    }
+
+
+    public function getAssure(Request $request) {
+
+        $query = Assure::query();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+        
+            $query->where(function ($q) use ($search) {
+                $q->where('nom', 'like', "%{$search}%")
+                ->orWhere('prenoms', 'like', "%{$search}%");
+            });
+        }
+
+        // Pagination
+        $perPage = $request->query('per_page', 10);
+        $assures = $query->orderByDesc('created_at')->paginate($perPage);
+
+        $paginatedData = new LengthAwarePaginator(
+            $assures,
+            $assures->total(),
+            $assures->perPage(),
+            $assures->currentPage(),
+            ['path' => Paginator::resolveCurrentPath()]
+        );
+
+        return ApiResponse::success($assures, "Liste des assurés récupérée");
     }
 } 

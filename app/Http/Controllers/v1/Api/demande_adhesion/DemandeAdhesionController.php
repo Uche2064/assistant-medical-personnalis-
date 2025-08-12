@@ -437,8 +437,9 @@ class DemandeAdhesionController extends Controller
     /**
      * Accepter une proposition de contrat
      */
-    public function accepterContrat(int $propositionId)
+    public function accepterContrat($propositionId)
     {
+        Log::info($propositionId);
         try {
             $user = Auth::user();
             
@@ -446,8 +447,10 @@ class DemandeAdhesionController extends Controller
             $proposition = PropositionContrat::with([
                 'demandeAdhesion.user',
                 'contrat',
-                'technicien.personnel'
+                'technicien'
             ])->findOrFail($propositionId);
+
+            Log::info($proposition->demandeAdhesion->user_id);
 
             // Vérifier que la proposition appartient à l'utilisateur connecté
             if ($proposition->demandeAdhesion->user_id !== $user->id) {
@@ -455,7 +458,7 @@ class DemandeAdhesionController extends Controller
             }
 
             // Vérifier que la proposition est en statut PROPOSEE
-            if ($proposition->statut !== StatutPropositionContratEnum::PROPOSEE->value) {
+            if ($proposition->statut->value !== StatutPropositionContratEnum::PROPOSEE->value) {
                 return ApiResponse::error('Cette proposition a déjà été traitée', 400);
             }
 
@@ -466,6 +469,7 @@ class DemandeAdhesionController extends Controller
                 $clientContrat = ClientContrat::create([
                     'user_id' => $proposition->demandeAdhesion->user_id,
                     'contrat_id' => $proposition->contrat->id,
+                    'type_client' => $proposition->demandeAdhesion->type_demandeur,
                     'date_debut' => now(),
                     'date_fin' => now()->addYear(),
                     'statut' => StatutContratEnum::ACTIF->value,
@@ -483,16 +487,16 @@ class DemandeAdhesionController extends Controller
                     'contrat_id' => $clientContrat->id
                 ]);
 
+
                 // 4. Notification au technicien
                 $this->notificationService->createNotification(
                     $proposition->technicien->user_id,
                     'Contrat accepté par le client',
                     "Le client {$proposition->demandeAdhesion->user->assure->nom} a accepté votre proposition de contrat.",
-                    'contrat_accepte_technicien',
+                    'contrat_accepte_technicien', 
                     [
-                        'client_nom' => $proposition->demandeAdhesion->user->assure->nom,
+                        'client_nom' => $proposition->demandeAdhesion->user->email,
                         'contrat_nom' => $proposition->contrat->type_contrat,
-                        'prime' => $proposition->prime,
                         'type' => 'contrat_accepte_technicien'
                     ]
                 );
@@ -506,7 +510,6 @@ class DemandeAdhesionController extends Controller
                     [
                         'contrat_id' => $clientContrat->id,
                         'date_debut' => $clientContrat->date_debut,
-                        'prime' => $clientContrat->prime,
                         'type' => 'contrat_accepte'
                     ]
                 );
@@ -530,7 +533,7 @@ class DemandeAdhesionController extends Controller
                 'user_id' => Auth::id()
             ]);
 
-            return ApiResponse::error('Erreur lors de l\'acceptation du contrat: ' . $e->getMessage(), 500);
+            return ApiResponse::error('Erreur lors de l\'acceptation du contrat', 500, $e->getMessage());
         }
     }
 
@@ -586,57 +589,6 @@ class DemandeAdhesionController extends Controller
             ]);
 
             return ApiResponse::error('Erreur lors de la récupération des clients: ' . $e->getMessage(), 500);
-        }
-    }
-
-    /**
-     * Récupérer la liste des prestataires pour le technicien (avec recherche)
-     */
-    public function getPrestatairesTechnicien(Request $request)
-    {
-        try {
-            // Vérifier que l'utilisateur est un technicien
-            if (!Auth::user()->hasRole('technicien')) {
-                return ApiResponse::error('Accès non autorisé', 403);
-            }
-
-            $query = Prestataire::where('statut', StatutPrestataireEnum::VALIDE->value);
-
-            // Recherche par nom ou adresse
-            if ($request->has('search') && $request->search) {
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    $q->where('nom', 'like', "%{$search}%")
-                      ->orWhere('adresse', 'like', "%{$search}%");
-                });
-            }
-
-            // Filtrer par type de prestataire
-            if ($request->has('type_prestataire')) {
-                $query->where('type_prestataire', $request->type_prestataire);
-            }
-
-            $prestataires = $query->get()->map(function ($prestataire) {
-                return [
-                    'id' => $prestataire->id,
-                    'nom' => $prestataire->nom,
-                    'type_prestataire' => $prestataire->type_prestataire?->value ?? $prestataire->type_prestataire,
-                    'adresse' => $prestataire->adresse,
-                    'telephone' => $prestataire->telephone,
-                    'email' => $prestataire->email,
-                    'statut' => $prestataire->statut?->value ?? $prestataire->statut
-                ];
-            });
-
-            return ApiResponse::success($prestataires, 'Liste des prestataires récupérée avec succès');
-
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de la récupération des prestataires', [
-                'error' => $e->getMessage(),
-                'user_id' => Auth::id()
-            ]);
-
-            return ApiResponse::error('Erreur lors de la récupération des prestataires: ' . $e->getMessage(), 500);
         }
     }
 

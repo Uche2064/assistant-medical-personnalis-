@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\StatutPrestataireEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -16,6 +17,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->string('type_prestataire');
             $table->string('raison_sociale');
+            $table->enum('statut', StatutPrestataireEnum::values())->default('inactif');
             $table->foreignId('medecin_controleur_id')->nullable()->constrained('personnels')->onDelete('set null');
             $table->timestamps();
             $table->softDeletes();

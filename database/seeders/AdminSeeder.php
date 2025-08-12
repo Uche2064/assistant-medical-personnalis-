@@ -41,6 +41,7 @@ class AdminSeeder extends Seeder
                 'nom' => $nom,
                 'prenoms' => $prenoms,
                 'user_id' => $user->id,
+                "sexe" => 'M'
             ],
         );
 

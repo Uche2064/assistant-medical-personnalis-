@@ -2,28 +2,38 @@
 
 namespace App\Models;
 
+use App\Enums\StatutContratEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
+
 
 class ClientContrat extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'client_id',
+        'user_id',
         'contrat_id',
         'type_client',
         'date_debut',
         'date_fin',
         'statut',
+        'numero_police'
     ];
 
     protected $casts = [
         'date_debut' => 'date',
         'date_fin' => 'date',
+        'statut' => StatutContratEnum::class
     ];
+
+
+    public function genererNumeroPolice() {
+        return Str::uuid()->toString();
+    }
 
     /**
      * Relation avec l'utilisateur client

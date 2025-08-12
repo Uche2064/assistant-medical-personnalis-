@@ -19,7 +19,6 @@ return new class extends Migration
             $table->decimal('montant_reclame', 12, 2);
             $table->decimal('montant_a_rembourser', 12, 2);
             $table->text('diagnostic');
-            $table->json('photo_justificatifs');
             $table->decimal('ticket_moderateur', 12, 2);
             $table->string('statut')->default('en_attente');
             $table->text('motif_rejet')->nullable();

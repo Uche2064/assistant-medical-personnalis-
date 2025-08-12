@@ -7,13 +7,16 @@ use App\Enums\StatutDemandeAdhesionEnum;
 use App\Enums\StatutPropositionContratEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\ClientContrat;
 use App\Models\DemandeAdhesion;
 use App\Models\PropositionContrat;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Validator;
 
 class ClientController extends Controller
@@ -34,62 +37,144 @@ class ClientController extends Controller
         try {
             $user = Auth::user();
             
-            // Récupérer les propositions de contrats pour ce client
+            // Récupérer les propositions de contrats pour ce client avec toutes les relations nécessaires
             $propositions = PropositionContrat::with([
-                'demandeAdhesion.user.entreprise',
-                'demandeAdhesion.user.assure',
-                'contrat.categoriesGaranties.garanties',
+                'contrat',
+                'contrat.categoriesGaranties.garanties'
             ])
             ->whereHas('demandeAdhesion', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
             })
             ->where('statut', StatutPropositionContratEnum::PROPOSEE->value)
             ->get();
-
+    
             $contratsProposes = $propositions->map(function ($proposition) {
-                // Grouper les garanties par catégorie
-                $categoriesGaranties = $proposition->contrat->categoriesGaranties->groupBy('categorie_garantie_id')
-                    ->map(function ($garanties, $categorieId) {
-                        $categorie = $garanties->first()->categorieGarantie;
-                        $garantiesList = $garanties->pluck('nom')->implode(', ');
-                        
-                        return [
-                            'libelle' => $categorie->libelle,
-                            'garanties' => $garantiesList
-                        ];
-                    })->values();
-
+                // Structurer les catégories de garanties avec leurs garanties
+                $categoriesGaranties = $proposition->contrat->categoriesGaranties->map(function ($categorie) {
+                    return [
+                        'id' => $categorie->id,
+                        'libelle' => $categorie->libelle,
+                        'description' => $categorie->description,
+                        'couverture' => $categorie->pivot->couverture, // Couverture depuis la table pivot
+                        'couverture_formatted' => number_format($categorie->pivot->couverture, 0, ',', ' ') . ' FCFA',
+                        'garanties' => $categorie->garanties->map(function ($garantie) {
+                            return [
+                                'id' => $garantie->id,
+                                'libelle' => $garantie->libelle,
+                                'plafond' => $garantie->plafond,
+                                'prix_standard' => $garantie->prix_standard,
+                                'taux_couverture' => $garantie->taux_couverture,
+                                'plafond_formatted' => number_format($garantie->plafond, 0, ',', ' ') . ' FCFA',
+                                'prix_standard_formatted' => number_format($garantie->prix_standard, 0, ',', ' ') . ' FCFA',
+                                'montant_couvert' => $garantie->getCoverageAmountAttribute(),
+                                'montant_couvert_formatted' => number_format($garantie->getCoverageAmountAttribute(), 0, ',', ' ') . ' FCFA'
+                            ];
+                        })
+                    ];
+                });
+    
                 return [
                     'proposition_id' => $proposition->id,
+                    'categories_garanties' => $categoriesGaranties,
+                    'created_at' => $proposition->created_at,
+                    'statut' => $proposition->statut?->value ?? $proposition->statut,
                     'contrat' => [
                         'id' => $proposition->contrat->id,
-                        'nom' => $proposition->contrat->nom,
                         'type_contrat' => $proposition->contrat->type_contrat,
-                        'description' => $proposition->contrat->description
                     ],
                     'details_proposition' => [
-                        'prime_proposee' => $proposition->contrat->prime_standard,
-                        'taux_couverture' => $proposition->contrat->taux_couverture,
-                        'frais_gestion' => $proposition->contrat->frais_gestion,
-                        'commentaires_technicien' => $proposition->commentaires_technicien,
-                        'date_proposition' => $proposition->date_proposition
+                        'prime_proposee' => $proposition->getPrimeAttribute(),
+                        'prime_proposee_formatted' => $proposition->getPrimeFormattedAttribute(),
+                        'prime_totale' => $proposition->getPrimeTotaleAttribute(),
+                        'prime_totale_formatted' => $proposition->getPrimeTotaleFormattedAttribute(),
+                        'taux_couverture' => $proposition->getTauxCouvertureAttribute(),
+                        'frais_gestion' => $proposition->getFraisGestionAttribute(),
+                        'date_proposition' => $proposition->created_at,
                     ],
-                    'categories_garanties' => $categoriesGaranties,
-                    'statut' => $proposition->statut?->value ?? $proposition->statut
+                    'technicien' => [
+                        'nom' => $proposition->technicien->nom
+                    ],
                 ];
             });
 
+            Log::info($contratsProposes);
+    
             return ApiResponse::success($contratsProposes, 'Contrats proposés récupérés avec succès');
-
+    
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des contrats proposés', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id()
             ]);
-
+    
             return ApiResponse::error('Erreur lors de la récupération des contrats proposés: ' . $e->getMessage(), 500);
         }
     }
+
+
+    public function mesContrats(Request $request) 
+{
+    try {
+        $user = Auth::user();
+
+        // Récupération des paramètres d'entrée
+        $params = $this->getRequestParams($request);
+    
+        // Construction de la requête de base
+        $query = ClientContrat::with(['contrat.categoriesGaranties.garanties'])
+            ->where('user_id', $user->id)
+            ->when($params['statut'], fn($q) => $q->where('statut', $params['statut']))
+            ->when($params['dateDebut'], fn($q) => $q->whereDate('date_debut', '>=', $params['dateDebut']))
+            ->when($params['dateFin'], fn($q) => $q->whereDate('date_fin', '<=', $params['dateFin']))
+            ->orderBy($params['sortBy'], $params['sortOrder']);
+    
+        // Pagination
+        $contrats = $query->paginate($params['perPage']);
+        
+      
+    
+        return ApiResponse::success($contrats, 'Contrats récupérés avec succès');
+    
+    } catch (\Exception $e) {
+        Log::error('Erreur lors de la récupération des contrats utilisateur', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+            'user_id' => Auth::id(),
+            'filters' => $request->all()
+        ]);
+    
+        return ApiResponse::error('Erreur lors de la récupération des contrats: ' . $e->getMessage(), 500);
+    }
+}
+
+private function getRequestParams(Request $request): array
+{
+    return [
+        'statut' => $request->input('statut'),
+        'dateDebut' => $request->input('date_debut'),
+        'dateFin' => $request->input('date_fin'),
+        'sortBy' => $request->input('sort_by', 'created_at'),
+        'sortOrder' => $request->input('sort_order', 'desc'),
+        'perPage' => $request->input('per_page', 15),
+    ];
+}
+
+private function getPaginationData($contrats): array
+{
+    return [
+        'current_page' => $contrats->currentPage(),
+        'per_page' => $contrats->perPage(),
+        'total' => $contrats->total(),
+        'last_page' => $contrats->lastPage(),
+        'from' => $contrats->firstItem(),
+        'to' => $contrats->lastItem(),
+        'has_more_pages' => $contrats->hasMorePages(),
+    ];
+}
+
+    
+
 
 
      /**

@@ -63,18 +63,11 @@ class SinistreController extends Controller
     public function searchAssures(Request $request)
     {
         $search = $request->input('search', '');
-        
-        if (strlen($search) < 2) {
-            return ApiResponse::success([], 'Veuillez saisir au moins 2 caractères');
-        }
 
         $user = Auth::user();
         $prestataire = $user->prestataire;
 
-        if (!$prestataire) {
-            return ApiResponse::error('Vous n\'êtes pas un prestataire', 403);
-        }
-
+       
         // Récupérer les client_contrats assignés à ce prestataire
         $clientContratsAssignes = ClientPrestataire::where('prestataire_id', $prestataire->id)
             ->where('statut', 'ACTIF')

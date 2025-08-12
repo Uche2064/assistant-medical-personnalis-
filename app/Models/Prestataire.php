@@ -19,11 +19,13 @@ class Prestataire extends Model
         'documents_requis',
         'code_parrainage',
         'medecin_controleur_id',
+        'statut',
     ];
 
     protected $casts = [
         'type_prestataire' => TypePrestataireEnum::class,
         'documents_requis' => 'array',
+        'statut' => StatutPrestataireEnum::class
     ];
 
     /**

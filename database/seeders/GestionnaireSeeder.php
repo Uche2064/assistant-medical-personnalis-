@@ -38,6 +38,7 @@ class GestionnaireSeeder extends Seeder
             ['user_id' => $user->id],
             [
                 'nom' => 'gestionnaire',
+                "sexe" => 'M',
                 'prenoms' => 'gest',
             ]
         );

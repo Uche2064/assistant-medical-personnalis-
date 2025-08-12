@@ -24,27 +24,6 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\v1\Api\NotificationController;
 use App\Http\Controllers\v1\Api\prestataire\PrestataireController;
 
-// Route publique pour les fichiers (en dehors du middleware verifyApiKey)
-Route::get('/v1/files/{filename}', function ($filename) {
-    // Sécuriser le nom de fichier
-    $filename = basename($filename);
-
-    $path = storage_path('app/public/uploads/' . $filename);
-
-    if (!file_exists($path)) {
-        abort(404, 'Fichier non trouvé');
-    }
-
-    // Vérifier que c'est bien dans le dossier uploads
-    $realPath = realpath($path);
-    $uploadsDir = realpath(storage_path('app/public/uploads'));
-
-    if (!$realPath || strpos($realPath, $uploadsDir) !== 0) {
-        abort(403, 'Accès interdit');
-    }
-
-    return response()->file($path);
-})->where('filename', '.*');
 
 Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
@@ -148,7 +127,8 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
     // Routes pour les clients (physique/entreprise)
     Route::middleware(['auth:api'])->prefix('client')->group(function () {
-        Route::get('/contrats-proposes', [DemandeAdhesionController::class, 'getContratsProposes']);
+        Route::get('/mes-contrats', [ClientController::class, 'mesContrats']);
+        Route::get('/contrats-proposes', [ClientController::class, 'getContratsProposes']);
         Route::post('/contrats-proposes/{proposition_id}/accepter', [DemandeAdhesionController::class, 'accepterContrat']);
         Route::post('/contrats-proposes/{proposition_id}/refuser', [ClientController::class, 'refuserContrat']);
     });
@@ -163,6 +143,8 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
     // --------------------- Routes pour les prestataires de soins ---------------------
     Route::middleware(['auth:api', 'checkRole:prestataire'])->prefix('prestataire')->group(function () {
+
+        Route::get('/assures', [PrestataireController::class, 'getAssure']);
         Route::get('/dashboard', [PrestataireController::class, 'dashboard']);
         Route::get('/profile', [PrestataireController::class, 'getProfile']);
         Route::put('/profile', [PrestataireController::class, 'updateProfile']);
@@ -381,6 +363,8 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/clients-avec-contrats-acceptes', [TechnicienController::class, 'getClientsAvecContratsAcceptes']);
         Route::get('/prestataires-pour-assignation', [TechnicienController::class, 'getPrestatairesPourAssignation']);
         Route::get('/clients/{id}/assignations', [TechnicienController::class, 'getAssignationsClient']);
+        Route::post('/clients/{id}/assignations', [TechnicienController::class, 'assignerReseauPrestataires']);
+        Route::delete('/clients/{id}/assignations/{id}', [TechnicienController::class, 'desassignerPrestataire']);
     });
 
     Route::middleware(['auth:api', 'checkRole:physique'])->prefix('beneficiaires')->group(function () {

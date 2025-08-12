@@ -59,12 +59,17 @@ class PersonnelSeeder extends Seeder
                 'prenoms' => $prenoms,
                 'code_parainage' => $code_parainage,
                 'gestionnaire_id' => $gestionnaireId,
+                "sexe" => 'M'
+
+
+
             ]);
         } else {
             Personnel::create([
                 'user_id' => $user->id,
                 'nom' => $nom,
                 'prenoms' => $prenoms,
+                "sexe" => 'M',
                 'gestionnaire_id' => $gestionnaireId,
             ]);
         }

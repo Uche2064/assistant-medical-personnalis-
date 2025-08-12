@@ -9,6 +9,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class SoumissionEmployeFormRequest extends FormRequest
 {
@@ -63,7 +64,7 @@ class SoumissionEmployeFormRequest extends FormRequest
                     $rules[$ruleKey . '.reponse_number'] = [$required, 'numeric'];
                     break;
                 case TypeDonneeEnum::BOOLEAN:
-                    $rules[$ruleKey . '.reponse_bool'] = [$required, 'boolean'];
+                    $rules[$ruleKey . '.reponse_bool'] = [$required, Rule::in('true', 'false', true, false)];
                     break;
                 case TypeDonneeEnum::DATE:
                     $rules[$ruleKey . '.reponse_date'] = [$required, 'date'];
@@ -94,7 +95,7 @@ class SoumissionEmployeFormRequest extends FormRequest
                             $rules[$ruleKey . '.reponse_number'] = [$required, 'numeric'];
                             break;
                         case TypeDonneeEnum::BOOLEAN:
-                            $rules[$ruleKey . '.reponse_bool'] = [$required, 'boolean'];
+                            $rules[$ruleKey . '.reponse_bool'] = [$required, Rule::in('true', 'false', true, false)];
                             break;
                         case TypeDonneeEnum::DATE:
                             $rules[$ruleKey . '.reponse_date'] = [$required, 'date'];
