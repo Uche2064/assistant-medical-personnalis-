@@ -10,6 +10,9 @@ enum StatutFactureEnum: string
     case AUTORISEE_COMPTABLE = 'autorisee_comptable';
     case REMBOURSEE = 'remboursee';
     case REJETEE = 'rejetee';
+    case REJETEE_TECHNICIEN = 'rejetee_technicien';
+    case REJETEE_MEDECIN = 'rejetee_medecin';
+    case REJETEE_COMPTABLE = 'rejetee_comptable';
 
     public static function values(): array
     {
@@ -25,6 +28,9 @@ enum StatutFactureEnum: string
             self::AUTORISEE_COMPTABLE => 'Autorisée par Comptable',
             self::REMBOURSEE => 'Remboursée',
             self::REJETEE => 'Rejetée',
+            self::REJETEE_TECHNICIEN => 'Rejetée par Technicien',
+            self::REJETEE_MEDECIN => 'Rejetée par Médecin',
+            self::REJETEE_COMPTABLE => 'Rejetée par Comptable',
         };
     }
 
@@ -37,6 +43,9 @@ enum StatutFactureEnum: string
             self::AUTORISEE_COMPTABLE => 'success',
             self::REMBOURSEE => 'success',
             self::REJETEE => 'error',
+            self::REJETEE_TECHNICIEN => 'error',
+            self::REJETEE_MEDECIN => 'error',
+            self::REJETEE_COMPTABLE => 'error',
         };
     }
 
@@ -49,6 +58,9 @@ enum StatutFactureEnum: string
             self::AUTORISEE_COMPTABLE => 4,
             self::REMBOURSEE => 5,
             self::REJETEE => 0,
+            self::REJETEE_TECHNICIEN => 0,
+            self::REJETEE_MEDECIN => 0,
+            self::REJETEE_COMPTABLE => 0,
         };
     }
 }

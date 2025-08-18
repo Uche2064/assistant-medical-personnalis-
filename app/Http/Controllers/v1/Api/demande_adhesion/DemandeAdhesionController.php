@@ -195,6 +195,7 @@ class DemandeAdhesionController extends Controller
     {
         Log::info('show demande', ['id' => $id]);
         $user = Auth::user();
+        
 
         $demande = DemandeAdhesion::with([
             'user',

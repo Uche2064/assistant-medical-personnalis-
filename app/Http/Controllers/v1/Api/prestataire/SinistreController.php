@@ -16,6 +16,7 @@ use App\Models\LigneFacture;
 use App\Models\Personnel;
 use App\Models\Sinistre;
 use App\Notifications\NouvelleFactureNotification;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,12 @@ use Illuminate\Support\Facades\Notification;
 
 class SinistreController extends Controller
 {
+    private $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     /**
      * Afficher la liste des sinistres du prestataire
      */
@@ -44,7 +51,7 @@ class SinistreController extends Controller
             ->when($request->filled('search'), function ($query) use ($request) {
                 $query->whereHas('assure', function ($q) use ($request) {
                     $q->where('nom', 'like', '%' . $request->search . '%')
-                      ->orWhere('prenoms', 'like', '%' . $request->search . '%');
+                        ->orWhere('prenoms', 'like', '%' . $request->search . '%');
                 });
             })
             ->when($request->filled('statut'), function ($query) use ($request) {
@@ -67,14 +74,14 @@ class SinistreController extends Controller
         $user = Auth::user();
         $prestataire = $user->prestataire;
 
-       
+
         // Récupérer les client_contrats assignés à ce prestataire
         $clientContratsAssignes = ClientPrestataire::where('prestataire_id', $prestataire->id)
             ->where('statut', 'ACTIF')
             ->with(['clientContrat' => function ($query) {
                 $query->where('statut', 'ACTIF')
-                      ->where('date_debut', '<=', now())
-                      ->where('date_fin', '>=', now());
+                    ->where('date_debut', '<=', now())
+                    ->where('date_fin', '>=', now());
             }])
             ->get()
             ->pluck('clientContrat')
@@ -103,7 +110,7 @@ class SinistreController extends Controller
             ->whereIn('contrat_id', $contratIds)
             ->where(function ($query) use ($search) {
                 $query->where('nom', 'like', '%' . $search . '%')
-                      ->orWhere('prenoms', 'like', '%' . $search . '%');
+                    ->orWhere('prenoms', 'like', '%' . $search . '%');
             })
             ->limit(10)
             ->get();
@@ -118,7 +125,7 @@ class SinistreController extends Controller
             })
             ->where(function ($query) use ($search) {
                 $query->where('nom', 'like', '%' . $search . '%')
-                      ->orWhere('prenoms', 'like', '%' . $search . '%');
+                    ->orWhere('prenoms', 'like', '%' . $search . '%');
             })
             ->limit(10)
             ->get();
@@ -219,7 +226,7 @@ class SinistreController extends Controller
 
         // Vérifier que l'assuré est assigné au prestataire et a un contrat actif
         $assure = Assure::with('contrat', 'assurePrincipal.contrat', 'user', 'entreprise.user')->find($request->assure_id);
-        
+
         if (!$assure) {
             return ApiResponse::error('Assuré non trouvé', 404);
         }
@@ -227,41 +234,70 @@ class SinistreController extends Controller
         // Vérifier l'assignation du prestataire à cet assuré
         $isAssigned = false;
 
-        // Pour les clients physiques
-        if ($assure->user) {
-            $isAssigned = ClientPrestataire::whereHas('clientContrat', function ($query) use ($assure) {
-                $query->where('client_id', $assure->user->id)
-                      ->where('statut', 'ACTIF')
-                      ->where('date_debut', '<=', now())
-                      ->where('date_fin', '>=', now());
-            })->where('prestataire_id', $prestataire->id)
-              ->where('statut', 'ACTIF')
-              ->exists();
-        }
+        // Cas 1: Assuré principal (physique ou entreprise)
+        if ($assure->est_principal) {
+            // Pour les clients physiques
+            if ($assure->user) {
+                $isAssigned = ClientPrestataire::whereHas('clientContrat', function ($query) use ($assure) {
+                    $query->where('user_id', $assure->user->id)
+                        ->where('statut', 'actif')
+                        ->where('date_debut', '<=', now())
+                        ->where('date_fin', '>=', now());
+                })->where('prestataire_id', $prestataire->id)
+                    ->where('statut', 'actif')
+                    ->exists();
+            }
 
-        // Pour les employés d'entreprise
-        if (!$isAssigned && $assure->entreprise && $assure->entreprise->user) {
-            $isAssigned = ClientPrestataire::whereHas('clientContrat', function ($query) use ($assure) {
-                $query->where('client_id', $assure->entreprise->user->id)
-                      ->where('statut', 'ACTIF')
-                      ->where('date_debut', '<=', now())
-                      ->where('date_fin', '>=', now());
-            })->where('prestataire_id', $prestataire->id)
-              ->where('statut', 'ACTIF')
-              ->exists();
+            // Pour les employés d'entreprise
+            if (!$isAssigned && $assure->entreprise && $assure->entreprise->user) {
+                $isAssigned = ClientPrestataire::whereHas('clientContrat', function ($query) use ($assure) {
+                    $query->where('user_id', $assure->entreprise->user->id)
+                        ->where('statut', 'actif')
+                        ->where('date_debut', '<=', now())
+                        ->where('date_fin', '>=', now());
+                })->where('prestataire_id', $prestataire->id)
+                    ->where('statut', 'actif')
+                    ->exists();
+            }
+        }
+        // Cas 2: Bénéficiaire - vérifier l'assignation de l'assuré principal
+        else if ($assure->assure_principal_id) {
+            $assurePrincipal = Assure::with('user', 'entreprise.user')->find($assure->assure_principal_id);
+
+            if ($assurePrincipal) {
+                // Vérifier l'assignation de l'assuré principal
+                if ($assurePrincipal->user) {
+                    $isAssigned = ClientPrestataire::whereHas('clientContrat', function ($query) use ($assurePrincipal) {
+                        $query->where('user_id', $assurePrincipal->user->id)
+                            ->where('statut', 'actif')
+                            ->where('date_debut', '<=', now())
+                            ->where('date_fin', '>=', now());
+                    })->where('prestataire_id', $prestataire->id)
+                        ->where('statut', 'actif')
+                        ->exists();
+                }
+
+                // Pour les employés d'entreprise (assurés principaux)
+                if (!$isAssigned && $assurePrincipal->entreprise && $assurePrincipal->entreprise->user) {
+                    $isAssigned = ClientPrestataire::whereHas('clientContrat', function ($query) use ($assurePrincipal) {
+                        $query->where('user_id', $assurePrincipal->entreprise->user->id)
+                            ->where('statut', 'actif')
+                            ->where('date_debut', '<=', now())
+                            ->where('date_fin', '>=', now());
+                    })->where('prestataire_id', $prestataire->id)
+                        ->where('statut', 'actif')
+                        ->exists();
+                }
+            }
         }
 
         if (!$isAssigned) {
             return ApiResponse::error('Cet assuré ne vous est pas assigné', 403);
         }
 
-        // Vérifier que l'assuré a un contrat actif
-        $contrat = $assure->contrat;
-        if (!$contrat && $assure->assure_principal_id) {
-            $contrat = $assure->assurePrincipal->contrat;
-        }
 
-        if (!$contrat || !$contrat->isActive()) {
+
+        if (!$assure->hasContratActif()) {
             return ApiResponse::error('L\'assuré n\'a pas de contrat actif', 400);
         }
 
@@ -273,7 +309,7 @@ class SinistreController extends Controller
                 'prestataire_id' => $prestataire->id,
                 'description' => $request->description,
                 'date_sinistre' => now(),
-                'statut' => StatutSinistreEnum::DECLARE,
+                'statut' => StatutSinistreEnum::EN_COURS->value,
             ]);
 
             DB::commit();
@@ -281,7 +317,6 @@ class SinistreController extends Controller
             $sinistre->load(['assure.user', 'assure.contrat']);
 
             return ApiResponse::success($sinistre, 'Sinistre créé avec succès');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Erreur création sinistre: ' . $e->getMessage());
@@ -305,10 +340,9 @@ class SinistreController extends Controller
         ]);
 
         $user = Auth::user();
-        $prestataire = $user->prestataire;
 
         $sinistre = Sinistre::where('id', $sinistreId)
-            ->where('prestataire_id', $prestataire->id)
+            ->where('prestataire_id', $user->id)
             ->with(['assure.contrat', 'assure.assurePrincipal.contrat'])
             ->first();
 
@@ -317,13 +351,10 @@ class SinistreController extends Controller
         }
 
         // Récupérer le contrat (principal ou bénéficiaire)
-        $contrat = $sinistre->assure->contrat;
-        if (!$contrat && $sinistre->assure->assure_principal_id) {
-            $contrat = $sinistre->assure->assurePrincipal->contrat;
-        }
+        $assure = $sinistre->assure;
 
-        if (!$contrat || !$contrat->isActive()) {
-            return ApiResponse::error('Contrat non actif', 400);
+        if (!$assure->hasContratActif()) {
+            return ApiResponse::error('L\'assuré n\'a pas de contrat actif', 400);
         }
 
         try {
@@ -338,7 +369,7 @@ class SinistreController extends Controller
 
             foreach ($request->lignes_facture as $ligneData) {
                 $garantie = Garantie::find($ligneData['garantie_id']);
-                
+
                 if (!$garantie) {
                     throw new \Exception("Garantie non trouvée: {$ligneData['garantie_id']}");
                 }
@@ -367,12 +398,12 @@ class SinistreController extends Controller
             }
 
             // Créer la facture
-            $numeroFacture = 'FAC-' . date('Y') . '-' . str_pad($prestataire->id, 4, '0', STR_PAD_LEFT) . '-' . str_pad(Facture::count() + 1, 6, '0', STR_PAD_LEFT);
+            $numeroFacture = 'FAC-' . date('Y') . '-' . str_pad($user->id, 4, '0', STR_PAD_LEFT) . '-' . str_pad(Facture::count() + 1, 6, '0', STR_PAD_LEFT);
 
             $facture = Facture::create([
                 'numero_facture' => $numeroFacture,
                 'sinistre_id' => $sinistre->id,
-                'prestataire_id' => $prestataire->id,
+                'prestataire_id' => $user->id,
                 'montant_reclame' => $montantTotal,
                 'montant_a_rembourser' => $montantCouvert,
                 'diagnostic' => $request->diagnostic,
@@ -387,25 +418,44 @@ class SinistreController extends Controller
             }
 
             // Mettre à jour le statut du sinistre
-            $sinistre->updateStatus(StatutSinistreEnum::TRAITE);
+            $sinistre->updateStatus(StatutSinistreEnum::CLOTURE->value);
 
             // Envoyer notification aux techniciens
-            $techniciens = Personnel::where('role', 'technicien')
-                ->whereHas('user', function ($query) {
-                    $query->whereNotNull('email_verified_at');
+            $techniciens = Personnel::with('user')
+                ->whereHas('user', function ($userQuery) {
+                    $userQuery->whereNotNull('email_verified_at')
+                        ->whereHas('roles', function ($roleQuery) {
+                            $roleQuery->where('name', 'technicien');
+                        });
                 })
                 ->get();
 
             foreach ($techniciens as $technicien) {
-                $technicien->user->notify(new NouvelleFactureNotification($facture));
+                // Envoyer notification aux techniciens
+                $this->notificationService->createNotification(
+                    $technicien->user->id,
+                    'Sinistre cloturé avec succès',
+                    "Le sinistre a été cloturé avec succès. Veuillez vérifier la facture et valider",
+                    'sinistre_cloture',
+                    [
+                        'sinistre_id' => $sinistre->id,
+                        'type' => 'sinistre_cloture',
+                        'prestataire_id' => $user->id,
+                        'assure_id' => $sinistre->assure_id,
+                        'montant_reclame' => $sinistre->montant_reclame,
+                        'montant_a_rembourser' => $sinistre->montant_a_rembourser,
+                        'ticket_moderateur' => $sinistre->ticket_moderateur,
+                        'diagnostic' => $sinistre->diagnostic,
+                    ]
+                );
             }
+
 
             DB::commit();
 
             $facture->load(['lignesFacture.garantie', 'sinistre.assure']);
 
             return ApiResponse::success($facture, 'Facture créée avec succès');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Erreur création facture: ' . $e->getMessage());
@@ -421,15 +471,38 @@ class SinistreController extends Controller
         $user = Auth::user();
         $prestataire = $user->prestataire;
 
-        $sinistre = Sinistre::where('id', $id)
+        $sinistre = Sinistre::where('assure_id', $id)
             ->where('prestataire_id', $prestataire->id)
+            ->where('statut', StatutSinistreEnum::EN_COURS->value)
             ->with(['assure.user', 'assure.contrat', 'factures.lignesFacture.garantie'])
             ->first();
+
+        Log::info($sinistre);
 
         if (!$sinistre) {
             return ApiResponse::error('Sinistre non trouvé', 404);
         }
 
         return ApiResponse::success($sinistre, 'Sinistre récupéré avec succès');
+    }
+
+    public function existingSinistre($id)
+    {
+        $user = Auth::user();
+        $prestataire = $user->prestataire;
+
+        $sinistre = Sinistre::where('assure_id', $id)
+            ->where('prestataire_id', $prestataire->id)
+            ->where('statut', StatutSinistreEnum::EN_COURS->value)
+            ->with(['assure.user', 'assure.contrat', 'factures.lignesFacture.garantie'])
+            ->first();
+
+        $data = [
+            'existing' => (bool) $sinistre,
+            'statut' => $sinistre->statut->value ?? null,
+            'sinistre' => $sinistre,
+        ];
+
+        return ApiResponse::success($data, 'Sinistre récupéré avec succès');
     }
 }

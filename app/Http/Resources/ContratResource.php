@@ -23,6 +23,13 @@ class ContratResource extends JsonResource
             'categories_garanties_standard' => $this->categories_garanties_standard,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            'technicien' => $this->whenLoaded('technicien', function () {
+                return [
+                    'id' => $this->technicien->id,
+                    'nom_complet' => $this->technicien->nom . ' ' . $this->technicien->prenom,
+                    'email' => $this->technicien->user->email,
+                ];
+            }),
             'categories_garanties' => $this->whenLoaded('categoriesGaranties', function () {
                 return $this->categoriesGaranties->map(function ($categorie) {
                     return [

@@ -31,7 +31,7 @@ class ClientReseauController extends Controller
             // Récupérer les contrats actifs du client
             $clientContrats = ClientContrat::where('client_id', $user->id)
                 ->with(['contrat', 'prestataires.prestataire.user'])
-                ->where('statut', 'ACTIF')
+                ->where('statut', 'actif')
                 ->where('date_debut', '<=', now())
                 ->where('date_fin', '>=', now())
                 ->get();
@@ -40,7 +40,7 @@ class ClientReseauController extends Controller
 
             foreach ($clientContrats as $clientContrat) {
                 $prestatairesActifs = $clientContrat->prestataires()
-                    ->where('statut', 'ACTIF')
+                    ->where('statut', 'actif')
                     ->with('prestataire.user')
                     ->get();
 
@@ -124,14 +124,14 @@ class ClientReseauController extends Controller
 
             // Compter les prestataires par type
             $stats = ClientContrat::where('client_id', $user->id)
-                ->where('statut', 'ACTIF')
+                ->where('statut', 'actif')
                 ->where('date_debut', '<=', now())
                 ->where('date_fin', '>=', now())
                 ->with('prestataires.prestataire')
                 ->get()
                 ->flatMap(function ($clientContrat) {
                     return $clientContrat->prestataires()
-                        ->where('statut', 'ACTIF')
+                        ->where('statut', 'actif')
                         ->with('prestataire')
                         ->get()
                         ->pluck('prestataire');

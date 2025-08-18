@@ -9,6 +9,7 @@ use App\Enums\TypeDemandeurEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\demande_adhesion\StoreDemandeAdhesionRequest;
+use App\Http\Resources\AssureResource;
 use App\Jobs\SendEmailJob;
 use App\Models\Assure;
 use App\Models\ClientContrat;
@@ -42,7 +43,7 @@ class PrestataireController extends Controller
         $this->demandeAdhesionService = $demandeAdhesionService;
     }
 
-        /**
+    /**
      * Soumission d'une demande d'adhésion pour une personne physique
      */
     public function storeDemande(StoreDemandeAdhesionRequest $request)
@@ -64,11 +65,11 @@ class PrestataireController extends Controller
 
         DB::beginTransaction();
         try {
-           if($typeDemandeur === TypeDemandeurEnum::PHYSIQUE->value || $typeDemandeur === TypeDemandeurEnum::ENTREPRISE->value){
-            $demande = $this->demandeValidatorService->createDemandeAdhesionPhysique($data, $user);
-           }else{
-            $demande = $this->demandeValidatorService->createDemandeAdhesionPrestataire($data, $user);
-           }
+            if ($typeDemandeur === TypeDemandeurEnum::PHYSIQUE->value || $typeDemandeur === TypeDemandeurEnum::ENTREPRISE->value) {
+                $demande = $this->demandeValidatorService->createDemandeAdhesionPhysique($data, $user);
+            } else {
+                $demande = $this->demandeValidatorService->createDemandeAdhesionPrestataire($data, $user);
+            }
 
             // Notifier selon le type de demandeur via le service
             $this->demandeAdhesionService->notifyByDemandeurType($demande, $typeDemandeur);
@@ -143,8 +144,8 @@ class PrestataireController extends Controller
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
                     $q->where('nom', 'like', "%{$search}%")
-                      ->orWhere('adresse', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
+                        ->orWhere('adresse', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
                 });
             }
 
@@ -161,7 +162,6 @@ class PrestataireController extends Controller
             $prestataires = $query->orderBy('created_at', 'desc')->paginate($request->get('per_page', 15));
 
             return ApiResponse::success($prestataires, 'Liste des prestataires récupérée avec succès');
-
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des prestataires', [
                 'error' => $e->getMessage(),
@@ -185,7 +185,6 @@ class PrestataireController extends Controller
             }
 
             return ApiResponse::success($prestataire, 'Détails du prestataire récupérés avec succès');
-
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération du prestataire', [
                 'error' => $e->getMessage(),
@@ -198,31 +197,109 @@ class PrestataireController extends Controller
     }
 
 
-    public function getAssure(Request $request) {
+    public function getAssure(Request $request)
+    {
+        $user = Auth::user();
+        $prestataire = $user->prestataire;
 
-        $query = Assure::query();
+        if (!$prestataire) {
+            return ApiResponse::error('Prestataire non trouvé', 404);
+        }
 
+        // 1. Récupérer les client_contrats assignés à ce prestataire
+        $clientContratsAssignes = ClientPrestataire::where('prestataire_id', $prestataire->id)
+            ->where('statut', 'actif')
+            ->with(['clientContrat' => function ($query) {
+                $query->where('statut', 'actif')
+                      ->where('date_debut', '<=', now())
+                      ->where('date_fin', '>=', now());
+            }])
+            ->get()
+            ->pluck('clientContrat')
+            ->filter() // Enlever les null
+            ->pluck('id')
+            ->toArray();
+
+        if (empty($clientContratsAssignes)) {
+            return ApiResponse::success([], 'Aucun client ne vous est assigné');
+        }
+
+        // 2. Récupérer les IDs des clients et contrats
+        $clientContrats = ClientContrat::whereIn('id', $clientContratsAssignes)->get();
+        $clientIds = $clientContrats->pluck('user_id')->toArray();
+
+        // 3. Construire la requête de base pour les assurés
+        $query = Assure::with([
+            'assurePrincipal.user',
+            'entreprise.user',
+            'beneficiaires',
+            'user'
+        ]);
+
+        // 4. Filtrer par demande d'adhésion acceptée et contrat actif
+        $query->where(function ($q) use ($clientIds) {
+            // Cas 1: Assurés principaux (physiques ou entreprises)
+            $q->where(function ($subQ) use ($clientIds) {
+                $subQ->whereIn('user_id', $clientIds)
+                     ->where('est_principal', true)
+                     ->whereHas('user.demandes', function ($demandeQ) {
+                         $demandeQ->whereIn('statut', ['validee', 'acceptee']);
+                     }); 
+            })
+            // Cas 2: Bénéficiaires des assurés principaux
+            ->orWhereHas('assurePrincipal', function ($principalQ) use ($clientIds) {
+                $principalQ->whereIn('user_id', $clientIds)
+                           ->where('est_principal', true)
+                           ->whereHas('user.demandes', function ($demandeQ) {
+                               $demandeQ->whereIn('statut', ['validee', 'acceptee']);
+                           });
+            })
+            // Cas 3: Employés d'entreprises assignées
+            ->orWhereHas('entreprise', function ($entrepriseQ) use ($clientIds) {
+                $entrepriseQ->whereIn('user_id', $clientIds)
+                            ->whereHas('user.demandes', function ($demandeQ) {
+                                $demandeQ->whereIn('statut', ['validee', 'acceptee']);
+                            });
+            });
+        });
+
+        // 5. Filtres de recherche
         if ($request->filled('search')) {
             $search = $request->search;
-        
             $query->where(function ($q) use ($search) {
-                $q->where('nom', 'like', "%{$search}%")
-                ->orWhere('prenoms', 'like', "%{$search}%");
+                $q->whereRaw('LOWER(nom) LIKE ?', ['%' . strtolower($search) . '%'])
+                    ->orWhereRaw('LOWER(prenoms) LIKE ?', ['%' . strtolower($search) . '%']);
             });
         }
 
-        // Pagination
-        $perPage = $request->query('per_page', 10);
+        if ($request->filled('sexe')) {
+            $sexe = $request->sexe;
+            $query->where('sexe', $sexe);
+        }
+
+        // 6. Pagination
+        $perPage = $request->query('per_page', $request->per_page ?? 10);
         $assures = $query->orderByDesc('created_at')->paginate($perPage);
 
+        // 7. Vérifier les contrats associés et logger
+        foreach ($assures as $assure) {
+            $contrat = $assure->getContratAssocie();
+        
+            if ($contrat) {
+                Log::info("Contrat trouvé pour {$assure->nom} {$assure->prenoms}: " . $contrat->statut->value);
+            } else {
+                Log::warning("Aucun contrat pour {$assure->nom} {$assure->prenoms}");
+            }
+        }
+
         $paginatedData = new LengthAwarePaginator(
-            $assures,
+            AssureResource::collection($assures),
             $assures->total(),
             $assures->perPage(),
             $assures->currentPage(),
             ['path' => Paginator::resolveCurrentPath()]
         );
 
-        return ApiResponse::success($assures, "Liste des assurés récupérée");
+        return ApiResponse::success($paginatedData, "Liste des assurés récupérée");
     }
-} 
+}

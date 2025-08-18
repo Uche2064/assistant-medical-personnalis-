@@ -29,6 +29,12 @@ class Facture extends Model
         'est_autorise_par_comptable',
         'comptable_id',
         'autorise_par_comptable_a',
+        'motif_rejet_technicien',
+        'rejet_par_technicien_a',
+        'motif_rejet_medecin',
+        'rejet_par_medecin_a',
+        'motif_rejet_comptable',
+        'rejet_par_comptable_a',
     ];
 
     protected $casts = [
@@ -42,6 +48,9 @@ class Facture extends Model
         'valide_par_technicien_a' => 'datetime',
         'valide_par_medecin_a' => 'datetime',
         'autorise_par_comptable_a' => 'datetime',
+        'rejet_par_technicien_a' => 'datetime',
+        'rejet_par_medecin_a' => 'datetime',
+        'rejet_par_comptable_a' => 'datetime',
         'statut' => \App\Enums\StatutFactureEnum::class,
     ];
 
@@ -134,11 +143,72 @@ class Facture extends Model
     }
 
     /**
-     * Check if facture is rejected.
+     * Check if facture is rejected by technicien.
+     */
+    public function isRejectedByTechnicien()
+    {
+        return $this->statut === \App\Enums\StatutFactureEnum::REJETEE_TECHNICIEN;
+    }
+
+    /**
+     * Check if facture is rejected by medecin.
+     */
+    public function isRejectedByMedecin()
+    {
+        return $this->statut === \App\Enums\StatutFactureEnum::REJETEE_MEDECIN;
+    }
+
+    /**
+     * Check if facture is rejected by comptable.
+     */
+    public function isRejectedByComptable()
+    {
+        return $this->statut === \App\Enums\StatutFactureEnum::REJETEE_COMPTABLE;
+    }
+
+    /**
+     * Check if facture is rejected (any type).
      */
     public function isRejected()
     {
-        return $this->statut === \App\Enums\StatutFactureEnum::REJETEE;
+        return in_array($this->statut, [
+            \App\Enums\StatutFactureEnum::REJETEE,
+            \App\Enums\StatutFactureEnum::REJETEE_TECHNICIEN,
+            \App\Enums\StatutFactureEnum::REJETEE_MEDECIN,
+            \App\Enums\StatutFactureEnum::REJETEE_COMPTABLE
+        ]);
+    }
+
+    /**
+     * Check if facture can be modified (rejected factures).
+     */
+    public function canBeModified()
+    {
+        return $this->isRejected();
+    }
+
+    /**
+     * Reset facture to pending status after modification.
+     */
+    public function resetToPending()
+    {
+        $this->statut = \App\Enums\StatutFactureEnum::EN_ATTENTE;
+        $this->est_valide_par_technicien = false;
+        $this->est_valide_par_medecin = false;
+        $this->est_autorise_par_comptable = false;
+        $this->technicien_id = null;
+        $this->medecin_id = null;
+        $this->comptable_id = null;
+        $this->valide_par_technicien_a = null;
+        $this->valide_par_medecin_a = null;
+        $this->autorise_par_comptable_a = null;
+        $this->motif_rejet_technicien = null;
+        $this->motif_rejet_medecin = null;
+        $this->motif_rejet_comptable = null;
+        $this->rejet_par_technicien_a = null;
+        $this->rejet_par_medecin_a = null;
+        $this->rejet_par_comptable_a = null;
+        $this->save();
     }
 
     /**
@@ -178,7 +248,43 @@ class Facture extends Model
     }
 
     /**
-     * Reject facture.
+     * Reject facture by technicien.
+     */
+    public function rejectByTechnicien($technicienId, $motifRejet)
+    {
+        $this->statut = \App\Enums\StatutFactureEnum::REJETEE_TECHNICIEN;
+        $this->motif_rejet_technicien = $motifRejet;
+        $this->rejet_par_technicien_a = now();
+        $this->technicien_id = $technicienId;
+        $this->save();
+    }
+
+    /**
+     * Reject facture by medecin.
+     */
+    public function rejectByMedecin($medecinId, $motifRejet)
+    {
+        $this->statut = \App\Enums\StatutFactureEnum::REJETEE_MEDECIN;
+        $this->motif_rejet_medecin = $motifRejet;
+        $this->rejet_par_medecin_a = now();
+        $this->medecin_id = $medecinId;
+        $this->save();
+    }
+
+    /**
+     * Reject facture by comptable.
+     */
+    public function rejectByComptable($comptableId, $motifRejet)
+    {
+        $this->statut = \App\Enums\StatutFactureEnum::REJETEE_COMPTABLE;
+        $this->motif_rejet_comptable = $motifRejet;
+        $this->rejet_par_comptable_a = now();
+        $this->comptable_id = $comptableId;
+        $this->save();
+    }
+
+    /**
+     * Reject facture (generic method for backward compatibility).
      */
     public function reject($motifRejet)
     {

@@ -6,9 +6,11 @@ use App\Enums\StatutDemandeAdhesionEnum;
 use App\Enums\TypeDemandeurEnum;
 use App\Models\Assure;
 use App\Models\DemandeAdhesion;
+use App\Models\ReponseQuestionnaire;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DemandeValidatorService
 {
@@ -61,13 +63,25 @@ class DemandeValidatorService
         }
 
         // Enregistrer les réponses au questionnaire principal
-        foreach ($data['reponses'] as $reponse) {
-            $this->enregistrerReponsePersonne($typeDemandeur, $demande->user_id, $reponse, $demande->id);
+        if ($typeDemandeur === TypeDemandeurEnum::PHYSIQUE->value) {
+            // Pour les personnes physiques, les réponses sont liées à l'assuré
+            $assurePrincipal = Assure::where('user_id', $user->id)->first();
+            if ($assurePrincipal) {
+                foreach ($data['reponses'] as $reponse) {
+                    $this->enregistrerReponsePersonne('App\Models\Assure', $assurePrincipal->id, $reponse, $demande->id);
+                }
+            }
+        } else {
+            // Pour les autres types, les réponses sont liées à l'utilisateur
+            foreach ($data['reponses'] as $reponse) {
+                $this->enregistrerReponsePersonne('App\Models\User', $user->id, $reponse, $demande->id);
+            }
         }
 
         // Enregistrer les bénéficiaires si fournis (uniquement pour les personnes physiques)
         if (!empty($data['beneficiaires']) && $typeDemandeur === TypeDemandeurEnum::PHYSIQUE->value) {
             $assurePrincipal = Assure::where('user_id', $user->id)->first();
+            Log::info('Beneficiaires', ['beneficiaires' => $data['beneficiaires']]);
             if ($assurePrincipal) {
                 foreach ($data['beneficiaires'] as $beneficiaire) {
                     $this->enregistrerBeneficiaire($demande, $beneficiaire, $assurePrincipal);
@@ -94,21 +108,30 @@ class DemandeValidatorService
 
         // Enregistrer les réponses au questionnaire principal
         foreach ($data['reponses'] as $reponse) {
-            $this->enregistrerReponsePersonne($typeDemandeur, $demande->user_id, $reponse, $demande->id);
+            $this->enregistrerReponsePersonne('App\Models\User', $user->id, $reponse, $demande->id);
         }
 
         return $demande;
     }
 
     /**
-     * Enregistrer une réponse de personne
+     * Vérifier si un fichier est uploadé
+     */
+    private function isUploadedFile($value): bool
+    {
+        return is_object($value) && method_exists($value, 'getClientOriginalName');
+    }
+
+    /**
+     * Enregistrer une réponse de personne (assuré principal ou bénéficiaire)
      */
     private function enregistrerReponsePersonne($personneType, $personneId, array $reponseData, $demandeId): void
     {
+        
         $reponse = [
             'question_id' => $reponseData['question_id'],
             'personne_id' => $personneId,
-            'personne_type' => User::class,
+            'personne_type' => $personneType,
             'demande_adhesion_id' => $demandeId,
         ];
 
@@ -126,10 +149,16 @@ class DemandeValidatorService
             $reponse['reponse_date'] = $reponseData['reponse_date'];
         }
         if (isset($reponseData['reponse_fichier'])) {
-            $reponse['reponse_fichier'] = $reponseData['reponse_fichier'];
+            // Traiter l'upload de fichier
+            if ($this->isUploadedFile($reponseData['reponse_fichier'])) {
+                $reponse['reponse_fichier'] = \App\Helpers\ImageUploadHelper::uploadImage(
+                    $reponseData['reponse_fichier'], 
+                    'uploads/demandes_adhesion/' . $demandeId
+                );
+            }
         }
 
-        \App\Models\ReponseQuestionnaire::create($reponse);
+        ReponseQuestionnaire::create($reponse);
     }
 
     /**
@@ -137,7 +166,29 @@ class DemandeValidatorService
      */
     private function enregistrerBeneficiaire($demande, array $beneficiaire, Assure $assurePrincipal): void
     {
-        // Logique d'enregistrement des bénéficiaires
-        // Cette méthode peut être implémentée selon vos besoins
+        // Créer le bénéficiaire
+        $beneficiaireAssure = Assure::create([
+            'nom' => $beneficiaire['nom'],
+            'prenoms' => $beneficiaire['prenoms'],
+            'date_naissance' => $beneficiaire['date_naissance'],
+            'sexe' => $beneficiaire['sexe'],
+            'lien_parente' => $beneficiaire['lien_parente'],
+            'profession' => $beneficiaire['profession'] ?? null,
+            'contact' => $beneficiaire['contact'] ?? null,
+            'photo' => $beneficiaire['photo_url'] ?? null,
+            'est_principal' => false, // Le bénéficiaire n'est jamais principal
+            'assure_principal_id' => $assurePrincipal->id, // Référence vers l'assuré principal
+            'demande_adhesion_id' => $demande->id,
+            'user_id' => null, // Les bénéficiaires n'ont pas de compte utilisateur
+        ]);
+
+        // Enregistrer les réponses au questionnaire du bénéficiaire
+        if (!empty($beneficiaire['reponses'])) {
+            foreach ($beneficiaire['reponses'] as $reponse) {
+                $this->enregistrerReponsePersonne('App\Models\Assure', $beneficiaireAssure->id, $reponse, $demande->id);
+            }
+        }
     }
+
+
 }

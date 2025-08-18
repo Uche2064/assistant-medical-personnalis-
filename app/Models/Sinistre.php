@@ -22,6 +22,7 @@ class Sinistre extends Model
         'date_sinistre' => 'date',
         'statut' => \App\Enums\StatutSinistreEnum::class,
     ];
+    
 
     /**
      * Get the assure that owns the sinistre.
@@ -47,13 +48,7 @@ class Sinistre extends Model
         return $this->hasMany(Facture::class);
     }
 
-    /**
-     * Check if sinistre is declared.
-     */
-    public function isDeclared()
-    {
-        return $this->statut === \App\Enums\StatutSinistreEnum::DECLARE;
-    }
+  
 
     /**
      * Check if sinistre is in progress.
@@ -61,14 +56,6 @@ class Sinistre extends Model
     public function isInProgress()
     {
         return $this->statut === \App\Enums\StatutSinistreEnum::EN_COURS;
-    }
-
-    /**
-     * Check if sinistre is treated.
-     */
-    public function isTreated()
-    {
-        return $this->statut === \App\Enums\StatutSinistreEnum::TRAITE;
     }
 
     /**

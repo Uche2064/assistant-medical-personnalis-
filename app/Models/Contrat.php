@@ -30,6 +30,8 @@ class Contrat extends Model
         'categories_garanties_standard' => 'array',
     ];
 
+    
+
     /**
      * Get the technicien that manages this contrat.
      */
@@ -52,9 +54,15 @@ class Contrat extends Model
     public function categoriesGaranties()
     {
         return $this->belongsToMany(CategorieGarantie::class, 'contrat_categorie_garantie')
-                    ->withPivot('couverture')
-                    ->withTimestamps();
+            ->withPivot('couverture')
+            ->withTimestamps();
     }
+
+    public function getGarantiesAttribute()
+    {
+        return $this->categoriesGaranties->flatMap->garanties;
+    }
+
 
     /**
      * Generate a unique police number.

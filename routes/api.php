@@ -20,9 +20,11 @@ use App\Http\Controllers\v1\Api\client\ClientController;
 use App\Http\Controllers\v1\Api\common\DownloadFileController;
 use App\Http\Controllers\v1\Api\contrat\ContratController;
 use App\Http\Controllers\v1\Api\entreprise\EntrepriseController;
+use App\Http\Controllers\v1\Api\facture\FactureController;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\v1\Api\NotificationController;
 use App\Http\Controllers\v1\Api\prestataire\PrestataireController;
+use App\Http\Controllers\v1\Api\ClientPrestataireController;
 
 
 Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
@@ -123,12 +125,19 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     // --------------------- Routes pour les téléchargements ---------------------
     Route::middleware(['auth:api'])->prefix('download')->group(function () {
         Route::get('/demande-adhesion/{id}', [DownloadFileController::class, 'downloadDemandeAdhesion'])->name('api.demandes-adhesions.download');
+        // Route pour télécharger une facture en PDF
+        Route::get('/factures/{id}/download', [DownloadFileController::class, 'downloadFacture'])
+            ->name('factures.download');
+        // Route pour prévisualiser une facture en HTML (optionnel)
+        Route::get('/factures/{id}/preview', [DownloadFileController::class, 'previewPdf'])
+            ->name('factures.preview');
     });
 
     // Routes pour les clients (physique/entreprise)
-    Route::middleware(['auth:api'])->prefix('client')->group(function () {
+    Route::middleware(['auth:api', 'checkRole:physique'])->prefix('client')->group(function () {
         Route::get('/mes-contrats', [ClientController::class, 'mesContrats']);
         Route::get('/contrats-proposes', [ClientController::class, 'getContratsProposes']);
+        Route::get('/stats', [ClientController::class, 'stats']);
         Route::post('/contrats-proposes/{proposition_id}/accepter', [DemandeAdhesionController::class, 'accepterContrat']);
         Route::post('/contrats-proposes/{proposition_id}/refuser', [ClientController::class, 'refuserContrat']);
     });
@@ -139,6 +148,20 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/prestataires', [DemandeAdhesionController::class, 'getPrestatairesTechnicien']);
         Route::post('/assigner-reseau-prestataires', [DemandeAdhesionController::class, 'assignerReseauPrestataires']);
     });
+
+    // --------------------- Routes pour la gestion des assignations clients-prestataires ---------------------
+    Route::middleware(['auth:api', 'checkRole:admin_global,technicien,medecin_controleur'])->prefix('client-prestataires')->group(function () {
+        Route::get('/', [ClientPrestataireController::class, 'index']);
+        Route::get('/statistiques', [ClientPrestataireController::class, 'statistiques']);
+        Route::get('/{id}', [ClientPrestataireController::class, 'show']);
+        
+        // Routes pour modification/suppression (admin et technicien uniquement)
+        Route::middleware(['checkRole:admin_global,technicien'])->group(function () {
+            Route::put('/{id}', [ClientPrestataireController::class, 'update']);
+            Route::delete('/{id}', [ClientPrestataireController::class, 'destroy']);
+        });
+    });
+
     // Anciennes routes spécifiques supprimées ou commentées pour éviter toute confusion.
 
     // --------------------- Routes pour les prestataires de soins ---------------------
@@ -151,15 +174,16 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/questions', [PrestataireController::class, 'getQuestions']);
         Route::get('/documents-requis', [PrestataireController::class, 'getDocumentsRequis']);
         Route::post('/demande-adhesion', [PrestataireController::class, 'soumettreDemandeAdhesion']);
-        
+
         // Routes pour la gestion des sinistres
         Route::prefix('sinistres')->group(function () {
             Route::get('/', [\App\Http\Controllers\v1\Api\prestataire\SinistreController::class, 'index']);
             Route::post('/', [\App\Http\Controllers\v1\Api\prestataire\SinistreController::class, 'store']);
+            Route::get('/existing/{id}', [\App\Http\Controllers\v1\Api\prestataire\SinistreController::class, 'existingSinistre']);
             Route::get('/{id}', [\App\Http\Controllers\v1\Api\prestataire\SinistreController::class, 'show']);
             Route::post('/{id}/facture', [\App\Http\Controllers\v1\Api\prestataire\SinistreController::class, 'createFacture']);
         });
-        
+
         // Routes utilitaires pour les sinistres
         Route::get('/search-assures', [\App\Http\Controllers\v1\Api\prestataire\SinistreController::class, 'searchAssures']);
         Route::get('/contrats/{id}/garanties', [\App\Http\Controllers\v1\Api\prestataire\SinistreController::class, 'getGarantiesByContrat']);
@@ -199,7 +223,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/', [ContratController::class, 'index']);
         Route::get('/categories-garanties', [ContratController::class, 'getCategoriesGaranties']);
 
-        Route::middleware(['checkRole:technicien'])->group(function () {
+        Route::middleware(['checkRole:technicien,medecin_controleur'])->group(function () {
             Route::get('/stats', [ContratController::class, 'stats']);
             Route::post('/', [ContratController::class, 'store']);
             Route::get('/{id}', [ContratController::class, 'show']);
@@ -290,6 +314,8 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     Route::middleware(['auth:api', 'checkRole:admin_global,medecin_controleur,technicien,comptable'])->prefix('assures')->group(function () {
         Route::get('/stats', [StatsController::class, 'getAssureStats']);
     });
+
+
     // --------------------- Routes pour l'Assuré Principal (PHYSIQUE) ---------------------
     Route::middleware(['auth:api', 'checkRole:physique,entreprise'])->prefix('assures')->group(function () {
         Route::prefix('beneficiaires')->group(function () {
@@ -354,17 +380,17 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/clients/{id}', [TechnicienController::class, 'showClientDetails']);
         Route::get('/clients', [TechnicienController::class, 'getClientsTechnicien']);
         Route::get('/clients/stats', [TechnicienController::class, 'getStatistiquesClients']);
-        
+
         // Routes pour les sinistres (consultation seulement)
         Route::get('/sinistres', [TechnicienController::class, 'sinistres']);
         Route::get('/sinistres/{id}', [TechnicienController::class, 'showSinistre']);
-        
+
         // Routes pour le réseautage de prestataires
         Route::get('/clients-avec-contrats-acceptes', [TechnicienController::class, 'getClientsAvecContratsAcceptes']);
         Route::get('/prestataires-pour-assignation', [TechnicienController::class, 'getPrestatairesPourAssignation']);
         Route::get('/clients/{id}/assignations', [TechnicienController::class, 'getAssignationsClient']);
         Route::post('/clients/{id}/assignations', [TechnicienController::class, 'assignerReseauPrestataires']);
-        Route::delete('/clients/{id}/assignations/{id}', [TechnicienController::class, 'desassignerPrestataire']);
+        // Route::delete('/clients/{id}/assignations/{id}', [TechnicienController::class, 'desassignerPrestataire']);
     });
 
     Route::middleware(['auth:api', 'checkRole:physique'])->prefix('beneficiaires')->group(function () {
@@ -391,4 +417,43 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/mes-clients', [\App\Http\Controllers\v1\Api\prestataire\PrestataireReseauController::class, 'mesClients']);
         Route::get('/statistiques', [\App\Http\Controllers\v1\Api\prestataire\PrestataireReseauController::class, 'statistiquesClients']);
     });
+
+    // --------------------- Routes pour les factures ---------------------
+    Route::middleware(['auth:api', 'checkRole:prestataire,technicien,comptable,medecin_controleur,entreprise,physique,admin_global,gestionnaire'])->prefix('factures')->group(function () {
+        // Routes de consultation
+        Route::get('/', [FactureController::class, 'factures']);
+        Route::get('/stats', [FactureController::class, 'stats']);
+        Route::get('/{id}', [FactureController::class, 'showFacture']);
+
+        // --------------------- Routes pour la validation des factures ---------------------
+        
+        // Validation par technicien
+        Route::post('/{factureId}/validate-technicien', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'validateByTechnicien'])
+            ->middleware('checkRole:technicien');
+        Route::post('/{factureId}/reject-technicien', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'rejectByTechnicien'])
+            ->middleware('checkRole:technicien');
+
+        // Validation par médecin contrôleur
+        Route::post('/{factureId}/validate-medecin', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'validateByMedecin'])
+            ->middleware('checkRole:medecin_controleur');
+        Route::post('/{factureId}/reject-medecin', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'rejectByMedecin'])
+            ->middleware('checkRole:medecin_controleur');
+
+        // Autorisation par comptable
+        Route::post('/{factureId}/authorize-comptable', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'authorizeByComptable'])
+            ->middleware('checkRole:comptable');
+        Route::post('/{factureId}/reject-comptable', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'rejectByComptable'])
+            ->middleware('checkRole:comptable');
+        Route::post('/{factureId}/mark-reimbursed', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'markAsReimbursed'])
+            ->middleware('checkRole:comptable');
+
+        // Modification de facture rejetée (prestataire)
+        Route::put('/{factureId}/update-rejected', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'updateRejectedFacture'])
+            ->middleware('checkRole:prestataire');
+
+        // Historique de validation (accessible à tous les rôles autorisés)
+        Route::get('/{factureId}/validation-history', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'getValidationHistory']);
+    });
+
+
 });

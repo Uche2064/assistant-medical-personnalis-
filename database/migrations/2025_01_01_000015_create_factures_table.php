@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('numero_facture')->unique();
             $table->foreignId('sinistre_id')->nullable()->constrained('sinistres')->onDelete('set null');
-            $table->foreignId('prestataire_id')->nullable()->constrained('prestataires')->onDelete('set null');
+            $table->foreignId('prestataire_id')->nullable()->constrained('users')->onDelete('set null');
             $table->decimal('montant_reclame', 12, 2);
             $table->decimal('montant_a_rembourser', 12, 2);
             $table->text('diagnostic');

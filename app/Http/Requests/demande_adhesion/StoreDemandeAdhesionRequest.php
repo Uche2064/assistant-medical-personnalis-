@@ -44,7 +44,10 @@ class StoreDemandeAdhesionRequest extends FormRequest
             'beneficiaires.*.prenoms' => ['required', 'string'],
             'beneficiaires.*.date_naissance' => ['required', 'date'],
             'beneficiaires.*.sexe' => ['required', 'in:M,F'],
-            'beneficiaires.*.lien_parente' => ['required', 'in:'.implode(',', LienParenteEnum::values())],
+            'beneficiaires.*.profession' => ['nullable', 'string'],
+            'beneficiaires.*.email' => ['nullable', 'email'],
+            'beneficiaires.*.contact' => ['nullable', 'string'],
+            'beneficiaires.*.profession' => ['nullable', 'string'],
             'beneficiaires.*.reponses' => ['required', 'array'],
             // 'beneficiaires.*.photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:5120'],
         ];

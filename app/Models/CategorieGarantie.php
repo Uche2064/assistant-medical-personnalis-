@@ -31,8 +31,9 @@ class CategorieGarantie extends Model
      */
     public function garanties()
     {
-        return $this->hasMany(Garantie::class);
+        return $this->hasMany(Garantie::class, 'categorie_garantie_id');
     }
+    
 
     /**
      * Get the contrats that use this categorie.

@@ -30,6 +30,8 @@ class ClientContrat extends Model
         'statut' => StatutContratEnum::class
     ];
 
+    
+
 
     public function genererNumeroPolice() {
         return Str::uuid()->toString();
@@ -40,7 +42,7 @@ class ClientContrat extends Model
      */
     public function client(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'client_id');
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     /**
@@ -64,7 +66,7 @@ class ClientContrat extends Model
      */
     public function isActif(): bool
     {
-        return $this->statut === 'ACTIF' && $this->date_fin >= now();
+        return $this->statut === 'actif' && $this->date_fin >= now();
     }
 
     /**

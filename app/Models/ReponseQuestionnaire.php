@@ -31,6 +31,8 @@ class ReponseQuestionnaire extends Model
         'reponse_date' => 'date',
     ];
 
+    
+
     /**
      * Get the question that owns the reponse.
      */

@@ -7,6 +7,7 @@ use App\Enums\StatutDemandeAdhesionEnum;
 use App\Enums\StatutPropositionContratEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Assure;
 use App\Models\ClientContrat;
 use App\Models\DemandeAdhesion;
 use App\Models\PropositionContrat;
@@ -195,9 +196,9 @@ private function getPaginationData($contrats): array
             
             // Récupérer la proposition
             $proposition = PropositionContrat::with([
-                'demandeAdhesion.user',
+                'demandeAdhesion.user.assure',
                 'contrat',
-                'technicien.personnel'
+                'technicien'
             ])->find($propositionId);
 
             if(!$proposition) {
@@ -229,19 +230,19 @@ private function getPaginationData($contrats): array
                     'statut' => StatutDemandeAdhesionEnum::EN_ATTENTE->value
                 ]);
 
-                // 3. Notification au technicien
-                $this->notificationService->createNotification(
-                    $proposition->technicien->personnel->user_id,
-                    'Proposition de contrat refusée',
-                    "Le client {$proposition->demandeAdhesion->user->assure->nom} a refusé votre proposition de contrat.",
-                    'contrat_refuse_technicien',
-                    [
-                        'client_nom' => $proposition->demandeAdhesion->user->nom,
-                        'contrat_type' => $proposition->contrat->type_contrat,
-                        'prime' => $proposition->prime_proposee,
-                        'type' => 'contrat_refuse_technicien'
-                    ]
-                );
+                            // 3. Notification au technicien
+            $this->notificationService->createNotification(
+                $proposition->technicien->user_id,
+                'Proposition de contrat refusée',
+                "Le client {$proposition->demandeAdhesion->user->assure->nom} a refusé votre proposition de contrat.",
+                'contrat_refuse_technicien',
+                [
+                    'client_nom' => $proposition->demandeAdhesion->user->nom,
+                    'contrat_type' => $proposition->contrat->type_contrat,
+                    'prime' => $proposition->prime_proposee,
+                    'type' => 'contrat_refuse_technicien'
+                ]
+            );
 
                 DB::commit();
 
@@ -263,6 +264,98 @@ private function getPaginationData($contrats): array
             ]);
 
             return ApiResponse::error('Erreur lors du refus du contrat: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Récupérer les statistiques des bénéficiaires pour un client physique
+     */
+    public function stats()
+    {
+        try {
+            $user = Auth::user();
+
+            // Vérifier que l'utilisateur est un client physique
+            if ($user->entreprise) {
+                return ApiResponse::error('Cette fonctionnalité est réservée aux clients physiques', 403);
+            }
+
+            // Récupérer l'assuré principal (est_principal = true, assure_principal_id = null)
+            $assurePrincipal = Assure::where('user_id', $user->id)
+                ->where('est_principal', true)
+                ->whereNull('assure_principal_id')
+                ->first();
+
+            if (!$assurePrincipal) {
+                return ApiResponse::error('Assuré principal non trouvé', 404);
+            }
+
+            // Récupérer tous les bénéficiaires (assure_principal_id = ID de l'assuré principal)
+            $beneficiaires = Assure::where('assure_principal_id', $assurePrincipal->id)
+                ->where('est_principal', false)
+                ->get();
+
+            // Combiner l'assuré principal et les bénéficiaires pour les statistiques
+            $tousLesBeneficiaires = collect([$assurePrincipal])->merge($beneficiaires);
+
+            // Statistiques générales
+            $totalBeneficiaires = $tousLesBeneficiaires->count();
+            $nombreBeneficiairesSecondaires = $beneficiaires->count();
+
+            // Répartition par sexe
+            $repartitionSexe = $tousLesBeneficiaires->groupBy('sexe')
+                ->map(function ($group) use ($totalBeneficiaires) {
+                    return [
+                        'nombre' => $group->count(),
+                        'pourcentage' => round(($group->count() / $totalBeneficiaires) * 100, 2)
+                    ];
+                });
+
+            // Répartition par âge
+            $repartitionAge = $tousLesBeneficiaires->groupBy(function ($beneficiaire) {
+                $age = \Carbon\Carbon::parse($beneficiaire->date_naissance)->age;
+                if ($age < 18) return 'Enfant (0-17 ans)';
+                elseif ($age < 25) return 'Jeune adulte (18-24 ans)';
+                elseif ($age < 50) return 'Adulte (25-49 ans)';
+                elseif ($age < 65) return 'Senior (50-64 ans)';
+                else return 'Aîné (65+ ans)';
+            })->map(function ($group) use ($totalBeneficiaires) {
+                return [
+                    'nombre' => $group->count(),
+                    'pourcentage' => round(($group->count() / $totalBeneficiaires) * 100, 2)
+                ];
+            });
+
+
+            // Détails des bénéficiaires
+
+            $stats = [
+                'resume' => [
+                    'total_beneficiaires' => $totalBeneficiaires,
+                    'assure_principal' => [
+                        'nom' => $assurePrincipal->nom . ' ' . $assurePrincipal->prenoms,
+                        'age' => \Carbon\Carbon::parse($assurePrincipal->date_naissance)->age,
+                        'sexe' => $assurePrincipal->sexe,
+                        'profession' => $assurePrincipal->profession,
+                    ],
+                    'nombre_beneficiaires_secondaires' => $nombreBeneficiairesSecondaires,
+                ],
+                'repartition_sexe' => [
+                    'hommes' => $repartitionSexe->get('M', ['nombre' => 0, 'pourcentage' => 0]),
+                    'femmes' => $repartitionSexe->get('F', ['nombre' => 0, 'pourcentage' => 0]),
+                ],
+                'repartition_age' => $repartitionAge,
+            ];
+
+            return ApiResponse::success($stats, 'Statistiques des bénéficiaires récupérées avec succès');
+
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des statistiques des bénéficiaires', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+
+            return ApiResponse::error('Erreur lors de la récupération des statistiques: ' . $e->getMessage(), 500);
         }
     }
 } 

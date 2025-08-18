@@ -32,14 +32,14 @@ class PrestataireReseauController extends Controller
             $perPage = $request->input('per_page', 20);
 
             $query = ClientPrestataire::where('prestataire_id', $prestataire->id)
-                ->where('statut', 'ACTIF')
+                ->where('statut', 'actif')
                 ->with([
                     'clientContrat.user.assure',
                     'clientContrat.user.entreprise',
                     'clientContrat.contrat'
                 ])
                 ->whereHas('clientContrat', function ($q) {
-                    $q->where('statut', 'ACTIF')
+                    $q->where('statut', 'actif')
                       ->where('date_debut', '<=', now())
                       ->where('date_fin', '>=', now());
                 });

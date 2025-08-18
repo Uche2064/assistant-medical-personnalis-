@@ -66,7 +66,7 @@ class DemandeAdhesionService
                 'en_attente' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
                 'validee'    => StatutDemandeAdhesionEnum::VALIDEE->value,
                 'rejetee'    => StatutDemandeAdhesionEnum::REJETEE->value,
-                'en_proposition' => StatutDemandeAdhesionEnum::PROPOSEE->value,
+                'proposee' => StatutDemandeAdhesionEnum::PROPOSEE->value,
                 'acceptee' => StatutDemandeAdhesionEnum::ACCEPTEE->value,
                 default      => null
             });

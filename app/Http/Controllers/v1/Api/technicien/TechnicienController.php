@@ -100,6 +100,7 @@ class TechnicienController extends Controller
                     ClientPrestataire::create([
                         'client_contrat_id' => $clientContrat->id,
                         'prestataire_id' => $prestataireId,
+                        'type_prestataire' => $prestataire->type_prestataire,
                         'statut' => 'actif'
                     ]);
 
@@ -752,8 +753,8 @@ class TechnicienController extends Controller
 
                 return [
                     'id' => $user->id,
-                    'nom' => $user->nom ?? $user->name,
-                    'prenoms' => $user->prenoms ?? null,
+                    'nom' => $user->assure->nom,
+                    'prenoms' => $user->assure->prenoms ?? null,
                     'email' => $user->email,
                     'contact' => $user->contact,
                     'type_client' => $demande->type_demandeur->value,
@@ -827,12 +828,12 @@ class TechnicienController extends Controller
                     'id' => $prestataire->id,
                     'raison_sociale' => $prestataire->raison_sociale,
                     'type_prestataire' => $prestataire->type_prestataire,
-                    'adresse' => $prestataire->adresse,
+                    'adresse' => $prestataire->user->adresse,
                     'contact' => $prestataire->user->contact ?? null,
                     'email' => $prestataire->user->email,
                     'statut' => $prestataire->statut,
                     'nombre_clients_assignes' => ClientPrestataire::where('prestataire_id', $prestataire->id)
-                        ->where('statut', 'ACTIF')
+                        ->where('statut', 'actif')
                         ->count(),
                     'created_at' => $prestataire->created_at,
                 ];
@@ -883,7 +884,7 @@ class TechnicienController extends Controller
             return ApiResponse::success([
                 'client' => [
                     'id' => $client->id,
-                    'nom' => $client->nom ?? $client->name,
+                    'nom' => $client->assure->nom,
                     'email' => $client->email,
                 ],
                 "client_prestataire" => $clientPrestataire,

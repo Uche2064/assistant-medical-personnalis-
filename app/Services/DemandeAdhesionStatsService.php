@@ -24,6 +24,8 @@ class DemandeAdhesionStatsService
         // Récupérer les détails du contrat proposé
         $contratPropose = $this->getContratProposeDetails($demande);
 
+        Log::info($assurePrincipal->reponsesQuestionnaire);
+
         return [
             'demandeur' => [
                 'nom' => $assurePrincipal->nom,
@@ -31,13 +33,13 @@ class DemandeAdhesionStatsService
                 'date_naissance' => $assurePrincipal->date_naissance,
                 'sexe' => $assurePrincipal->sexe->value,
                 'profession' => $assurePrincipal->profession,
-                'contact' => $assurePrincipal->contact,
+                'contact' => $demande->user->contact,
                 'email' => $demande->user->email,
                 'photo' => $demande->user->photo,
                 'adresse' => $demande->user->adresse,
             ],
             'contrat_propose' => $contratPropose,
-            'reponses_questionnaire' => $this->formaterReponsesQuestionnaire($demande->reponsesQuestionnaire),
+            'reponses_questionnaire' => $this->formaterReponsesQuestionnaire($assurePrincipal->reponsesQuestionnaire),
             'statistiques' => [
                 'nombre_beneficiaires' => $beneficiaires->count(),
                 'repartition_par_sexe' => $statsBeneficiaires['par_sexe'],
@@ -57,7 +59,7 @@ class DemandeAdhesionStatsService
                 'raison_sociale' => $prestataire->raison_sociale ?? null,
                 'email' => $demande->user->email,
                 'contact' => $demande->user->contact,
-                'adresse' => $prestataire->adresse,
+                'adresse' => $prestataire->user->adresse,
             ],
             'reponses_questionnaire' => $this->formaterReponsesQuestionnaire($demande->reponsesQuestionnaire),
         ];
@@ -141,6 +143,7 @@ class DemandeAdhesionStatsService
      */
     public function formaterReponsesQuestionnaire($reponses): array
     {
+        Log::info($reponses);
         return $reponses->map(function ($reponse) {
             $formatted = [
                 'question_id' => $reponse->question_id,

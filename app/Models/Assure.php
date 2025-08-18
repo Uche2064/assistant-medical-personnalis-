@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
 
 class Assure extends Model
 {
@@ -137,7 +138,7 @@ class Assure extends Model
         if ($this->user) {
             return $this->user->full_name;
         }
-        
+
         return 'Assuré #' . $this->id;
     }
 
@@ -157,11 +158,50 @@ class Assure extends Model
         if ($this->client) {
             return $this->client->isPhysique() ? 'Client Physique' : 'Client Moral';
         }
-        
+
         if ($this->entreprise) {
             return 'Employé Entreprise';
         }
-        
+
         return 'Inconnu';
+    }
+
+    public function hasContratActif(): bool
+    {
+        $contratAssocie = $this->getContratAssocie();
+        Log::info('Contrat associé : ' . $contratAssocie->statut->value);
+
+        if (!$contratAssocie) {
+            return false; // Pas de contrat associé
+        }
+
+        // On suppose que 'statut' indique l'état, et 'actif' signifie contrat en cours
+        return $contratAssocie->statut->value === 'actif' || $contratAssocie->statut === \App\Enums\StatutContratEnum::ACTIF->value;
+    }
+
+
+    public function getContratAssocie()
+    {
+        if ($this->est_principal && $this->entreprise_id) {
+            // Assuré principal : on récupère le client contrat lié directement
+            return ClientContrat::with('contrat.categoriesGaranties.garanties')
+                ->where('user_id', $this->entreprise->user->id)
+                ->where('statut', 'actif')
+                ->first();
+        }
+
+
+        // Sinon on récupère le contrat de l'assuré principal (s'il y a un)
+        if ($this->assure_principal_id) {
+            $principal = self::find($this->assure_principal_id);
+            if ($principal) {
+                return ClientContrat::with('contrat.categoriesGaranties.garanties')
+                    ->where('user_id', $principal->user_id)
+                    ->where('statut', 'actif')
+                    ->first();
+            }
+        }
+
+        return null;
     }
 }

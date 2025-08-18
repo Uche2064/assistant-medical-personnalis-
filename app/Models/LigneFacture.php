@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class LigneFacture extends Model
 {
     use HasFactory, SoftDeletes;
+    protected $table = 'lignes_facture';
 
     protected $fillable = [
         'facture_id',

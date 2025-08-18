@@ -13,6 +13,7 @@ class ClientPrestataire extends Model
     protected $fillable = [
         'client_contrat_id',
         'prestataire_id',
+        'type_prestataire',
         'statut',
     ];
 
@@ -37,7 +38,7 @@ class ClientPrestataire extends Model
      */
     public function isActif(): bool
     {
-        return $this->statut === 'ACTIF';
+        return $this->statut === 'actif';
     }
 
     /**

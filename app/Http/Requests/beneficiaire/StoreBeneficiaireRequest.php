@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use App\Enums\LienParenteEnum;
 use App\Enums\SexeEnum;
 
-class UpdateBeneficiaireRequest extends Request
+class StoreBeneficiaireRequest extends Request
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,11 +22,11 @@ class UpdateBeneficiaireRequest extends Request
     public function rules(): array
     {
         return [
-            'nom' => 'sometimes|required|string|max:255',
-            'prenoms' => 'sometimes|required|string|max:255',
-            'date_naissance' => 'sometimes|required|date|before:today',
-            'sexe' => 'sometimes|required|string|in:' . implode(',', SexeEnum::values()),
-            'lien_parente' => 'sometimes|required|string|in:' . implode(',', LienParenteEnum::values()),
+            'nom' => 'required|string|max:255',
+            'prenoms' => 'required|string|max:255',
+            'date_naissance' => 'required|date|before:today',
+            'sexe' => 'required|string|in:' . implode(',', SexeEnum::values()),
+            'lien_parente' => 'required|string|in:' . implode(',', LienParenteEnum::values()),
             'profession' => 'nullable|string|max:255',
             'contact' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',

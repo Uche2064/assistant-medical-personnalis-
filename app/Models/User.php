@@ -121,6 +121,14 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
+     * Get the client contrats associated with the user.
+     */
+    public function clientContrats()
+    {
+        return $this->hasMany(ClientContrat::class, 'user_id');
+    }
+
+    /**
      * Get the notifications for the user.
      */
     public function notifications()
