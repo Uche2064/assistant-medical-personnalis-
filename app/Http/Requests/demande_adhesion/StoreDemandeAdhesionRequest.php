@@ -48,6 +48,7 @@ class StoreDemandeAdhesionRequest extends FormRequest
             'beneficiaires.*.email' => ['nullable', 'email'],
             'beneficiaires.*.contact' => ['nullable', 'string'],
             'beneficiaires.*.profession' => ['nullable', 'string'],
+            'beneficiaires.*.lien_parente' => ['nullable', 'in:' . implode(',', LienParenteEnum::values())],
             'beneficiaires.*.reponses' => ['required', 'array'],
             // 'beneficiaires.*.photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:5120'],
         ];

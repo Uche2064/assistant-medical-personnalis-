@@ -134,7 +134,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
     // Routes pour les clients (physique/entreprise)
-    Route::middleware(['auth:api', 'checkRole:physique'])->prefix('client')->group(function () {
+    Route::middleware(['auth:api', 'checkRole:physique,entreprise'])->prefix('client')->group(function () {
         Route::get('/mes-contrats', [ClientController::class, 'mesContrats']);
         Route::get('/contrats-proposes', [ClientController::class, 'getContratsProposes']);
         Route::get('/stats', [ClientController::class, 'stats']);

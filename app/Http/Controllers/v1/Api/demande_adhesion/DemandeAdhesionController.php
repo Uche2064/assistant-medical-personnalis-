@@ -639,7 +639,4 @@ class DemandeAdhesionController extends Controller
             'Proposition de contrat récupérée avec succès'
         );
     }
-
-   
-
 }

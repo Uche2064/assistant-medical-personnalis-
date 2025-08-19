@@ -37,7 +37,7 @@ class ForgotPasswordController extends Controller
         $email = $request->email;
 
         // Vérifier si l'utilisateur existe
-        $user = User::where('email', $email)->first();
+        $user = User::where('email', $email)->where('email_verified_at', '!=', null)->first();
         if (!$user) {
             return ApiResponse::error('Aucun compte trouvé avec cet email.', 404);
         }

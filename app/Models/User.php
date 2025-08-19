@@ -139,34 +139,34 @@ class User extends Authenticatable implements JWTSubject
     /**
      * Get the conversations where the user is participant 1.
      */
-    public function conversationsAsUser1()
-    {
-        return $this->hasMany(Conversation::class, 'user_id_1');
-    }
+    // public function conversationsAsUser1()
+    // {
+    //     return $this->hasMany(Conversation::class, 'user_id_1');
+    // }
 
-    /**
-     * Get the conversations where the user is participant 2.
-     */
-    public function conversationsAsUser2()
-    {
-        return $this->hasMany(Conversation::class, 'user_id_2');
-    }
+    // /**
+    //  * Get the conversations where the user is participant 2.
+    //  */
+    // public function conversationsAsUser2()
+    // {
+    //     return $this->hasMany(Conversation::class, 'user_id_2');
+    // }
 
-    /**
-     * Get all conversations for the user.
-     */
-    public function conversations()
-    {
-        return $this->conversationsAsUser1()->union($this->conversationsAsUser2());
-    }
+    // /**
+    //  * Get all conversations for the user.
+    //  */
+    // public function conversations()
+    // {
+    //     return $this->conversationsAsUser1()->union($this->conversationsAsUser2());
+    // }
 
-    /**
-     * Get the messages sent by the user.
-     */
-    public function messages()
-    {
-        return $this->hasMany(Message::class, 'expediteur_id');
-    }
+    // /**
+    //  * Get the messages sent by the user.
+    //  */
+    // public function messages()
+    // {
+    //     return $this->hasMany(Message::class, 'expediteur_id');
+    // }
 
     /**
      * Check if user has a specific role

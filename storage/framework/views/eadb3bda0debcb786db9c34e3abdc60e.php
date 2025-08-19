@@ -99,7 +99,7 @@
                 <p>Votre demande d'adhésion a été approuvée.</p>
             </div>
             
-            <p>Cher(e) <strong><?php echo e($demande->type_demandeur !== 'physique' ? $demande->raison_sociale : $demande->personne->nom . ' ' . $demande->personne->prenoms); ?></strong>,</p>
+            <p>Cher(e) <strong><?php echo e($user->email); ?></strong>,</p>
             
             <p>Votre demande d'adhésion à SUNU Santé a été <strong style="color: #28a745;">APPROUVÉE</strong> ! 🎉</p>
             
@@ -113,25 +113,15 @@
                 </table>
             </div>
 
-            <?php if(isset($contrat) && $contrat): ?>
             <div class="details">
-                <h3>📋 Détails du contrat</h3>
-                <table>
-                    <tr>
-                        <td>ID du contrat :</td>
-                        <td><strong><?php echo e($contrat->id); ?></strong></td>
-                    </tr>
-                    <tr>
-                        <td>Type de contrat :</td>
-                        <td><strong><?php echo e($contrat->type_contrat ?? 'N/A'); ?></strong></td>
-                    </tr>
-                    <tr>
-                        <td>Prime standard :</td>
-                        <td><strong><?php echo e(number_format($contrat->prime_standard, 2, ',', ' ')); ?> FCFA</strong></td>
-                    </tr>
-                </table>
+                <h3>📋 Prochaines étapes</h3>
+                <p>Votre compte a été validé avec succès. Vous pouvez maintenant :</p>
+                <ul>
+                    <li>Vous connecter à votre espace personnel</li>
+                    <li>Compléter votre profil</li>
+                    <li>Accéder à tous nos services</li>
+                </ul>
             </div>
-            <?php endif; ?>
 
             <div class="button-container">
                 <a href="https://app.sunusante.sn/login" class="button">🚀 Accéder à ma plateforme</a>
