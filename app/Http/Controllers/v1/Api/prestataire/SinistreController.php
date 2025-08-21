@@ -160,7 +160,7 @@ class SinistreController extends Controller
                 'est_principal' => $assure->est_principal,
                 'contrat' => $contrat ? [
                     'id' => $contrat->id,
-                    'type_contrat' => $contrat->type_contrat,
+                    'libelle' => $contrat->libelle,
                     'est_actif' => $contrat->est_actif,
                     'statut' => $contrat->statut,
                 ] : null,

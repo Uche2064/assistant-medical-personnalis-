@@ -26,7 +26,7 @@ class ValiderProspectDemande extends FormRequest
     public function rules(): array
     {
         return [
-            'type_contrat' => 'required|in:basic,standard,premium',
+            'libelle' => 'required|in:basic,standard,premium',
         ];
     }
 
@@ -38,8 +38,8 @@ class ValiderProspectDemande extends FormRequest
     public function messages(): array
     {
         return [
-            'type_contrat.required' => 'Le type de contrat est obligatoire.',
-            'type_contrat.in' => 'Le type de contrat sélectionné est invalide.',
+            'libelle.required' => 'Le type de contrat est obligatoire.',
+            'libelle.in' => 'Le type de contrat sélectionné est invalide.',
         ];
     }
 }

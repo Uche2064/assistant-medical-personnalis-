@@ -72,7 +72,7 @@ class PrestataireReseauController extends Controller
                     'raison_sociale' => $isEntreprise ? $user->entreprise->raison_sociale : null,
                     'contrat' => [
                         'id' => $clientContrat->contrat->id,
-                        'type_contrat' => $clientContrat->contrat->type_contrat,
+                        'libelle' => $clientContrat->contrat->libelle,
                         'date_debut' => $clientContrat->date_debut,
                         'date_fin' => $clientContrat->date_fin,
                     ],

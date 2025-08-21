@@ -7,6 +7,7 @@ use App\Enums\StatutDemandeAdhesionEnum;
 use App\Enums\StatutPropositionContratEnum;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ClientContratResource;
 use App\Models\Assure;
 use App\Models\ClientContrat;
 use App\Models\DemandeAdhesion;
@@ -81,7 +82,7 @@ class ClientController extends Controller
                     'statut' => $proposition->statut?->value ?? $proposition->statut,
                     'contrat' => [
                         'id' => $proposition->contrat->id,
-                        'type_contrat' => $proposition->contrat->type_contrat,
+                        'libelle' => $proposition->contrat->libelle,
                     ],
                     'details_proposition' => [
                         'prime_proposee' => $proposition->getPrimeAttribute(),
@@ -122,8 +123,12 @@ class ClientController extends Controller
         // Récupération des paramètres d'entrée
         $params = $this->getRequestParams($request);
     
-        // Construction de la requête de base
-        $query = ClientContrat::with(['contrat.categoriesGaranties.garanties'])
+        // Construction de la requête de base avec toutes les relations nécessaires
+        $query = ClientContrat::with([
+            'contrat.categoriesGaranties.garanties',
+            'client.assure',
+            'prestataires'
+        ])
             ->where('user_id', $user->id)
             ->when($params['statut'], fn($q) => $q->where('statut', $params['statut']))
             ->when($params['dateDebut'], fn($q) => $q->whereDate('date_debut', '>=', $params['dateDebut']))
@@ -133,7 +138,12 @@ class ClientController extends Controller
         // Pagination
         $contrats = $query->paginate($params['perPage']);
         
-      
+        // Utiliser la resource pour formater les données
+        $contrats->setCollection(
+            $contrats->getCollection()->map(function ($contrat) {
+                return new ClientContratResource($contrat);
+            })
+        );
     
         return ApiResponse::success($contrats, 'Contrats récupérés avec succès');
     
@@ -238,7 +248,7 @@ private function getPaginationData($contrats): array
                 'contrat_refuse_technicien',
                 [
                     'client_nom' => $proposition->demandeAdhesion->user->nom,
-                    'contrat_type' => $proposition->contrat->type_contrat,
+                    'contrat_type' => $proposition->contrat->libelle,
                     'prime' => $proposition->prime_proposee,
                     'type' => 'contrat_refuse_technicien'
                 ]

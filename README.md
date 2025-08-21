@@ -359,7 +359,7 @@ Authorization: Bearer {token_technicien}
 **Payload :**
 ```json
 {
-  "type_contrat": "BASIC",
+  "libelle": "BASIC",
   "prime_standard": 50000,
   "categories_garanties": [
     {
@@ -381,7 +381,7 @@ Authorization: Bearer {token_technicien}
   "message": "Contrat créé avec succès",
   "data": {
     "id": 15,
-    "type_contrat": "BASIC",
+    "libelle": "BASIC",
     "prime_standard": "50000.00",
     "est_actif": true,
     "categories_garanties": [

@@ -38,7 +38,7 @@
                     </tr>
                     <tr>
                         <td>Type de contrat :</td>
-                        <td><strong><?php echo e($contrat->type_contrat ?? 'N/A'); ?></strong></td>
+                        <td><strong><?php echo e($contrat->libelle ?? 'N/A'); ?></strong></td>
                     </tr>
                     <tr>
                         <td>Prime standard :</td>

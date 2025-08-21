@@ -458,7 +458,7 @@ class DemandeAdhesionController extends Controller
                 return ApiResponse::error('Accès non autorisé', 403);
             }
 
-            // Vérifier que la proposition est en statut PROPOSEE
+            // Vérifier que la proposition est en statut PROPOSEE   
             if ($proposition->statut->value !== StatutPropositionContratEnum::PROPOSEE->value) {
                 return ApiResponse::error('Cette proposition a déjà été traitée', 400);
             }
@@ -473,6 +473,7 @@ class DemandeAdhesionController extends Controller
                     'type_client' => $proposition->demandeAdhesion->type_demandeur,
                     'date_debut' => now(),
                     'date_fin' => now()->addYear(),
+                    'numero_police' => ClientContrat::generateNumeroPolice(),
                     'statut' => StatutContratEnum::ACTIF->value,
                 ]);
 
@@ -488,16 +489,16 @@ class DemandeAdhesionController extends Controller
                     'contrat_id' => $clientContrat->id
                 ]);
 
-
+                $nom = $proposition->demandeAdhesion->user->assure->nom ?? $proposition->demandeAdhesion->user->entreprise->raison_sociale;
                 // 4. Notification au technicien
                 $this->notificationService->createNotification(
                     $proposition->technicien->user_id,
                     'Contrat accepté par le client',
-                    "Le client {$proposition->demandeAdhesion->user->assure->nom} a accepté votre proposition de contrat.",
+                    "Le client {$nom} a accepté votre proposition de contrat.",
                     'contrat_accepte_technicien', 
                     [
                         'client_nom' => $proposition->demandeAdhesion->user->email,
-                        'contrat_nom' => $proposition->contrat->type_contrat,
+                        'contrat_nom' => $proposition->contrat->libelle,
                         'type' => 'contrat_accepte_technicien'
                     ]
                 );

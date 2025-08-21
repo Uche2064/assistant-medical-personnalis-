@@ -1,12 +1,278 @@
-# Diagramme de Classe UML - AMP Backend
+# AMP Backend - Diagramme de Classe UML
 
-Ce document présente le diagramme de classe UML de tous les modèles de l'application AMP Backend, un système de gestion d'assurance médicale.
+Ce document présente le diagramme de classe UML complet de l'application AMP Backend, incluant tous les modèles Laravel, leurs attributs, méthodes et relations.
 
-## Vue d'ensemble du système
+## **Intégration Spatie Laravel Permission**
 
-Le système AMP Backend gère les demandes d'adhésion, les contrats d'assurance, les sinistres, les factures et les prestataires de soins. Il supporte différents types d'utilisateurs : personnel, entreprises, assurés, et prestataires.
+L'application utilise le package **Spatie Laravel Permission** pour la gestion des rôles et permissions. Voici comment cela s'intègre dans l'architecture :
 
-## Diagramme de Classe UML
+### **Modèles Spatie Ajoutés**
+
+#### **Role**
+```php
+class Role extends \Spatie\Permission\Models\Role
+{
+    // Attributs
+    - id: bigint
+    - name: string
+    - guard_name: string
+    - created_at: datetime
+    - updated_at: datetime
+    
+    // Méthodes principales
+    + hasPermissionTo($permission)
+    + givePermissionTo($permission)
+    + revokePermissionTo($permission)
+    + syncPermissions($permissions)
+}
+```
+
+#### **Permission**
+```php
+class Permission extends \Spatie\Permission\Models\Permission
+{
+    // Attributs
+    - id: bigint
+    - name: string
+    - guard_name: string
+    - created_at: datetime
+    - updated_at: datetime
+    
+    // Méthodes principales
+    + assignRole($role)
+    + removeRole($role)
+    + syncRoles($roles)
+    + hasRole($role)
+}
+```
+
+#### **Tables de Liaison (Pivot)**
+
+**ModelHasRoles**
+```php
+// Table pivot pour User ↔ Role (N:N)
+- role_id: bigint
+- model_type: string
+- model_id: bigint
+```
+
+**ModelHasPermissions**
+```php
+// Table pivot pour User ↔ Permission (N:N)
+- permission_id: bigint
+- model_type: string
+- model_id: bigint
+```
+
+**RoleHasPermissions**
+```php
+// Table pivot pour Role ↔ Permission (N:N)
+- permission_id: bigint
+- role_id: bigint
+```
+
+### **Rôles Définis dans l'Application**
+
+D'après `RoleEnum.php`, les rôles suivants sont définis :
+
+#### **Rôles Internes (Personnel SUNU Santé)**
+- `admin_global` - Super administrateur
+- `gestionnaire` - Administrateur RH
+- `technicien` - Analyste technique
+- `medecin_controleur` - Contrôle médical
+- `commercial` - Prospecteur
+- `comptable` - Gestionnaire financier
+
+#### **Rôles Externes (Clients/Partners)**
+- `physique` - Client personne physique
+- `entreprise` - Client moral
+- `prestataire` - Centre de soins
+
+### **Intégration dans le Modèle User**
+
+Le modèle `User` utilise le trait `HasRoles` de Spatie :
+
+```php
+use Spatie\Permission\Traits\HasRoles;
+
+class User extends Authenticatable
+{
+    use HasRoles;
+    
+    // Méthodes disponibles automatiquement :
+    // + hasRole($role)
+    // + hasAnyRole($roles)
+    // + hasAllRoles($roles)
+    // + assignRole($role)
+    // + removeRole($role)
+    // + syncRoles($roles)
+    // + hasPermissionTo($permission)
+    // + hasAnyPermission($permissions)
+    // + hasAllPermissions($permissions)
+    // + givePermissionTo($permission)
+    // + revokePermissionTo($permission)
+    // + syncPermissions($permissions)
+}
+```
+
+### **Relations dans le Diagramme UML**
+
+1. **User ↔ Role** (N:N via ModelHasRoles)
+2. **User ↔ Permission** (N:N via ModelHasPermissions)
+3. **Role ↔ Permission** (N:N via RoleHasPermissions)
+
+### **Middleware et Contrôle d'Accès**
+
+L'application utilise plusieurs middlewares pour le contrôle d'accès :
+
+- `CheckRole` - Middleware personnalisé
+- `RoleMiddleware` - Middleware Spatie
+- Middlewares spécifiques : `AdminMiddleware`, `GestionnaireMiddleware`, etc.
+
+### **Utilisation dans les Contrôleurs**
+
+```php
+// Vérifier un rôle
+if ($user->hasRole('admin_global')) {
+    // Accès autorisé
+}
+
+// Vérifier une permission
+if ($user->hasPermissionTo('edit-users')) {
+    // Accès autorisé
+}
+
+// Assigner un rôle
+$user->assignRole('gestionnaire');
+
+// Récupérer tous les rôles
+$roles = $user->roles->pluck('name');
+```
+
+## **Exemples d'Utilisation Pratique**
+
+### **1. Création et Attribution de Rôles**
+
+```php
+// Dans un seeder ou service
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
+
+// Créer des rôles
+$adminRole = Role::create(['name' => 'admin_global']);
+$gestionnaireRole = Role::create(['name' => 'gestionnaire']);
+
+// Créer des permissions
+$editUsersPermission = Permission::create(['name' => 'edit-users']);
+$viewReportsPermission = Permission::create(['name' => 'view-reports']);
+
+// Attribuer des permissions aux rôles
+$adminRole->givePermissionTo([$editUsersPermission, $viewReportsPermission]);
+$gestionnaireRole->givePermissionTo($viewReportsPermission);
+
+// Attribuer un rôle à un utilisateur
+$user->assignRole('admin_global');
+```
+
+### **2. Vérification des Rôles et Permissions**
+
+```php
+// Dans un contrôleur ou middleware
+public function dashboard()
+{
+    $user = auth()->user();
+    
+    if ($user->hasRole('admin_global')) {
+        return view('admin.dashboard');
+    }
+    
+    if ($user->hasRole('gestionnaire')) {
+        return view('gestionnaire.dashboard');
+    }
+    
+    if ($user->hasAnyRole(['technicien', 'medecin_controleur'])) {
+        return view('staff.dashboard');
+    }
+    
+    // Vérifier des permissions spécifiques
+    if ($user->hasPermissionTo('edit-users')) {
+        // Afficher le bouton d'édition
+    }
+}
+```
+
+### **3. Middleware de Contrôle d'Accès**
+
+```php
+// Dans routes/api.php
+Route::middleware(['auth:api', 'role:admin_global'])->group(function () {
+    Route::get('/admin/users', [AdminController::class, 'index']);
+});
+
+Route::middleware(['auth:api', 'permission:edit-users'])->group(function () {
+    Route::put('/users/{user}', [UserController::class, 'update']);
+});
+```
+
+### **4. Gestion Dynamique des Rôles**
+
+```php
+// Dans un service d'administration
+class RoleService
+{
+    public function assignRoleToUser($userId, $roleName)
+    {
+        $user = User::findOrFail($userId);
+        $user->assignRole($roleName);
+        
+        return $user->fresh()->load('roles');
+    }
+    
+    public function removeRoleFromUser($userId, $roleName)
+    {
+        $user = User::findOrFail($userId);
+        $user->removeRole($roleName);
+        
+        return $user->fresh()->load('roles');
+    }
+    
+    public function syncUserRoles($userId, array $roles)
+    {
+        $user = User::findOrFail($userId);
+        $user->syncRoles($roles);
+        
+        return $user->fresh()->load('roles');
+    }
+}
+```
+
+### **5. Tests avec Spatie**
+
+```php
+// Dans un test
+public function test_user_can_have_multiple_roles()
+{
+    $user = User::factory()->create();
+    
+    $user->assignRole(['admin_global', 'gestionnaire']);
+    
+    $this->assertTrue($user->hasRole('admin_global'));
+    $this->assertTrue($user->hasRole('gestionnaire'));
+    $this->assertTrue($user->hasAnyRole(['admin_global', 'technicien']));
+}
+
+public function test_role_has_permissions()
+{
+    $role = Role::create(['name' => 'test_role']);
+    $permission = Permission::create(['name' => 'test_permission']);
+    
+    $role->givePermissionTo($permission);
+    
+    $this->assertTrue($role->hasPermissionTo('test_permission'));
+}
+```
+
+## **Diagramme de Classe Complet**
 
 ### Classes principales
 
@@ -120,7 +386,7 @@ Le système AMP Backend gère les demandes d'adhésion, les contrats d'assurance
 |     Contrat      |
 +------------------+
 | - id: bigint     |
-| - type_contrat: string|
+| - libelle: string|
 | - prime_standard: decimal|
 | - frais_gestion: decimal|
 | - couverture_moyenne: decimal|
@@ -283,7 +549,7 @@ Le système AMP Backend gère les demandes d'adhésion, les contrats d'assurance
 | - deleted_at: datetime|
 +------------------+
 | + getCoverageAmountAttribute()|
-| + isWithinLimit()|
+|
 +------------------+
 ```
 
@@ -407,46 +673,6 @@ Le système AMP Backend gère les demandes d'adhésion, les contrats d'assurance
 +------------------+
 ```
 
-#### 16. Conversation
-```
-+------------------+
-|   Conversation   |
-+------------------+
-| - id: bigint     |
-| - dernier_message: text|
-| - created_at: datetime|
-| - updated_at: datetime|
-| - deleted_at: datetime|
-+------------------+
-| + getOtherUser() |
-| + hasUser()      |
-| + getUnreadCount()|
-| + markAsRead()   |
-+------------------+
-```
-
-#### 17. Message
-```
-+------------------+
-|     Message      |
-+------------------+
-| - id: bigint     |
-| - contenu: text  |
-| - lu: bool       |
-| - created_at: datetime|
-| - updated_at: datetime|
-| - deleted_at: datetime|
-+------------------+
-| + scopeUnread()  |
-| + scopeRead()    |
-| + markAsRead()   |
-| + markAsUnread() |
-| + isRead()       |
-| + isUnread()     |
-| + isSentBy()     |
-+------------------+
-```
-
 #### 18. Notification
 ```
 +------------------+
@@ -561,8 +787,7 @@ Le système AMP Backend gère les demandes d'adhésion, les contrats d'assurance
 5. **User** ↔ **DemandeAdhesion** (1:N)
 6. **User** ↔ **ClientContrat** (1:N)
 7. **User** ↔ **Notification** (1:N)
-8. **User** ↔ **Conversation** (N:N)
-9. **User** ↔ **Message** (1:N)
+
 
 ### Relations métier
 
@@ -605,7 +830,6 @@ Le système AMP Backend gère les demandes d'adhésion, les contrats d'assurance
 
 ### Relations de communication
 
-1. **Conversation** ↔ **Message** (1:N)
 2. **Question** ↔ **ReponseQuestionnaire** (1:N)
 
 ## Enums utilisés

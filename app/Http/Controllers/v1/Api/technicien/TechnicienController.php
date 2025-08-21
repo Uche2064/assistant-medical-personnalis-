@@ -351,7 +351,7 @@ class TechnicienController extends Controller
                 [
                     'demande_id' => $demande->id,
                     'contrat_id' => $propositionContrat->id,
-                    'type_contrat' => $propositionContrat->contrat->type_contrat,
+                    'libelle' => $propositionContrat->contrat->libelle,
                     'prime_standard' => $propositionContrat->contrat->prime_standard,
                     'pourcentage_gestion' => $propositionContrat->contrat->frais_gestion,
                     'commentaires_technicien' => $propositionContrat->commentaires_technicien,
@@ -761,7 +761,7 @@ class TechnicienController extends Controller
                     'raison_sociale' => $user->entreprise->raison_sociale ?? null,
                     'contrat' => [
                         'id' => $proposition->contrat->id,
-                        'type_contrat' => $proposition->contrat->type_contrat,
+                        'libelle' => $proposition->contrat->libelle,
                         'date_acceptation' => $proposition->date_acceptation,
                         'prime_standard' => $proposition->contrat->prime_standard,
                         'couverture' => $proposition->contrat->couverture,

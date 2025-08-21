@@ -28,8 +28,8 @@ class PropositionContratResource extends JsonResource
             'contrat' => $this->whenLoaded('contrat', function () {
                 return [
                     'id' => $this->contrat->id,
-                    'type_contrat' => $this->contrat->type_contrat,
-                    'type_contrat_label' => $this->contrat->type_contrat?->getLabel() ?? 'Non défini',
+                    'libelle' => $this->contrat->libelle,
+                    'libelle_label' => $this->contrat->libelle?->getLabel() ?? 'Non défini',
                     'prime_standard' => $this->contrat->prime_standard,
                     'prime_standard_formatted' => number_format($this->contrat->prime_standard, 0, ',', ' ') . ' FCFA',
                     'est_actif' => $this->contrat->est_actif,

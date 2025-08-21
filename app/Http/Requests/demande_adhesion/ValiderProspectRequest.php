@@ -24,7 +24,7 @@ class ValiderProspectRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type_contrat' => 'required|string|in:' . implode(',', TypeContratEnum::values()),
+            'libelle' => 'required|string|in:' . implode(',', TypeContratEnum::values()),
             'prime_proposee' => 'required|numeric|min:0',
             'commentaires' => 'nullable|string|max:1000',
             'garanties_incluses' => 'nullable|array',
@@ -40,8 +40,8 @@ class ValiderProspectRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'type_contrat.required' => 'Le type de contrat est requis.',
-            'type_contrat.in' => 'Le type de contrat sélectionné est invalide.',
+            'libelle.required' => 'Le type de contrat est requis.',
+            'libelle.in' => 'Le type de contrat sélectionné est invalide.',
             'prime_proposee.required' => 'La prime proposée est requise.',
             'prime_proposee.numeric' => 'La prime proposée doit être un nombre.',
             'prime_proposee.min' => 'La prime proposée ne peut pas être négative.',

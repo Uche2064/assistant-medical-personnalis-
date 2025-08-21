@@ -23,7 +23,7 @@ class ContratFormRequest extends FormRequest
     {
         return [
             'prime_standard' => 'required|numeric|min:0',
-            'type_contrat' => 'required|string|in:' . implode(',', TypeContratEnum::values()),
+            'libelle' => 'required|string|in:' . implode(',', TypeContratEnum::values()),
             'categories_garanties_standard' => 'required|array',
             'categories_garanties_standard.*' => 'required|exists:categories_garanties,id',
         ];

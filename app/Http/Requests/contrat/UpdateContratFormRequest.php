@@ -29,7 +29,7 @@ class UpdateContratFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type_contrat' => ['sometimes'],
+            'libelle' => ['sometimes'],
             'prime_standard' => ['sometimes', 'numeric', 'min:0'],
             'couverture' => ['sometimes', 'numeric', 'min:0', 'max:100'],
         ];
@@ -50,8 +50,8 @@ class UpdateContratFormRequest extends FormRequest
             'technicien_id.required' => 'Le champ technicien est obligatoire.',
             'technicien_id.integer' => 'Le champ technicien doit être un entier.',
             'technicien_id.exists' => 'Le technicien sélectionné n\'existe pas.',
-            'type_contrat.required' => 'Le type de contrat est obligatoire.',
-            'type_contrat.in' => 'Le type de contrat sélectionné est invalide.',
+            'libelle.required' => 'Le type de contrat est obligatoire.',
+            'libelle.in' => 'Le type de contrat sélectionné est invalide.',
             'prime_standard.required' => 'La prime standard est obligatoire.',
             'prime_standard.numeric' => 'La prime standard doit être un nombre.',
             'prime_standard.min' => 'La prime standard doit être supérieure ou égale à 0.',

@@ -16,7 +16,7 @@ class ContratResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'type_contrat' => $this->type_contrat,
+            'libelle' => $this->libelle,
             'prime_standard' => $this->prime_standard,
             'prime_standard_formatted' => number_format($this->prime_standard, 0, ',', ' ') . ' FCFA',
             'est_actif' => $this->est_actif,
@@ -29,6 +29,15 @@ class ContratResource extends JsonResource
                     'nom_complet' => $this->technicien->nom . ' ' . $this->technicien->prenom,
                     'email' => $this->technicien->user->email,
                 ];
+            }),
+            'assures' => $this->whenLoaded('assures', function () {
+                return $this->assures->map(function ($assure) {
+                    return [
+                        'id' => $assure->id,
+                        'nom_complet' => $assure->nom . ' ' . $assure->prenoms,
+                        'contact' => $assure->contact
+                    ];
+                });
             }),
             'categories_garanties' => $this->whenLoaded('categoriesGaranties', function () {
                 return $this->categoriesGaranties->map(function ($categorie) {
@@ -55,7 +64,7 @@ class ContratResource extends JsonResource
                     ];
                 });
             }),
-            
+
             // Statistiques calculées
             'statistiques' => $this->whenLoaded('categoriesGaranties', function () {
                 return [
@@ -67,7 +76,7 @@ class ContratResource extends JsonResource
                 ];
             }),
 
-        
+
         ];
     }
-} 
+}

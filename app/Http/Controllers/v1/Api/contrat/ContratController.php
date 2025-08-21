@@ -43,9 +43,9 @@ class ContratController extends Controller
         $perPage = $request->query('per_page', 15);
         $estActif = $request->query('est_actif');   // statut
     
-        $query = Contrat::with(['technicien', 'categoriesGaranties.garanties'])
+        $query = Contrat::with(['technicien', 'categoriesGaranties.garanties', 'assures'])
             ->when($search, function ($q, $search) {
-                $q->where('type_contrat', 'like', '%' . $search . '%');
+                $q->where('libelle', 'like', '%' . $search . '%');
             })
             ->when(!is_null($estActif), function ($q) use ($estActif) {
                 $q->where('est_actif', filter_var($estActif, FILTER_VALIDATE_BOOLEAN));
@@ -71,7 +71,7 @@ class ContratController extends Controller
      */
     public function show(string $id)
     {
-        $contrat = Contrat::with(['technicien', 'categoriesGaranties.garanties'])
+        $contrat = Contrat::with(['technicien', 'categoriesGaranties.garanties', 'assures'])
             ->find($id);
 
         if (!$contrat) {
@@ -99,7 +99,7 @@ class ContratController extends Controller
 
             // Création du contrat
             $contrat = Contrat::create([
-                'type_contrat' => $validatedData['type_contrat'],
+                'libelle' => $validatedData['libelle'],
                 'prime_standard' => $validatedData['prime_standard'],
                 'technicien_id' => $technicien->id,
                 'est_actif' => true,
@@ -107,10 +107,7 @@ class ContratController extends Controller
                     ->pluck('categorie_garantie_id')
                     ->toArray(),
                 'couverture' => $validatedData['couverture'],
-                'couverture_moyenne' => collect($validatedData['categories_garanties'])
-                    ->pluck('couverture')
-                    ->filter()
-                    ->avg(),
+                'frais_gestion' => $validatedData['frais_gestion']
             ]);
 
             // Assignation des catégories de garanties
@@ -224,11 +221,11 @@ class ContratController extends Controller
                 'total' => Contrat::count(),
                 'actifs' => Contrat::where('est_actif', true)->count(),
                 'suspendus' => Contrat::where('est_actif', false)->count(),
-                'type_contrat' => Contrat::select('type_contrat', DB::raw('COUNT(*) as count'))
-                    ->groupBy('type_contrat')
+                'libelle' => Contrat::select('libelle', DB::raw('COUNT(*) as count'))
+                    ->groupBy('libelle')
                     ->get()
                     ->mapWithKeys(function ($item) {
-                        $typeValue = is_object($item->type_contrat) ? $item->type_contrat->value : $item->type_contrat;
+                        $typeValue = is_object($item->libelle) ? $item->libelle->value : $item->libelle;
                         return [$typeValue ?? 'Non spécifié' => $item->count];
                     }),
                 'repartition_prix' => [

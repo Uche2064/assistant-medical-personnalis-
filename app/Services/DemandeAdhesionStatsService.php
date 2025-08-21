@@ -274,7 +274,7 @@ class DemandeAdhesionStatsService
         return [
             'contrat' => [
                 'id' => $contrat->id,
-                'type_contrat' => $contrat->type_contrat,
+                'libelle' => $contrat->libelle,
                 'prime_standard' => $contrat->prime_standard,
                 'frais_gestion' => $contrat->frais_gestion,
                 'couverture_moyenne' => $contrat->couverture_moyenne,

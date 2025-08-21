@@ -30,7 +30,7 @@ class SinistreResource extends JsonResource
                 'type_assure' => $this->getTypeAssure(),
                 'contrat' => $this->when($this->assure->contrat, [
                     'id' => $this->assure->contrat->id ?? null,
-                    'type_contrat' => $this->assure->contrat->type_contrat ?? null,
+                    'libelle' => $this->assure->contrat->libelle ?? null,
                     'est_actif' => $this->assure->contrat->est_actif ?? false,
                 ]),
             ],

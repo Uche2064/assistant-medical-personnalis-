@@ -76,7 +76,7 @@ class ClientReseauController extends Controller
                         'statut_assignation' => $clientPrestataire->statut,
                         'contrat' => [
                             'id' => $clientContrat->contrat->id,
-                            'type_contrat' => $clientContrat->contrat->type_contrat,
+                            'libelle' => $clientContrat->contrat->libelle,
                             'date_debut' => $clientContrat->date_debut,
                             'date_fin' => $clientContrat->date_fin,
                         ],
@@ -211,7 +211,7 @@ class ClientReseauController extends Controller
                 ],
                 'contrat' => [
                     'id' => $contrat->id,
-                    'type_contrat' => $contrat->type_contrat,
+                    'libelle' => $contrat->libelle,
                     'date_debut' => $assignation->clientContrat->date_debut,
                     'date_fin' => $assignation->clientContrat->date_fin,
                 ],

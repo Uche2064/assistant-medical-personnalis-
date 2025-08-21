@@ -13,14 +13,12 @@ return new class extends Migration
     {
         Schema::create('contrats', function (Blueprint $table) {
             $table->id();
-            $table->string('type_contrat'); // Sera casté vers TypeContratEnum
+            $table->string('libelle');
             $table->foreignId('technicien_id')->nullable()->constrained('personnels')->onDelete('set null');
             $table->decimal('prime_standard', 12, 2);
+            $table->decimal('prime_totale', 12, 2);
             $table->decimal('frais_gestion', 12, 2);
-            $table->decimal('couverture_moyenne', 10, 2)->nullable();
-            $table->decimal('couverture', 10, 2)->nullable();
             $table->boolean('est_actif')->default(true);
-            $table->json('categories_garanties_standard')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

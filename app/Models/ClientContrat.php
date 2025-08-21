@@ -31,6 +31,17 @@ class ClientContrat extends Model
     ];
 
     
+    /**
+     * Generate a unique police number.
+     */
+    public static function generateNumeroPolice()
+    {
+        do {
+            $numero = 'POL' . date('Y') . strtoupper(substr(md5(uniqid()), 0, 8));
+        } while (self::where('numero_police', $numero)->exists());
+
+        return $numero;
+    }    
 
 
     public function genererNumeroPolice() {
@@ -75,5 +86,10 @@ class ClientContrat extends Model
     public function isExpire(): bool
     {
         return $this->date_fin < now();
+    }
+
+    public function getLabelStatut(): string
+    {
+        return $this->statut->getLabel();
     }
 }

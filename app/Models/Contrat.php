@@ -11,25 +11,25 @@ class Contrat extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'type_contrat',
+        'libelle',
         'technicien_id',
         'prime_standard',
+        'prime_totale',
         'frais_gestion',
-        'couverture_moyenne',
-        'couverture',
-        'categories_garanties_standard',
         'est_actif',
     ];
 
     protected $casts = [
         'prime_standard' => 'decimal:2',
+        'prime_totale' => 'decimal:2',
         'frais_gestion' => 'decimal:2',
-        'couverture_moyenne' => 'decimal:2',
-        'couverture' => 'decimal:2',
         'est_actif' => 'boolean',
-        'categories_garanties_standard' => 'array',
     ];
 
+
+    static public function getFraisGestion() {
+        return 0.2;
+    }
     
 
     /**
@@ -61,19 +61,6 @@ class Contrat extends Model
     public function getGarantiesAttribute()
     {
         return $this->categoriesGaranties->flatMap->garanties;
-    }
-
-
-    /**
-     * Generate a unique police number.
-     */
-    public static function generateNumeroPolice()
-    {
-        do {
-            $numero = 'POL' . date('Y') . strtoupper(substr(md5(uniqid()), 0, 8));
-        } while (self::where('numero_police', $numero)->exists());
-
-        return $numero;
     }
 
     /**
@@ -169,6 +156,7 @@ class Contrat extends Model
     {
         return $this->prime_standard * $this->commission_commercial / 100;
     }
+
 
 
     /**

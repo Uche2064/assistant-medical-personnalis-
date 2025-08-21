@@ -38,7 +38,7 @@
                     </tr>
                     <tr>
                         <td>Type de contrat :</td>
-                        <td><strong>{{ $contrat->type_contrat ?? 'N/A' }}</strong></td>
+                        <td><strong>{{ $contrat->libelle ?? 'N/A' }}</strong></td>
                     </tr>
                     <tr>
                         <td>Prime standard :</td>

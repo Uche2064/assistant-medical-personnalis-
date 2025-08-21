@@ -204,7 +204,7 @@ class DemandeAdhesionService
                     return [
                         'id' => $contrat->id,
                         'nom' => $contrat->nom,
-                        'type_contrat' => $contrat->type_contrat,
+                        'libelle' => $contrat->libelle,
                         'description' => $contrat->description,
                         'prime_de_base' => $contrat->prime_de_base,
                         'categories_garanties' => $categoriesGaranties

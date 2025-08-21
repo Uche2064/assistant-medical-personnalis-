@@ -176,7 +176,7 @@ class ClientPrestataireController extends Controller
                 ],
                 'contrat' => [
                     'id' => $clientContrat->contrat->id,
-                    'type_contrat' => $clientContrat->contrat->type_contrat,
+                    'libelle' => $clientContrat->contrat->libelle,
                     'numero_police' => $clientContrat->numero_police,
                     'date_debut' => $clientContrat->date_debut,
                     'date_fin' => $clientContrat->date_fin,
