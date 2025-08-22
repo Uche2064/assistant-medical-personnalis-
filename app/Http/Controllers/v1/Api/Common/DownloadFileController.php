@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\v1\Api\common;
+namespace App\Http\Controllers\v1\Api\Common;
 
 use App\Helpers\ApiResponse;
 use App\Helpers\CommonHelpers;

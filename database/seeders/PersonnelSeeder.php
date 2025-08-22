@@ -31,10 +31,10 @@ class PersonnelSeeder extends Seeder
             throw new \Exception('Aucun gestionnaire trouvé. Assurez-vous que GestionnaireSeeder a été exécuté en premier.');
         }
 
-        $this->createPersonnel('comptable1@gmail.com', 'Comptable', 'Compta', RoleEnum::COMPTABLE->value, $gestionnaire->id);
-        $this->createPersonnel('medecin1@gmail.com', 'Médecin', 'Contrôle', RoleEnum::MEDECIN_CONTROLEUR->value, $gestionnaire->id);
-        $this->createPersonnel('technicien1@gmail.com', 'Technicien', 'Tech', RoleEnum::TECHNICIEN->value, $gestionnaire->id);
-        $this->createPersonnel('commercial1@gmail.com', 'Commercial', 'Ventes', RoleEnum::COMMERCIAL->value, $gestionnaire->id);
+        $this->createPersonnel('uchesonUche5@gmail.com', 'Comptable', 'Compta', RoleEnum::COMPTABLE->value, $gestionnaire->id);
+        $this->createPersonnel('godswilllek02@gmail.com', 'Médecin', 'Contrôle', RoleEnum::MEDECIN_CONTROLEUR->value, $gestionnaire->id);
+        $this->createPersonnel('godswill2064@gmail.com', 'Technicien', 'Tech', RoleEnum::TECHNICIEN->value, $gestionnaire->id);
+        $this->createPersonnel('anatoliebratt@gmail.com', 'Commercial', 'Ventes', RoleEnum::COMMERCIAL->value, $gestionnaire->id);
     }
 
     private function createPersonnel(string $email, string $nom, string $prenoms, string $role, int $gestionnaireId): void

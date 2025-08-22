@@ -17,14 +17,14 @@ use App\Http\Controllers\v1\Api\AssureController;
 use App\Http\Controllers\v1\Api\statistiques\StatsController;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\v1\Api\client\ClientController;
-use App\Http\Controllers\v1\Api\common\DownloadFileController;
+use App\Http\Controllers\v1\Api\Common\DownloadFileController;
 use App\Http\Controllers\v1\Api\contrat\ContratController;
 use App\Http\Controllers\v1\Api\entreprise\EntrepriseController;
 use App\Http\Controllers\v1\Api\facture\FactureController;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\v1\Api\NotificationController;
 use App\Http\Controllers\v1\Api\prestataire\PrestataireController;
-use App\Http\Controllers\v1\Api\ClientPrestataireController;
+use App\Http\Controllers\v1\Api\ClientPrestataireController;    
 
 
 Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
