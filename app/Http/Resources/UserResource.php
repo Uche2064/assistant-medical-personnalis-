@@ -25,6 +25,7 @@ class UserResource extends JsonResource
             'mot_de_passe_a_changer' => $this->mot_de_passe_a_changer,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
+            'solde' => $this->solde,
         ];
 
         if ($this->whenLoaded('personnel') && $this->personnel) {

@@ -34,7 +34,6 @@ class StoreContratFormRequest extends FormRequest
             'frais_gestion' => ['required', 'numeric', 'min:0'],
             'categories_garanties' => ['required', 'array', 'min:1'],
             'categories_garanties.*.categorie_garantie_id' => ['required', 'integer', 'exists:categories_garanties,id'],
-            'categories_garanties.*.couverture' => ['required', 'numeric', 'min:0', 'max:100'],
         ];
     }
 

@@ -107,7 +107,8 @@ class ContratController extends Controller
                     ->pluck('categorie_garantie_id')
                     ->toArray(),
                 'couverture' => $validatedData['couverture'],
-                'frais_gestion' => $validatedData['frais_gestion']
+                'frais_gestion' => $validatedData['frais_gestion'],
+                'prime_totale' => $validatedData['frais_gestion'] + $validatedData['prime_standard']
             ]);
 
             // Assignation des catégories de garanties

@@ -440,7 +440,7 @@ class DemandeAdhesionController extends Controller
      */
     public function accepterContrat($propositionId)
     {
-        Log::info($propositionId);
+
         try {
             $user = Auth::user();
             
@@ -450,8 +450,6 @@ class DemandeAdhesionController extends Controller
                 'contrat',
                 'technicien'
             ])->findOrFail($propositionId);
-
-            Log::info($proposition->demandeAdhesion->user_id);
 
             // Vérifier que la proposition appartient à l'utilisateur connecté
             if ($proposition->demandeAdhesion->user_id !== $user->id) {
@@ -475,6 +473,10 @@ class DemandeAdhesionController extends Controller
                     'date_fin' => now()->addYear(),
                     'numero_police' => ClientContrat::generateNumeroPolice(),
                     'statut' => StatutContratEnum::ACTIF->value,
+                ]);
+
+                $proposition->demandeAdhesion->user->update([
+                    'solde' => $proposition->contrat->prime_totale
                 ]);
 
                 // 2. Mettre à jour la proposition

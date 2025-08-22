@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('photo')->nullable();
             $table->boolean('est_actif')->default(false);
             $table->timestamp('email_verified_at')->nullable();
+            $table->double('solde')->default(0);
             $table->boolean('mot_de_passe_a_changer')->default(true);
             $table->rememberToken();
             $table->timestamps();
