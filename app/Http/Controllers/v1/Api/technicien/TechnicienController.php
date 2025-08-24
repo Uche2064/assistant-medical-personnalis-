@@ -142,7 +142,7 @@ class TechnicienController extends Controller
                 'user_id' => Auth::id()
             ]);
 
-            return ApiResponse::error('Erreur lors de l\'assignation du réseau: ' . $e->getMessage(), 500);
+            return ApiResponse::error('Erreur lors de l\'assignation du réseau', 500, $e->getMessage());
         }
     }
 
@@ -747,13 +747,13 @@ class TechnicienController extends Controller
                 $prestatairesAssignes = ClientContrat::where('user_id', $user->id)
                     ->where('contrat_id', $proposition->contrat->id)
                     ->whereHas('prestataires', function ($q) {
-                        $q->where('statut', 'ACTIF');
+                        $q->where('statut', StatutPrestataireEnum::ACTIF->value);
                     })
                     ->exists();
 
                 return [
                     'id' => $user->id,
-                    'nom' => $user->assure->nom,
+                    'nom' => $user->assure->nom ?? $user->entreprise->raison_sociale,
                     'prenoms' => $user->assure->prenoms ?? null,
                     'email' => $user->email,
                     'contact' => $user->contact,
@@ -884,7 +884,7 @@ class TechnicienController extends Controller
             return ApiResponse::success([
                 'client' => [
                     'id' => $client->id,
-                    'nom' => $client->assure->nom,
+                    'nom' => $client->assure->nom ?? $client->entreprise->raison_sociale,
                     'email' => $client->email,
                 ],
                 "client_prestataire" => $clientPrestataire,

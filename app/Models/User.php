@@ -169,13 +169,7 @@ class User extends Authenticatable implements JWTSubject
     //     return $this->hasMany(Message::class, 'expediteur_id');
     // }
 
-    /**
-     * Check if user has a specific role
-     */
-    public function hasRole($role)
-    {
-        return $this->roles()->where('name', $role)->exists();
-    }
+
 
     /**
      * Get the user's full name

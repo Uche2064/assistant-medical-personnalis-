@@ -336,6 +336,7 @@ class AuthController extends Controller
             'password' => Hash::make($validated['new_password']),
             'mot_de_passe_a_changer' => false,
             'est_actif' => true,
+            'email_verified_at' => now()
         ]);
         dispatch(new SendEmailJob(
             $user->email,
@@ -376,20 +377,5 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Test endpoint to check user roles
-     */
-    public function testRoles()
-    {
-        $user = Auth::user();
-
-        return ApiResponse::success([
-            'user_id' => $user->id,
-            'email' => $user->email,
-            'roles' => $user->roles->pluck('name'),
-            'has_admin_global' => $user->hasRole('admin_global'),
-            'has_gestionnaire' => $user->hasRole('gestionnaire'),
-            'all_roles' => $user->getAllPermissions()->pluck('name'),
-        ], 'User roles information');
-    }
+   
 }

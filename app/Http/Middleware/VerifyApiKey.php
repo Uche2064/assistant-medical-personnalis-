@@ -15,8 +15,8 @@ class VerifyApiKey
         $apiKey = $request->header('x-api-key');
         $validApiKey = env('API_KEY');
 
-        Log::info('apiKey: ' . $apiKey);
-        Log::info('validApiKey: ' . $validApiKey);
+        // Log::info('apiKey: ' . $apiKey);
+        // Log::info('validApiKey: ' . $validApiKey);
 
         if (!$apiKey || $apiKey !== $validApiKey) {
             return ApiResponse::error('Clef API invalide', 401);
