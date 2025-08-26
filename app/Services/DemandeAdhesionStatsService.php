@@ -273,14 +273,18 @@ class DemandeAdhesionStatsService
 
         $contrat = $propositionContrat->contrat;
 
+        // Calculer la couverture moyenne à partir des catégories de garanties
+        $couvertures = $contrat->categoriesGaranties->pluck('pivot.couverture')->filter();
+        $couvertureMoyenne = $couvertures->count() > 0 ? $couvertures->avg() : null;
+        
         return [
             'contrat' => [
                 'id' => $contrat->id,
                 'libelle' => $contrat->libelle,
                 'prime_standard' => $contrat->prime_standard,
                 'frais_gestion' => $contrat->frais_gestion,
-                'couverture_moyenne' => $contrat->couverture_moyenne,
-                'couverture' => $contrat->couverture,
+                'couverture_moyenne' => $couvertureMoyenne,
+                'couverture' => $couvertures->first(), // Première couverture trouvée
                 'categories_garanties' => $contrat->categoriesGaranties->map(function ($categorieGarantie) {
                     return [
                         'id' => $categorieGarantie->id,
