@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facture {{ $facture_details['numero_facture'] }}</title>
+    <title>Facture <?php echo e($facture_details['numero_facture']); ?></title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -158,17 +158,18 @@
 <body>
     <!-- En-tête avec logo et informations de l'entreprise -->
     <div class="header">
-        @if(isset($entreprise['logo_base64']) && $entreprise['logo_base64'])
-            <img src="data:image/png;base64,{{ $entreprise['logo_base64'] }}" alt="Sunu santé" class="logo">
-        @else
-            <div class="logo-text">{{ $entreprise['nom'] }}</div>
-        @endif
+        <?php if(isset($entreprise['logo_base64']) && $entreprise['logo_base64']): ?>
+            <img src="data:image/png;base64,<?php echo e($entreprise['logo_base64']); ?>" alt="Sunu santé" class="logo">
+        <?php else: ?>
+            <div class="logo-text"><?php echo e($entreprise['nom']); ?></div>
+        <?php endif; ?>
         <div class="company-info">
-            <div class="company-name">{{ $entreprise['nom'] }}</div>
+            <div class="company-name"><?php echo e($entreprise['nom']); ?></div>
             <div class="company-details">
-                {{ $entreprise['adresse'] }}<br>
-                Tél: {{ $entreprise['telephone'] }} | Email: {{ $entreprise['email'] }}<br>
-                {{ $entreprise['site_web'] }}
+                <?php echo e($entreprise['adresse']); ?><br>
+                Tél: <?php echo e($entreprise['telephone']); ?> | Email: <?php echo e($entreprise['email']); ?><br>
+                <?php echo e($entreprise['site_web']); ?>
+
             </div>
         </div>
     </div>
@@ -182,19 +183,19 @@
         <div class="info-grid">
             <div class="info-block">
                 <div class="info-label">Numéro de facture:</div>
-                <div class="info-value">{{ $facture_details['numero_facture'] }}</div>
+                <div class="info-value"><?php echo e($facture_details['numero_facture']); ?></div>
             </div>
             <div class="info-block">
                 <div class="info-label">Date de facture:</div>
-                <div class="info-value">{{ $facture_details['date_facture'] }}</div>
+                <div class="info-value"><?php echo e($facture_details['date_facture']); ?></div>
             </div>
             <div class="info-block">
                 <div class="info-label">Statut:</div>
-                <div class="info-value">{{ $facture_details['statut'] }}</div>
+                <div class="info-value"><?php echo e($facture_details['statut']); ?></div>
             </div>
             <div class="info-block">
                 <div class="info-label">Date de génération:</div>
-                <div class="info-value">{{ $dateGeneration }}</div>
+                <div class="info-value"><?php echo e($dateGeneration); ?></div>
             </div>
         </div>
     </div>
@@ -206,63 +207,63 @@
             <div class="patient-details">
                 <div class="detail-item">
                     <div class="detail-label">Nom complet:</div>
-                    <div class="detail-value">{{ $patient['nom'] }} {{ $patient['prenoms'] }}</div>
+                    <div class="detail-value"><?php echo e($patient['nom']); ?> <?php echo e($patient['prenoms']); ?></div>
                 </div>
                 <div class="detail-item">
                     <div class="detail-label">Type:</div>
-                    <div class="detail-value">{{ $patient['type'] }}</div>
+                    <div class="detail-value"><?php echo e($patient['type']); ?></div>
                 </div>
                 <div class="detail-item">
                     <div class="detail-label">Date de naissance:</div>
-                    <div class="detail-value">{{ $patient['date_naissance'] ?? 'Non renseigné' }}</div>
+                    <div class="detail-value"><?php echo e($patient['date_naissance'] ?? 'Non renseigné'); ?></div>
                 </div>
                 <div class="detail-item">
                     <div class="detail-label">Sexe:</div>
-                    <div class="detail-value">{{ $patient['sexe'] ?? 'Non renseigné' }}</div>
+                    <div class="detail-value"><?php echo e($patient['sexe'] ?? 'Non renseigné'); ?></div>
                 </div>
                 <div class="detail-item">
                     <div class="detail-label">Profession:</div>
-                    <div class="detail-value">{{ $patient['profession'] ?? 'Non renseigné' }}</div>
+                    <div class="detail-value"><?php echo e($patient['profession'] ?? 'Non renseigné'); ?></div>
                 </div>
                 <div class="detail-item">
                     <div class="detail-label">Contact:</div>
-                    <div class="detail-value">{{ $patient['contact'] ?? 'Non renseigné' }}</div>
+                    <div class="detail-value"><?php echo e($patient['contact'] ?? 'Non renseigné'); ?></div>
                 </div>
                 <div class="detail-item">
                     <div class="detail-label">Email:</div>
-                    <div class="detail-value">{{ $patient['email'] ?? 'Non renseigné' }}</div>
+                    <div class="detail-value"><?php echo e($patient['email'] ?? 'Non renseigné'); ?></div>
                 </div>
-                @if(isset($patient['lien_parente']))
+                <?php if(isset($patient['lien_parente'])): ?>
                 <div class="detail-item">
                     <div class="detail-label">Lien de parenté:</div>
-                    <div class="detail-value">{{ $patient['lien_parente'] }}</div>
+                    <div class="detail-value"><?php echo e($patient['lien_parente']); ?></div>
                 </div>
-                @endif
+                <?php endif; ?>
             </div>
 
-            @if(isset($patient['entreprise']))
+            <?php if(isset($patient['entreprise'])): ?>
             <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
                     <div style="font-weight: bold; color: #c7183e; margin-bottom: 10px;">Entreprise:</div>
                 <div class="patient-details">
                     <div class="detail-item">
                         <div class="detail-label">Raison sociale:</div>
-                        <div class="detail-value">{{ $patient['entreprise']['raison_sociale'] }}</div>
+                        <div class="detail-value"><?php echo e($patient['entreprise']['raison_sociale']); ?></div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Adresse:</div>
-                        <div class="detail-value">{{ $patient['entreprise']['adresse'] ?? 'Non renseigné' }}</div>
+                        <div class="detail-value"><?php echo e($patient['entreprise']['adresse'] ?? 'Non renseigné'); ?></div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Contact:</div>
-                        <div class="detail-value">{{ $patient['entreprise']['contact'] ?? 'Non renseigné' }}</div>
+                        <div class="detail-value"><?php echo e($patient['entreprise']['contact'] ?? 'Non renseigné'); ?></div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Email:</div>
-                        <div class="detail-value">{{ $patient['entreprise']['email'] ?? 'Non renseigné' }}</div>
+                        <div class="detail-value"><?php echo e($patient['entreprise']['email'] ?? 'Non renseigné'); ?></div>
                     </div>
                 </div>
             </div>
-            @endif
+            <?php endif; ?>
         </div>
     </div>
 
@@ -273,27 +274,27 @@
             <div class="sinistre-details">
                 <div class="detail-item">
                     <div class="detail-label">Numéro de sinistre:</div>
-                    <div class="detail-value">{{ $sinistre['id'] ?? 'N/A' }}</div>
+                    <div class="detail-value"><?php echo e($sinistre['id'] ?? 'N/A'); ?></div>
                 </div>
                 <div class="detail-item">
                     <div class="detail-label">Date du sinistre:</div>
-                    <div class="detail-value">{{ $sinistre['date_sinistre'] ?? 'Non renseigné' }}</div>
+                    <div class="detail-value"><?php echo e($sinistre['date_sinistre'] ?? 'Non renseigné'); ?></div>
                 </div>
                 <div class="detail-item">
                     <div class="detail-label">Statut:</div>
-                    <div class="detail-value">{{ $sinistre['statut'] ?? 'Non renseigné' }}</div>
+                    <div class="detail-value"><?php echo e($sinistre['statut'] ?? 'Non renseigné'); ?></div>
                 </div>
                 <div class="detail-item">
                     <div class="detail-label">Date de création:</div>
-                    <div class="detail-value">{{ $sinistre['created_at'] ?? 'Non renseigné' }}</div>
+                    <div class="detail-value"><?php echo e($sinistre['created_at'] ?? 'Non renseigné'); ?></div>
                 </div>
             </div>
-            @if(isset($sinistre['description']) && $sinistre['description'])
+            <?php if(isset($sinistre['description']) && $sinistre['description']): ?>
             <div style="margin-top: 15px;">
                 <div class="detail-label">Description:</div>
-                <div class="detail-value">{{ $sinistre['description'] }}</div>
+                <div class="detail-value"><?php echo e($sinistre['description']); ?></div>
             </div>
-            @endif
+            <?php endif; ?>
         </div>
     </div>
 
@@ -303,19 +304,19 @@
         <div class="info-grid">
             <div class="info-block">
                 <div class="info-label">Nom:</div>
-                <div class="info-value">{{ $facture_details['prestataire']['nom'] }}</div>
+                <div class="info-value"><?php echo e($facture_details['prestataire']['nom']); ?></div>
             </div>
             <div class="info-block">
                 <div class="info-label">Adresse:</div>
-                <div class="info-value">{{ $facture_details['prestataire']['adresse'] ?? 'Non renseigné' }}</div>
+                <div class="info-value"><?php echo e($facture_details['prestataire']['adresse'] ?? 'Non renseigné'); ?></div>
             </div>
             <div class="info-block">
                 <div class="info-label">Contact:</div>
-                <div class="info-value">{{ $facture_details['prestataire']['contact'] ?? 'Non renseigné' }}</div>
+                <div class="info-value"><?php echo e($facture_details['prestataire']['contact'] ?? 'Non renseigné'); ?></div>
             </div>
             <div class="info-block">
                 <div class="info-label">Email:</div>
-                <div class="info-value">{{ $facture_details['prestataire']['email'] ?? 'Non renseigné' }}</div>
+                <div class="info-value"><?php echo e($facture_details['prestataire']['email'] ?? 'Non renseigné'); ?></div>
             </div>
         </div>
     </div>
@@ -335,16 +336,16 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($facture_details['lignes'] as $index => $ligne)
+                <?php $__currentLoopData = $facture_details['lignes']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $ligne): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                 <tr>
-                    <td>{{ $index + 1 }}</td>
-                    <td>{{ $ligne['garantie'] }}</td>
-                    <td>{{ $ligne['libelle_acte'] }}</td>
-                    <td>{{ $ligne['prix_unitaire'] }} FCFA</td>
-                    <td>{{ $ligne['quantite'] }}</td>
-                    <td>{{ $ligne['total_ligne'] }} FCFA</td>
+                    <td><?php echo e($index + 1); ?></td>
+                    <td><?php echo e($ligne['garantie']); ?></td>
+                    <td><?php echo e($ligne['libelle_acte']); ?></td>
+                    <td><?php echo e($ligne['prix_unitaire']); ?> FCFA</td>
+                    <td><?php echo e($ligne['quantite']); ?></td>
+                    <td><?php echo e($ligne['total_ligne']); ?> FCFA</td>
                 </tr>
-                @endforeach
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
             </tbody>
         </table>
     </div>
@@ -353,23 +354,24 @@
      <div class="totals">
          <div class="total-row">
              <span class="total-label">Montant total:</span>
-             <span class="total-value">{{ $facture_details['montant_total'] }} FCFA</span>
+             <span class="total-value"><?php echo e($facture_details['montant_total']); ?> FCFA</span>
          </div>
          <div class="total-row">
              <span class="total-label">Montant remboursé:</span>
-             <span class="total-value">{{ $facture_details['montant_rembourse'] }} FCFA</span>
+             <span class="total-value"><?php echo e($facture_details['montant_rembourse']); ?> FCFA</span>
          </div>
          <div class="total-row grand-total">
              <span class="total-label">Montant à payer:</span>
-             <span class="total-value">{{ $facture_details['montant_patient'] }} FCFA</span>
+             <span class="total-value"><?php echo e($facture_details['montant_patient']); ?> FCFA</span>
          </div>
      </div>
 
     <!-- Pied de page -->
     <div class="footer">
-        <p>Cette facture a été générée automatiquement le {{ $dateGeneration }}</p>
-        <p>{{ $entreprise['nom'] }} - {{ $entreprise['adresse'] }}</p>
-        <p>Pour toute question, contactez-nous au {{ $entreprise['telephone'] }} ou par email à {{ $entreprise['email'] }}</p>
+        <p>Cette facture a été générée automatiquement le <?php echo e($dateGeneration); ?></p>
+        <p><?php echo e($entreprise['nom']); ?> - <?php echo e($entreprise['adresse']); ?></p>
+        <p>Pour toute question, contactez-nous au <?php echo e($entreprise['telephone']); ?> ou par email à <?php echo e($entreprise['email']); ?></p>
     </div>
 </body>
 </html>
+<?php /**PATH D:\projects\amp\amp_backend\resources\views/pdf/facture.blade.php ENDPATH**/ ?>

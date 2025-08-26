@@ -220,9 +220,9 @@ class PrestataireController extends Controller
             ->pluck('id')
             ->toArray();
 
-        if (empty($clientContratsAssignes)) {
-            return ApiResponse::success([], 'Aucun client ne vous est assigné');
-        }
+        // if (empty($clientContratsAssignes)) {
+        //     return ApiResponse::success($client, 'Aucun client ne vous est assigné');
+        // }
 
         // 2. Récupérer les IDs des clients et contrats
         $clientContrats = ClientContrat::whereIn('id', $clientContratsAssignes)->get();

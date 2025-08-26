@@ -419,10 +419,6 @@ class TechnicienController extends Controller
             return ApiResponse::error('Accès non autorisé', 403);
         }
 
-        $validated = $request->validate([
-            'notes_validation' => 'nullable|string|max:500',
-        ]);
-
         $facture = Facture::find($id);
 
         if (!$facture) {
@@ -437,7 +433,6 @@ class TechnicienController extends Controller
             'statut' => StatutFactureEnum::VALIDEE_TECHNICIEN,
             'technicien_id' => $technicien->id,
             'valide_par_technicien_a' => now(),
-            'notes_technicien' => $validated['notes_validation'],
         ]);
 
         return ApiResponse::success($facture, 'Facture validée avec succès');

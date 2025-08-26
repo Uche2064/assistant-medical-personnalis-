@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\NouveauCompteCree;
 use App\Mail\GenericMail;
 use App\Models\DemandeAdhesion;
 use App\Models\Notification;
@@ -104,21 +105,56 @@ class NotificationService
             $query->where('name', 'technicien');
         })->get();
 
+        $notificationData = [
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'user_type' => $userType,
+            'date_creation' => now()->format('d/m/Y à H:i'),
+            'type_notification' => 'nouveau_compte'
+        ];
+
         foreach ($techniciens as $technicien) {
             $this->createNotification(
                 $technicien->id,
                 'Nouveau compte créé',
                 "Un nouveau compte de type {$userType} a été créé : {$user->email}",
                 'info',
-                [
-                    'user_id' => $user->id,
-                    'user_email' => $user->email,
-                    'user_type' => $userType,
-                    'date_creation' => now()->format('d/m/Y à H:i'),
-                    'type_notification' => 'nouveau_compte'
-                ]
+                $notificationData
             );
         }
+
+        // Dispatcher l'événement pour le temps réel
+        broadcast(new NouveauCompteCree($user, $userType, $notificationData));
+    }
+
+    public function notifyAllPersonnelNouveauCompte(User $user, string $userType): void
+    {
+        // Récupérer tous les technicien et médecins contrôleurs
+        $personnel = User::whereHas('roles', function ($query) {
+            $query->where('name', 'technicien')->orWhere('name', 'medecin_controleur');
+        })->get();
+
+        foreach ($personnel as $personnel) {
+            $notificationData = [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'user_type' => $userType,   
+                'date_creation' => now()->format('d/m/Y à H:i'),
+                'type_notification' => 'nouveau_compte'
+            ];
+            $this->createNotification(
+                $personnel->id,
+                'Nouveau compte créé',
+                "Un nouveau compte de type {$userType} a été créé : {$user->email}",
+                'info',
+                $notificationData
+            );
+        }
+
+        Log::info("Notification envoyée à tous les personnel");
+
+        // Dispatcher l'événement pour le temps réel
+        broadcast(new NouveauCompteCree($user, $userType, $notificationData));
     }
 
     /**
@@ -133,6 +169,14 @@ class NotificationService
         $medecinsControleurs = User::whereHas('roles', function ($query) {
             $query->where('name', 'medecin_controleur');
         })->get();
+
+        $notificationData = [
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'user_type' => 'prestataire',
+            'date_creation' => now()->format('d/m/Y à H:i'),
+            'type_notification' => 'nouveau_compte'
+        ];
 
         foreach ($medecinsControleurs as $medecin) {
             $this->createNotification(
@@ -149,6 +193,8 @@ class NotificationService
                 ]
             );
         }
+        broadcast(new NouveauCompteCree($user, 'prestataire', $notificationData));
+
     }
 
     /**
@@ -167,22 +213,27 @@ class NotificationService
         $userType = $demande->type_demandeur->value;
         $userEmail = $demande->user->email;
 
+        $notificationData = [
+            'demande_id' => $demande->id,
+            'user_id' => $demande->user->id,
+            'user_email' => $userEmail,
+            'type_demandeur' => $userType,
+            'date_soumission' => $demande->created_at->format('d/m/Y à H:i'),
+            'type_notification' => 'nouvelle_demande_adhésion'
+        ];
+
         foreach ($techniciens as $technicien) {
             $this->createNotification(
                 $technicien->id,
                 'Nouvelle demande d\'adhésion',
                 "Une nouvelle demande d'adhésion {$userType} a été soumise : {$userEmail}",
                 'info',
-                [
-                    'demande_id' => $demande->id,
-                    'user_id' => $demande->user->id,
-                    'user_email' => $userEmail,
-                    'type_demandeur' => $userType,
-                    'date_soumission' => $demande->created_at->format('d/m/Y à H:i'),
-                    'type_notification' => 'nouvelle_demande_adhésion'
-                ]
+                $notificationData
             );
         }
+
+        // Dispatcher l'événement pour le temps réel
+        event(new \App\Events\NouvelleDemandeAdhesion($demande, $notificationData));
     }
 
     /**

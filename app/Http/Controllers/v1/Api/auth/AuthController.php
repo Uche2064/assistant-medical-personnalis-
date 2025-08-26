@@ -127,6 +127,7 @@ class AuthController extends Controller
 
             Log::info("Email:".$validated['email']." otp: ".$otp);
 
+            
             DB::commit();
 
             return ApiResponse::success([

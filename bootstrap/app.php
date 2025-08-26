@@ -17,8 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
-        channels: __DIR__.'/../routes/channels.php',
+        // channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+    )     ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
+        ['prefix' => 'api', 'middleware' => ['jwt.auth']],
     )
     ->withMiddleware(function (Middleware  $middleware): void {
         $middleware->alias([
@@ -29,7 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'physique' => AssurePrincipalMiddleware::class,
             'technicien' => TechnicienMiddleware::class,
             'role' => RoleMiddleware::class,
-            'checkRole' => CheckRole::class
+            'checkRole' => CheckRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

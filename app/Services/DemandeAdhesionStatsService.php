@@ -150,7 +150,6 @@ class DemandeAdhesionStatsService
                 'libelle' => $reponse->question->libelle ?? null,
                 'type_question' => $reponse->question->type_donnee ?? null,
             ];
-
             // Ajouter seulement les champs de réponse qui ne sont pas null
             if ($reponse->reponse_text !== null) {
                 $formatted['reponse_text'] = $reponse->reponse_text;
@@ -177,6 +176,9 @@ class DemandeAdhesionStatsService
             if ($reponse->reponse_radio !== null) {
                 $formatted['reponse_radio'] = $reponse->reponse_radio;
             }
+
+            Log::info($formatted);
+
 
             return $formatted;
         })->toArray();
@@ -251,7 +253,7 @@ class DemandeAdhesionStatsService
         return $tranches;
     }
 
-    /**
+    /** 
      * Récupérer les détails du contrat proposé pour une demande d'adhésion
      */
     private function getContratProposeDetails(DemandeAdhesion $demande): ?array

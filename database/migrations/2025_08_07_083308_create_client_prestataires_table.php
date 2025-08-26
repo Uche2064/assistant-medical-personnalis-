@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\StatutClientPrestataireEnum;
+use App\Enums\TypePrestataireEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -16,7 +17,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('client_contrat_id')->constrained('client_contrats')->onDelete('cascade');
             $table->foreignId('prestataire_id')->constrained('prestataires')->onDelete('cascade');
-            $table->enum('type_prestataire', ['pharmacie', 'centre_soins', 'optique', 'laboratoire', 'centre_diagnostic']);
+            $table->enum('type_prestataire', TypePrestataireEnum::values());
             $table->enum('statut', StatutClientPrestataireEnum::values())->default(StatutClientPrestataireEnum::ACTIF);
             $table->timestamps();
             

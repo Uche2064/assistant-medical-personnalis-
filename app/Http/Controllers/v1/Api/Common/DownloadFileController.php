@@ -102,9 +102,6 @@ class DownloadFileController extends Controller
             // Préparer les informations du patient
             $patientInfo = $this->getPatientInfo($facture->sinistre->assure);
             
-            // Préparer les informations de l'assuré principal
-            $assurePrincipalInfo = $this->getAssurePrincipalInfo($facture->sinistre->assure);
-            
             // Préparer les informations du sinistre
             $sinistreInfo = $this->getSinistreInfo($facture->sinistre);
             
@@ -115,7 +112,6 @@ class DownloadFileController extends Controller
             $data = [
                 'facture' => $facture,
                 'patient' => $patientInfo,
-                'assure_principal' => $assurePrincipalInfo,
                 'sinistre' => $sinistreInfo,
                 'facture_details' => $factureInfo,
                 'entreprise' => $this->getEntrepriseInfo(),
@@ -178,11 +174,12 @@ class DownloadFileController extends Controller
     {
         return [
             'nom' => config('app.name', 'Votre Assurance'),
-            'adresse' => 'Adresse de votre entreprise',
-            'telephone' => '+228 XX XX XX XX',
-            'email' => 'contact@votreassurance.com',
-            'site_web' => 'www.votreassurance.com',
-            'logo_path' => public_path('images/logo.png') // Chemin vers votre logo
+            'adresse' => 'Immeuble SUNU, 812 boulevard du 13 janvier, 07 BP 7022, Lomé - Togo',
+            'telephone' => '(228) 22 20 12 57',
+            'email' => 'info@sunu-sante.com',
+            'site_web' => 'www.sunu-sante.com',
+            'logo_path' => public_path('images/sunu-logo.png'), // Chemin vers votre logo
+            'logo_base64' => file_exists(public_path('images/sunu-logo.png')) ? base64_encode(file_get_contents(public_path('images/sunu-logo.png'))) : null
         ];
     }
 
@@ -241,6 +238,7 @@ class DownloadFileController extends Controller
      */
     private function getPatientInfo($assure)
     {
+        Log::info($assure);
         $patientInfo = [
             'id' => $assure->id,
             'nom' => $assure->nom,
@@ -248,63 +246,26 @@ class DownloadFileController extends Controller
             'date_naissance' => $assure->date_naissance ? $assure->date_naissance->format('d/m/Y') : null,
             'sexe' => $assure->sexe,
             'profession' => $assure->profession,
-            'contact' => $assure->contact,
-            'email' => $assure->email,
+            'contact' => $assure->contact ?? ($assure->user ? $assure->user->contact : null),
+            'email' => $assure->email ?? ($assure->user ? $assure->user->email : null),
             'type' => $assure->est_principal ? 'Assuré Principal' : 'Bénéficiaire',
             'lien_parente' => $assure->lien_parente,
         ];
 
         // Informations de l'entreprise si c'est un employé
-        if ($assure->entreprise) {
+        if ($assure->entreprise && $assure->entreprise->user) {
             $patientInfo['entreprise'] = [
-                'raison_sociale' => $assure->entreprise->raison_sociale,
-                'adresse' => $assure->entreprise->adresse,
-                'contact' => $assure->entreprise->contact,
-                'email' => $assure->entreprise->email,
+                'raison_sociale' => $assure->entreprise->raison_sociale ?? 'N/A',
+                'adresse' => $assure->entreprise->user->adresse ?? 'N/A',
+                'contact' => $assure->entreprise->user->contact ?? 'N/A',
+                'email' => $assure->entreprise->user->email ?? 'N/A',
             ];
         }
 
         return $patientInfo;
     }
 
-    /**
-     * Préparer les informations de l'assuré principal
-     */
-    private function getAssurePrincipalInfo($assure)
-    {
-        // Si le patient est l'assuré principal
-        if ($assure->est_principal) {
-            return [
-                'id' => $assure->id,
-                'nom' => $assure->nom,
-                'prenoms' => $assure->prenoms,
-                'date_naissance' => $assure->date_naissance ? $assure->date_naissance->format('d/m/Y') : null,
-                'sexe' => $assure->sexe,
-                'profession' => $assure->profession,
-                'contact' => $assure->user->contact,
-                'email' => $assure->user->email,
-                'type' => 'Assuré Principal',
-            ];
-        }
-        
-        // Si le patient est un bénéficiaire, récupérer l'assuré principal
-        if ($assure->assurePrincipal) {
-            return [
-                'id' => $assure->assurePrincipal->id,
-                'nom' => $assure->assurePrincipal->nom,
-                'prenoms' => $assure->assurePrincipal->prenoms,
-                'date_naissance' => $assure->assurePrincipal->date_naissance ? $assure->assurePrincipal->date_naissance->format('d/m/Y') : null,
-                'sexe' => $assure->assurePrincipal->sexe,
-                'profession' => $assure->assurePrincipal->profession,
-                'contact' => $assure->assurePrincipal->user->contact,
-                'email' => $assure->assurePrincipal->user->email,
-                'type' => 'Assuré Principal',
-            ];
-        }
 
-        // Si aucun assuré principal trouvé
-        return null;
-    }
 
     /**
      * Préparer les informations du sinistre
@@ -350,10 +311,10 @@ class DownloadFileController extends Controller
                 ];
             }),
             'prestataire' => [
-                'nom' => $facture->prestataire->raison_sociale,
-                'adresse' => $facture->prestataire->user->adresse,
-                'contact' => $facture->prestataire->user->contact,
-                'email' => $facture->prestataire->user->email,
+                'nom' => $facture->prestataire->raison_sociale ?? 'N/A',
+                'adresse' => $facture->prestataire->user ? ($facture->prestataire->user->adresse ?? 'N/A') : 'N/A',
+                'contact' => $facture->prestataire->user ? ($facture->prestataire->user->contact ?? 'N/A') : 'N/A',
+                'email' => $facture->prestataire->user ? ($facture->prestataire->user->email ?? 'N/A') : 'N/A',
             ],
         ];
     }

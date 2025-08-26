@@ -341,8 +341,10 @@ class SinistreController extends Controller
 
         $user = Auth::user();
 
+        // Log::info($user->id);
+        // Log::info($sinistreId;
         $sinistre = Sinistre::where('id', $sinistreId)
-            ->where('prestataire_id', $user->id)
+            ->where('prestataire_id', $user->prestataire->id)
             ->with(['assure.contrat', 'assure.assurePrincipal.contrat'])
             ->first();
 
@@ -403,7 +405,7 @@ class SinistreController extends Controller
             $facture = Facture::create([
                 'numero_facture' => $numeroFacture,
                 'sinistre_id' => $sinistre->id,
-                'prestataire_id' => $user->id,
+                'prestataire_id' => $user->prestataire->id,
                 'montant_reclame' => $montantTotal,
                 'montant_a_rembourser' => $montantCouvert,
                 'diagnostic' => $request->diagnostic,

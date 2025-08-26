@@ -24,8 +24,9 @@ use App\Http\Controllers\v1\Api\facture\FactureController;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\v1\Api\NotificationController;
 use App\Http\Controllers\v1\Api\prestataire\PrestataireController;
-use App\Http\Controllers\v1\Api\ClientPrestataireController;    
-
+use App\Http\Controllers\v1\Api\ClientPrestataireController;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Broadcast;
 
 Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
@@ -455,5 +456,11 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/{factureId}/validation-history', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'getValidationHistory']);
     });
 
+    // Routes de broadcasting - en dehors du groupe middleware verifyApiKey
+    Route::post('/v1/broadcasting/auth', function (Request $request) {
+        return Broadcast::auth($request);
+    })->middleware('auth:api');});
 
-});
+
+
+
