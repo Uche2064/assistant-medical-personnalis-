@@ -419,6 +419,13 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/statistiques', [\App\Http\Controllers\v1\Api\prestataire\PrestataireReseauController::class, 'statistiquesClients']);
     });
 
+
+
+    // --------------------- Routes pour récupérer tous les assurés ---------------------
+    Route::middleware(['auth:api', 'checkRole:technicien,medecin_controleur,comptable,admin_global,gestionnaire'])->prefix('personnel')->group(function () {
+        Route::get('/assures', [TechnicienController::class, 'getAllAssures']);
+    });
+
     // --------------------- Routes pour les factures ---------------------
     Route::middleware(['auth:api', 'checkRole:prestataire,technicien,comptable,medecin_controleur,entreprise,physique,admin_global,gestionnaire'])->prefix('factures')->group(function () {
         // Routes de consultation

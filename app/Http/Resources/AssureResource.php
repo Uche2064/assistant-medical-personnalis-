@@ -30,6 +30,8 @@ class AssureResource extends JsonResource
                 'id' => $this->entreprise->user->id,
                 'raison_sociale' => $this->entreprise->raison_sociale,
                 'email' => $this->entreprise->user->email,
+                'contact' => $this->entreprise->user->contact,  
+                'adresse' => $this->entreprise->adresse,
                 // autres infos si besoin
             ] : null,
             'assure_principal' => $this->assurePrincipal ? [

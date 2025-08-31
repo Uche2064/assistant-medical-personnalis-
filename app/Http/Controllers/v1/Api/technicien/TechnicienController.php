@@ -21,12 +21,17 @@ use App\Models\ClientContrat;
 use App\Models\ClientPrestataire;
 use App\Models\Contrat;
 use App\Models\Prestataire;
+use App\Models\Assure;
+use App\Models\Entreprise;
+use App\Http\Resources\AssureResource;
 use App\Services\NotificationService;
 use App\Traits\DemandeAdhesionDataTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 
 class TechnicienController extends Controller
 {
@@ -892,6 +897,91 @@ class TechnicienController extends Controller
             ]);
 
             return ApiResponse::error('Erreur lors de la récupération: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Récupérer tous les assurés selon le rôle de l'utilisateur
+     */
+    public function getAllAssures(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            
+            // Vérifier les permissions selon le rôle
+            $allowedRoles = ['technicien', 'medecin_controleur', 'comptable', 'admin_global', 'gestionnaire'];
+            $hasPermission = false;
+            
+            foreach ($allowedRoles as $role) {
+                if ($user->hasRole($role)) {
+                    $hasPermission = true;
+                    break;
+                }
+            }
+            
+            if (!$hasPermission) {
+                return ApiResponse::error('Accès non autorisé', 403);
+            }
+
+            // Construire la requête de base
+            $query = Assure::with([
+                'assurePrincipal.user',
+                'entreprise.user',
+                'beneficiaires',
+                'user'
+            ]);
+
+            // Filtres selon le rôle
+            if ($user->hasRole('gestionnaire') && $user->entreprise) {
+                // Gestionnaire : seulement les assurés de son entreprise
+                $query->where('entreprise_id', $user->entreprise->id);
+            }
+
+            // Filtres de recherche
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->whereRaw('LOWER(nom) LIKE ?', ['%' . strtolower($search) . '%'])
+                        ->orWhereRaw('LOWER(prenoms) LIKE ?', ['%' . strtolower($search) . '%'])
+                        ->orWhereRaw('LOWER(email) LIKE ?', ['%' . strtolower($search) . '%']);
+                });
+            }
+
+            if ($request->filled('sexe')) {
+                $query->where('sexe', $request->sexe);
+            }
+
+            if ($request->filled('est_principal')) {
+                $query->where('est_principal', $request->est_principal);
+            }
+
+            if ($request->filled('entreprise_id')) {
+                $query->where('entreprise_id', $request->entreprise_id);
+            }
+
+            // Pagination
+            $perPage = $request->query('per_page', 10);
+            $assures = $query->orderByDesc('created_at')->paginate($perPage);
+
+            // Formater les données avec AssureResource
+            $paginatedData = new LengthAwarePaginator(
+                AssureResource::collection($assures),
+                $assures->total(),
+                $assures->perPage(),
+                $assures->currentPage(),
+                ['path' => Paginator::resolveCurrentPath()]
+            );
+
+            return ApiResponse::success($paginatedData, "Liste des assurés récupérée avec succès");
+
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des assurés', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'user_roles' => $user->roles->pluck('name')
+            ]);
+
+            return ApiResponse::error('Erreur lors de la récupération des assurés: ' . $e->getMessage(), 500);
         }
     }
 }
