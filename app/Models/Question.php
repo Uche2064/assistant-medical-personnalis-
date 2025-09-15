@@ -8,30 +8,30 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Question extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
         'libelle',
-        'type_donnee',
+        'type_de_donnee',
         'options',
         'destinataire',
-        'obligatoire',
-        'est_actif',
+        'est_obligatoire',
+        'est_active',
         'cree_par_id',
     ];
 
     protected $casts = [
         'options' => 'array',
-        'obligatoire' => 'boolean',
-        'est_actif' => 'boolean',
-        'type_donnee' => \App\Enums\TypeDonneeEnum::class,
+        'est_obligatoire' => 'boolean',
+        'est_active' => 'boolean',
+        'type_de_donnee' => \App\Enums\TypeDonneeEnum::class,
         'destinataire' => \App\Enums\TypeDemandeurEnum::class,
     ];
 
     /**
      * Get the personnel that created this question.
      */
-    public function creePar()
+    public function creeePar()
     {
         return $this->belongsTo(Personnel::class, 'cree_par_id');
     }
@@ -49,7 +49,7 @@ class Question extends Model
      */
     public function scopeActive($query)
     {
-        return $query->where('est_actif', true);
+        return $query->where('est_active', true);
     }
 
     /**
@@ -65,7 +65,7 @@ class Question extends Model
      */
     public function scopeRequired($query)
     {
-        return $query->where('obligatoire', true);
+        return $query->where('est_obligatoire', true);
     }
 
     /**
@@ -73,7 +73,7 @@ class Question extends Model
      */
     public function isActive()
     {
-        return $this->est_actif;
+        return $this->est_active;
     }
 
     /**
@@ -81,11 +81,11 @@ class Question extends Model
      */
     public function isRequired()
     {
-        return $this->obligatoire;
+        return $this->est_obligatoire;
     }
 
     public function scopeForDestinataire($query, string $destinataire) {
-        return $query->where('destinataire', $destinataire)->where('est_actif', true);
+        return $query->where('destinataire', $destinataire)->where('est_active', true);
     }
 
     /**
@@ -93,7 +93,7 @@ class Question extends Model
      */
     public function getTypeDonneeFrancaisAttribute()
     {
-        return $this->type_donnee->getLabel();
+        return $this->type_de_donnee->getLabel();
     }
 
     /**

@@ -11,12 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('messages', function (Blueprint $table) {
+        Schema::create('liens_invitations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('conversation_id')->constrained('conversations')->onDelete('cascade');
-            $table->foreignId('expediteur_id')->constrained('users')->onDelete('cascade');
-            $table->text('contenu');
-            $table->boolean('lu')->default(false);
+            $table->foreignId('client_id')->constrained('clients')->onDelete('cascade');
+            $table->string('jeton')->unique();
+            $table->timestamp('expire_a');
             $table->timestamps();
             $table->softDeletes();
         });
@@ -27,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('messages');
+        Schema::dropIfExists('liens_invitations');
     }
 }; 

@@ -16,11 +16,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->string('type_prestataire');
-            $table->string('raison_sociale');
             $table->enum('statut', StatutPrestataireEnum::values())->default('inactif');
-            $table->foreignId('medecin_controleur_id')->nullable()->constrained('personnels')->onDelete('set null');
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 

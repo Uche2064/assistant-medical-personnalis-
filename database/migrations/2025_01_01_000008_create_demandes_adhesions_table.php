@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\StatutDemandeAdhesionEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,15 +14,14 @@ return new class extends Migration
     {
         Schema::create('demandes_adhesions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
-            $table->string('type_demandeur'); // Sera casté vers TypeDemandeurEnum
-            $table->string('statut')->default('en_attente'); // Sera casté vers StatutDemandeAdhesionEnum
+            $table->string('type_demandeur');
+            $table->enum('statut', StatutDemandeAdhesionEnum::values())->default(StatutDemandeAdhesionEnum::EN_ATTENTE);
             $table->text('motif_rejet')->nullable();
-            $table->foreignId('valide_par_id')->nullable()->constrained('personnels')->onDelete('set null');
-            $table->string('code_parainage')->nullable();
+            $table->foreignId('valide_par_id')->nullable()->constrained('personnels')->onDelete('cascade');
             $table->timestamp('valider_a')->nullable();
+
+            $table->foreignId('client_id')->nullable()->constrained('clients')->onDelete('cascade');
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 

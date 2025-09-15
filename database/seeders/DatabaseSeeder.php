@@ -17,6 +17,8 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             RoleSeeder::class,
+            // Ensure personnes exist before users
+            AdminSeeder::class,
             AdminSeeder::class,
             GestionnaireSeeder::class,
             PersonnelSeeder::class,

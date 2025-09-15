@@ -19,7 +19,7 @@ Laravel <?php echo e(app()->version()); ?>
 
 ## Request
 
-<?php echo e($exception->request()->method()); ?> <?php echo e(Str::start($exception->request()->path(), '/')); ?>
+<?php echo e($exception->request()->method()); ?> <?php echo e(\Illuminate\Support\Str::start($exception->request()->path(), '/')); ?>
 
 
 ## Headers

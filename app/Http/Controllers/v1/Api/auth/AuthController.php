@@ -26,6 +26,7 @@ use App\Models\Client;
 use App\Models\Entreprise;
 use App\Models\Otp;
 use App\Models\Prestataire;
+use App\Models\Personne;
 use App\Models\User;
 use App\Services\AuthService;
 use App\Services\NotificationService;
@@ -59,7 +60,7 @@ class AuthController extends Controller
         $photoUrl = null;
         // Gestion de l'upload de la photo
         if (isset($validated['photo'])) {
-            $photoUrl = ImageUploadHelper::uploadImage($validated['photo'], 'uploads/users/'.$validated['email']);
+            $photoUrl = ImageUploadHelper::uploadImage($validated['photo'], 'uploads/users/' . $validated['email']);
             if (!$photoUrl) {
                 return ApiResponse::error('Erreur lors de l\'upload de la photo', 422);
             }
@@ -73,15 +74,25 @@ class AuthController extends Controller
                 return ApiResponse::error('Cet email est déjà utilisé', 409);
             }
 
-            // Créer l'utilisateur
+            // Créer d'abord la personne
+            $personne = Personne::create([
+                'nom' => $validated['nom'] ?? null,
+                'prenoms' => $validated['prenoms'] ?? null,
+                'date_naissance' => $validated['date_naissance'] ?? null,
+                'sexe' => $validated['sexe'] ?? null,
+                'profession' => $validated['profession'] ?? null,
+            ]);
+
+            // Créer l'utilisateur avec le personne_id
             $user = User::create([
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
                 'contact' => $validated['contact'],
-                'photo' => $photoUrl,  
+                'photo_url' => $photoUrl,
                 'est_actif' => false,
                 'adresse' => $validated['adresse'],
                 'mot_de_passe_a_changer' => false,
+                'personne_id' => $personne->id,
             ]);
 
             // Créer l'entité selon le type de demandeur
@@ -110,7 +121,7 @@ class AuthController extends Controller
 
             // Générer et envoyer l'OTP
             $otp = Otp::generateOtp($validated['email'], $otp_expired_at, OtpTypeEnum::REGISTER->value);
-            
+
 
             // Envoyer l'OTP par email
             dispatch(new SendEmailJob(
@@ -125,14 +136,14 @@ class AuthController extends Controller
                 ]
             ));
 
-            Log::info("Email:".$validated['email']." otp: ".$otp);
+            Log::info("Email:" . $validated['email'] . " otp: " . $otp);
 
-            
+
             DB::commit();
 
             return ApiResponse::success([
-                'user' => new UserResource($user->load('entreprise', 'prestataire', 'assure')),
-            ], 'Inscription réussie. Vérifiez votre email pour valider votre compte.'); 
+                'user' => new UserResource($user->load('prestataire', 'assure')),
+            ], 'Inscription réussie. Vérifiez votre email pour valider votre compte.');
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('Erreur lors de l\'inscription: ' . $e->getMessage());
@@ -140,7 +151,7 @@ class AuthController extends Controller
         }
     }
 
-       /**
+    /**
      * Vérifier l'OTP et activer le compte
      */
     public function verifyOtp(VerifyOtpRequest $request)
@@ -159,17 +170,18 @@ class AuthController extends Controller
             ->where('type', $request['type'])
             ->first();
 
+        Log::info($otp);
         if (!$otp || $otp->isExpired()) {
             return ApiResponse::error('Code de validation invalide ou expiré.', 403);
         }
 
         DB::beginTransaction();
 
-            try {
+        try {
             // Activer le compte
             $user->update([
                 'est_actif' => true,
-                'email_verified_at' => now(),
+                'email_verifier_a' => now(),
                 'verifier_a' => now()
             ]);
 
@@ -192,46 +204,56 @@ class AuthController extends Controller
 
             return ApiResponse::success([
                 'access_token' => $token,
-                'user' => new UserResource($user->load('entreprise', 'prestataire', 'assure')),
+                'user' => new UserResource($user->load('prestataire', 'assure')),
             ], 'Votre compte a été validé avec succès.');
         } catch (\Exception $e) {
             DB::rollBack();
             return ApiResponse::error('Erreur lors de la validation du compte.', 500);
         }
     }
-        /**
+    /**
      * Authentification avec email et mot de passe
      */
-
-
     public function login(LoginWithEmailAndPasswordFormRequest $request)
     {
         $validated = $request->validated();
 
-        $user = User::where('email', $validated['email'])
-            ->first();
+        $user = User::where('email', $validated['email'])->first();
 
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
-            return ApiResponse::error('Identifiants incorrects ou compte non validé', 401);
+        // 1. Vérifier si l'utilisateur existe
+        if (!$user) {
+            return ApiResponse::error('Identifiants invalides', 401);
         }
 
-        // Vérifier si le mot de passe doit être changé
+        // 2. Vérifier statut du compte (bloqué ou non)
+        $this->authService->checkAccountStatus($user);
+
+        // 3. Vérifier le mot de passe
+        if (!Hash::check($validated['password'], $user->password)) {
+            // 4. Gérer tentative échouée
+            $this->authService->handleFailedAttempt($user);
+            return ApiResponse::error('Identifiants invalides', 401);
+        }
+
+        // 5. Succès → reset des tentatives
+        $this->authService->resetAttempts($user);
+
+        // 6. Vérifier si le mot de passe doit être changé
         if ($user->mot_de_passe_a_changer) {
             return ApiResponse::success(
-                [
-                    'mot_de_passe_a_changer' => $user->mot_de_passe_a_changer   ,
-                ],
+                ['mot_de_passe_a_changer' => $user->mot_de_passe_a_changer],
                 'Changement de mot de passe obligatoire',
                 202
             );
         }
 
-        // Générer le token JWT
+        // 7. Générer le token JWT
         $token = $this->authService->generateToken($user);
 
-        // Envoyer notification de connexion
+        // 8. Envoyer notification de connexion
         dispatch(new SendLoginNotificationJob($user));
 
+        // 9. Retourner la réponse avec le token
         return $this->authService->respondWithToken($token, $user);
     }
 
@@ -253,21 +275,21 @@ class AuthController extends Controller
 
         // Générer un nouveau OTP
         $otp = Otp::generateOtp($validated['email'], 10, $validated['type']);
-        Log::info("Email:".$validated['email']." otp: ".$otp);
+        Log::info("Email:" . $validated['email'] . " otp: " . $otp);
 
         // Envoyer l'OTP par email
-       
-            // Envoyer l'OTP par email
-            dispatch(new SendEmailJob(
-                $user->email,
-                'Validation de votre compte - SUNU Santé',
-                'emails.otp_verification',
-                [
-                    'user' => $user,
-                    'otp' => $otp,
-                    'expire_at' => now()->addMinutes($otp_expired_at),
-                ]
-            ));
+
+        // Envoyer l'OTP par email
+        dispatch(new SendEmailJob(
+            $user->email,
+            'Validation de votre compte - SUNU Santé',
+            'emails.otp_verification',
+            [
+                'user' => $user,
+                'otp' => $otp,
+                'expire_at' => now()->addMinutes($otp_expired_at),
+            ]
+        ));
 
         return ApiResponse::success([
             'email' => $user->email,
@@ -281,7 +303,7 @@ class AuthController extends Controller
     public function getCurrentUser()
     {
         $user = Auth::user();
-        if(is_null($user)) {
+        if (is_null($user)) {
             return ApiResponse::error('Utilisateur non connecté', 400);
         }
 
@@ -337,7 +359,7 @@ class AuthController extends Controller
             'password' => Hash::make($validated['new_password']),
             'mot_de_passe_a_changer' => false,
             'est_actif' => true,
-            'email_verified_at' => now()
+            'email_verifier_a' => now()
         ]);
         dispatch(new SendEmailJob(
             $user->email,
@@ -370,13 +392,11 @@ class AuthController extends Controller
         ]);
 
         $exists = User::where($request->field, $request->value)->exists();
-       
+
 
         return ApiResponse::success([
             'exists' => $exists,
             'message' => $exists ? 'Ce ' . $request->field . ' est déjà utilisé' : 'Ce ' . $request->field . ' est disponible'
         ]);
     }
-
-   
 }

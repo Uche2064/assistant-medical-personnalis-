@@ -106,11 +106,13 @@ class StatsController extends Controller
                     $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
                 });
             })
-                ->selectRaw('sexe, COUNT(*) as count')
-                ->groupBy('sexe')
+                ->with('user.personne')
                 ->get()
-                ->mapWithKeys(function ($item) {
-                    return [($item->sexe !== null ? (string) $item->sexe : 'Non spécifié') => $item->count];
+                ->groupBy(function ($personnel) {
+                    return optional($personnel->user->personne)->sexe ?? 'Non spécifié';
+                })
+                ->map(function ($group) {
+                    return $group->count();
                 }),
         ];
     }
@@ -151,11 +153,13 @@ class StatsController extends Controller
                 }),
 
             'repartition_par_sexe' => $query->clone()
-                ->selectRaw('sexe, COUNT(*) as count')
-                ->groupBy('sexe')
+                ->with('user.personne')
                 ->get()
-                ->mapWithKeys(function ($item) {
-                    return [($item->sexe !== null ? (string) $item->sexe : 'Non spécifié') => $item->count];
+                ->groupBy(function ($personnel) {
+                    return optional($personnel->user->personne)->sexe ?? 'Non spécifié';
+                })
+                ->map(function ($group) {
+                    return $group->count();
                 }),
         ];
     }
@@ -172,17 +176,16 @@ class StatsController extends Controller
 
             'beneficiaires' => Assure::where('est_principal', false)->count(),
 
-            'repartition_par_sexe' => Assure::selectRaw('sexe, COUNT(*) as count')
-                ->groupBy('sexe')
+            'repartition_par_sexe' => Assure::selectRaw('personnes.sexe, COUNT(*) as count')
+                ->join('users', 'assures.user_id', '=', 'users.id')
+                ->join('personnes', 'users.personne_id', '=', 'personnes.id')
+                ->groupBy('personnes.sexe')
                 ->get()
                 ->mapWithKeys(function ($item) {
-                    // CORRECTION: Gérer l'enum sexe
-                    $sexe = $item->sexe;
-                    if (is_object($sexe) && method_exists($sexe, 'value')) {
-                        $sexe = $sexe->value;
-                    }
-                    return [($sexe !== null ? $sexe->value : 'Non spécifié') => $item->count];
+                    $sexe = $item->sexe ?? 'Non spécifié';
+                    return [$sexe => $item->count];
                 }),
+
 
             'repartition_par_lien_parente' => Assure::selectRaw('lien_parente, COUNT(*) as count')
                 ->groupBy('lien_parente')
@@ -201,13 +204,13 @@ class StatsController extends Controller
                 'beneficiaires' => Assure::where('est_principal', false)->count(),
             ],
 
-            'repartition_par_contrat' => Assure::selectRaw('contrat_id, COUNT(*) as count')
-                ->whereNotNull('contrat_id')
-                ->groupBy('contrat_id')
-                ->get()
-                ->mapWithKeys(function ($item) {
-                    return ["Contrat " . ($item->contrat_id !== null ? (string) $item->contrat_id : 'Non spécifié') => $item->count];
-                }),
+            // 'repartition_par_contrat' => Assure::selectRaw('contrat_id, COUNT(*) as count')
+            //     ->whereNotNull('contrat_id')
+            //     ->groupBy('contrat_id')
+            //     ->get()
+            //     ->mapWithKeys(function ($item) {
+            //         return ["Contrat " . ($item->contrat_id !== null ? (string) $item->contrat_id : 'Non spécifié') => $item->count];
+            //     }),
         ];
         return ApiResponse::success($data, 'Statistiques des assurés récupérées avec succès');
     }

@@ -288,7 +288,7 @@ public function test_role_has_permissions()
 | - adresse: string|
 | - photo: string  |
 | - est_actif: bool|
-| - email_verified_at: datetime|
+| - email_verifier_a: datetime|
 | - mot_de_passe_a_changer: bool|
 | - created_at: datetime|
 | - updated_at: datetime|

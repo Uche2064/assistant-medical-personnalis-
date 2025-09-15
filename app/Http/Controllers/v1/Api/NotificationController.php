@@ -24,10 +24,10 @@ class NotificationController extends Controller
             $query->where('type', $request->input('type'));
         }
 
-        // Filtrage par statut (lu/non lu)
-        if ($request->filled('lu')) {
-            $isRead = filter_var($request->input('lu'), FILTER_VALIDATE_BOOLEAN);
-            $query->where('lu', $isRead);
+        // Filtrage par statut (est_lu/non est_lu)
+        if ($request->filled('est_lu')) {
+            $isRead = filter_var($request->input('est_lu'), FILTER_VALIDATE_BOOLEAN);
+            $query->where('est_lu', $isRead);
         }
 
         // Tri par date de création (plus récentes en premier)
@@ -40,8 +40,8 @@ class NotificationController extends Controller
         // Statistiques
         $stats = [
             'total' => $user->notifications()->count(),
-            'unread' => $user->notifications()->where('lu', false)->count(),
-            'read' => $user->notifications()->where('lu', true)->count(),
+            'unread' => $user->notifications()->where('est_lu', false)->count(),
+            'read' => $user->notifications()->where('est_lu', true)->count(),
         ];
 
         return ApiResponse::success([
@@ -78,8 +78,8 @@ class NotificationController extends Controller
         $user = Auth::user();
         
         $updated = Notification::where('user_id', $user->id)
-            ->where('lu', false)
-            ->update(['lu' => true]);
+            ->where('est_lu', false)
+            ->update(['est_lu' => true]);
 
         return ApiResponse::success([
             'notifications_marquees' => $updated
@@ -134,7 +134,7 @@ class NotificationController extends Controller
         $user = Auth::user();
         
         $deleted = Notification::where('user_id', $user->id)
-            ->where('lu', true)
+            ->where('est_lu', true)
             ->delete();
 
         return ApiResponse::success([
@@ -151,15 +151,15 @@ class NotificationController extends Controller
         
         $stats = [
             'total' => $user->notifications()->count(),
-            'unread' => $user->notifications()->where('lu', false)->count(),
-            'read' => $user->notifications()->where('lu', true)->count(),
+            'unread' => $user->notifications()->where('est_lu', false)->count(),
+            'read' => $user->notifications()->where('est_lu', true)->count(),
             'par_type' => $user->notifications()
                 ->selectRaw('type, COUNT(*) as count')
                 ->groupBy('type')
                 ->pluck('count', 'type')
                 ->toArray(),
             'recentes' => $user->notifications()
-                ->where('lu', false)
+                ->where('est_lu', false)
                 ->orderBy('created_at', 'desc')
                 ->limit(5)
                 ->get(['id', 'titre', 'message', 'type', 'created_at'])

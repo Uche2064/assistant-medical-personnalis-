@@ -9,7 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Assure;
 use App\Models\ClientContrat;
 use App\Models\ClientPrestataire;
-use App\Models\Contrat;
+use App\Models\TypeContrat;
 use App\Models\Facture;
 use App\Models\Garantie;
 use App\Models\LigneFacture;
@@ -175,11 +175,11 @@ class SinistreController extends Controller
      */
     public function getGarantiesByContrat($contratId)
     {
-        $contrat = Contrat::with(['categoriesGaranties.garanties'])
+        $contrat = TypeContrat::with(['categoriesGaranties.garanties'])
             ->find($contratId);
 
         if (!$contrat) {
-            return ApiResponse::error('Contrat non trouvé', 404);
+            return ApiResponse::error('TypeContrat non trouvé', 404);
         }
 
         if (!$contrat->isActive()) {
@@ -425,7 +425,7 @@ class SinistreController extends Controller
             // Envoyer notification aux techniciens
             $techniciens = Personnel::with('user')
                 ->whereHas('user', function ($userQuery) {
-                    $userQuery->whereNotNull('email_verified_at')
+                    $userQuery->whereNotNull('email_verifier_a')
                         ->whereHas('roles', function ($roleQuery) {
                             $roleQuery->where('name', 'technicien');
                         });

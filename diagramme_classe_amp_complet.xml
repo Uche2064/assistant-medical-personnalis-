@@ -9,7 +9,7 @@
         <!-- Les classes seront ajoutées ici -->
         
         <!-- User Class -->
-        <mxCell id="user-class" value="User&#xa;&#xa;- id: bigint&#xa;- email: string&#xa;- contact: string&#xa;- password: string&#xa;- adresse: string&#xa;- photo: string&#xa;- est_actif: bool&#xa;- email_verified_at: datetime&#xa;- mot_de_passe_a_changer: bool&#xa;- deleted_at: datetime&#xa;&#xa;+ getJWTIdentifier()&#xa;+ getJWTCustomClaims()&#xa;+ getFullNameAttribute()&#xa;+ getUserTypeAttribute()&#xa;+ genererMotDePasse()" style="swimlane;fontStyle=1;align=left;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="user-class" value="User&#xa;&#xa;- id: bigint&#xa;- email: string&#xa;- contact: string&#xa;- password: string&#xa;- adresse: string&#xa;- photo: string&#xa;- est_actif: bool&#xa;- email_verifier_a: datetime&#xa;- mot_de_passe_a_changer: bool&#xa;- deleted_at: datetime&#xa;&#xa;+ getJWTIdentifier()&#xa;+ getJWTCustomClaims()&#xa;+ getFullNameAttribute()&#xa;+ getUserTypeAttribute()&#xa;+ genererMotDePasse()" style="swimlane;fontStyle=1;align=left;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="100" y="100" width="280" height="380" as="geometry" />
         </mxCell>
         

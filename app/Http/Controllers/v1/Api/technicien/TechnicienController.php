@@ -19,7 +19,7 @@ use App\Models\User;
 use App\Jobs\SendEmailJob;
 use App\Models\ClientContrat;
 use App\Models\ClientPrestataire;
-use App\Models\Contrat;
+use App\Models\TypeContrat;
 use App\Models\Prestataire;
 use App\Models\Assure;
 use App\Models\Entreprise;
@@ -89,7 +89,7 @@ class TechnicienController extends Controller
 
 
                 if ($clientContrat === null) {
-                    return ApiResponse::error('Contrat n\'ont enregistré');
+                    return ApiResponse::error('TypeContrat n\'ont enregistré');
                 }
 
                 // 2. Assigner les prestataires

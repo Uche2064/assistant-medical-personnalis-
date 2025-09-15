@@ -12,20 +12,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('client_contrats', function (Blueprint $table) {
+        Schema::create('clients_contrats', function (Blueprint $table) {
             $table->id();
             $table->string('numero_police')->unique()->nullable();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('contrat_id')->constrained('contrats')->onDelete('cascade');
-            $table->enum('type_client', ['physique', 'entreprise']);
+            $table->foreignId('client_id')->constrained('clients')->onDelete('cascade');
+            $table->foreignId('type_contrat_id')->constrained('types_contrats')->onDelete('cascade');
             $table->date('date_debut');
             $table->date('date_fin');
             $table->enum('statut', StatutContratEnum::values())->default(StatutContratEnum::ACTIF);
             $table->timestamps();
-            
-            // Index pour optimiser les requêtes
-            $table->index(['user_id', 'statut']);
-            $table->index(['contrat_id', 'statut']);
         });
     }
 
@@ -34,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('client_contrats');
+        Schema::dropIfExists('clients_contrats');
     }
 };

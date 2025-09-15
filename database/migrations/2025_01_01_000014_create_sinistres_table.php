@@ -14,13 +14,11 @@ return new class extends Migration
     {
         Schema::create('sinistres', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('assure_id')->nullable()->constrained('assures')->onDelete('set null');
-            $table->foreignId('prestataire_id')->nullable()->constrained('prestataires')->onDelete('set null');
+            $table->foreignId('assure_id')->constrained('assures')->onDelete('cascade');
+            $table->foreignId('prestataire_id')->constrained('prestataires')->onDelete('cascade');
             $table->text('description')->nullable();
-            $table->date('date_sinistre');
             $table->enum('statut', StatutSinistreEnum::values())->default(StatutSinistreEnum::EN_COURS->value)->nullable();
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 
@@ -32,4 +30,3 @@ return new class extends Migration
         Schema::dropIfExists('sinistres');
     }
 }; 
-

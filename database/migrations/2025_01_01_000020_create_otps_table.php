@@ -11,13 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('invitation_employes', function (Blueprint $table) {
+        Schema::create('otps', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('entreprise_id')->nullable()->constrained('entreprises')->onDelete('set null');
-            $table->string('token')->unique();
-            $table->timestamp('expire_at');
+            $table->string('email');
+            $table->string('otp');
+            $table->timestamp('expire_a');
+            $table->string('type');
+            $table->timestamp('verifier_a')->nullable();
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 
@@ -26,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('invitation_employes');
+        Schema::dropIfExists('otps');
     }
 }; 

@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\DemandeAdhesion;
 use App\Models\Assure;
-use App\Models\Contrat;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CategorieGarantie extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $table = 'categories_garanties';
 
@@ -16,6 +16,7 @@ class CategorieGarantie extends Model
         'libelle',
         'description',
         'medecin_controleur_id',
+        'est_active',
     ];
 
     /**
@@ -38,10 +39,11 @@ class CategorieGarantie extends Model
     /**
      * Get the contrats that use this categorie.
      */
-    public function contrats()
+    // Pivot is between TypeContrat and CategorieGarantie
+    public function typesContrats()
     {
-        return $this->belongsToMany(Contrat::class, 'contrat_categorie_garantie')
-                    ->withPivot('couverture')
+        return $this->belongsToMany(TypeContrat::class, 'contrat_categorie_garantie')
+                    ->withPivot(['couverture','frais_gestion'])
                     ->withTimestamps();
     }
 
@@ -50,7 +52,7 @@ class CategorieGarantie extends Model
      */
     public function isActive()
     {
-        return $this->garanties()->where('est_actif', true)->exists();
+        return (bool) $this->est_active;
     }
 
     /**

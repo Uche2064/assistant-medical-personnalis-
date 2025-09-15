@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\SexeEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -11,13 +12,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('otp', function (Blueprint $table) {
+        Schema::create('personnes', function (Blueprint $table) {
             $table->id();
-            $table->string('email');
-            $table->string('otp');
-            $table->timestamp('expire_at');
-            $table->string('type');
-            $table->timestamp('verifier_a')->nullable();
+            $table->string('nom');
+            $table->string('prenoms')->nullable();
+            $table->date('date_naissance')->nullable();
+            $table->enum('sexe', SexeEnum::values())->nullable();
+            $table->string('profession')->nullable();
             $table->timestamps();
         });
     }
@@ -27,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('otp');
+        Schema::dropIfExists('personnes');
     }
-}; 
+};

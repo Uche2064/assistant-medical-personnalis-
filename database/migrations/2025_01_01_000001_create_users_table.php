@@ -14,17 +14,20 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('email')->unique();
-            $table->string('contact')->nullable()->unique();
-            $table->string('password')->nullable();
-            $table->text('adresse')->nullable();
-            $table->string('photo')->nullable();
-            $table->boolean('est_actif')->default(false);
-            $table->timestamp('email_verified_at')->nullable();
-            $table->double('solde')->default(0);
+            $table->string('contact')->nullable();
+            $table->string('password');
+            $table->string('adresse')->nullable();
+            $table->string('photo_url')->nullable();
+            $table->boolean('est_actif')->default(true);
+            $table->timestamp('email_verifier_a')->nullable();
             $table->boolean('mot_de_passe_a_changer')->default(true);
+            $table->foreignId('personne_id')->constrained('personnes')->onDelete('cascade');
+            $table->integer('failed_attempts')->default(0); // Tentatives échouées consécutives
+            $table->dateTime('lock_until')->nullable();     // Jusqu’à quand l’utilisateur est bloqué
+            $table->boolean('permanently_blocked')->default(false); // Compte bloqué définitivement
+            $table->integer('phase')->default(1);
             $table->rememberToken();
             $table->timestamps();
-            $table->softDeletes();
         });
 
         // Tables système Laravel
@@ -53,4 +56,4 @@ return new class extends Migration
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('users');
     }
-}; 
+};

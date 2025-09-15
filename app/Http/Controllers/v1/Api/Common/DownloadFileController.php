@@ -20,6 +20,7 @@ class DownloadFileController extends Controller
 {
     public function downloadDemandeAdhesion($id)
     {
+        Log::info($id);
         $demande = DemandeAdhesion::with([
             'user',
             'user.entreprise',
@@ -53,6 +54,7 @@ class DownloadFileController extends Controller
             'assures.beneficiaires.reponsesQuestionnaire.question'
         ])->find($id);
 
+        Log::info($demande);
         if (!$demande) {
             return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
         }
@@ -72,9 +74,17 @@ class DownloadFileController extends Controller
 
         // Générez le PDF
         $pdf = Pdf::loadView($template, $data);
+        $pdf->setPaper('A4', 'portrait')
+        ->setOptions([
+            'defaultFont' => 'Arial',
+            'isRemoteEnabled' => true,
+            'isHtml5ParserEnabled' => true
+        ]);
+        $filename = "{$demande->nom}-{$demande->prenoms}.pdf";
+
 
         // Retournez le PDF en téléchargement
-        return $pdf->download("{$demande->nom}-{$demande->prenoms}.pdf");
+        return $pdf->download($filename);
     }
 
 

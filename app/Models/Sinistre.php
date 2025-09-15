@@ -8,19 +8,17 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Sinistre extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
         'assure_id',
         'prestataire_id',
         'description',
-        'date_sinistre',
         'statut',
     ];
 
     protected $casts = [
-        'date_sinistre' => 'date',
-        'statut' => \App\Enums\StatutSinistreEnum::class,
+        'statut' => 'string',
     ];
     
 
@@ -55,7 +53,7 @@ class Sinistre extends Model
      */
     public function isInProgress()
     {
-        return $this->statut === \App\Enums\StatutSinistreEnum::EN_COURS;
+        return $this->statut === 'en_cours';
     }
 
     /**
@@ -63,7 +61,7 @@ class Sinistre extends Model
      */
     public function isClosed()
     {
-        return $this->statut === \App\Enums\StatutSinistreEnum::CLOTURE;
+        return $this->statut === 'cloture';
     }
 
     /**

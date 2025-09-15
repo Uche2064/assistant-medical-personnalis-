@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Garantie extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
         'libelle',
@@ -30,7 +30,7 @@ class Garantie extends Model
      */
     public function categorieGarantie()
     {
-        return $this->belongsTo(CategorieGarantie::class);
+        return $this->belongsTo(CategorieGarantie::class, 'categorie_garantie_id');
     }
 
     /**

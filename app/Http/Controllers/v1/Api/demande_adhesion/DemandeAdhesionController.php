@@ -41,7 +41,7 @@ use App\Models\Assure;
 use App\Models\Client;
 use App\Models\ClientContrat;
 use App\Models\ClientPrestataire;
-use App\Models\Contrat;
+use App\Models\TypeContrat;
 use App\Models\DemandeAdhesion;
 use App\Models\InvitationEmploye;
 use App\Models\Personnel;
@@ -101,31 +101,28 @@ class DemandeAdhesionController extends Controller
         ]);
 
         // Appliquer les filtres via le service
-        $this->demandeAdhesionService->applyRoleFilters($query, $user);
-        $this->demandeAdhesionService->applyStatusFilters($query, $request);
-        $this->demandeAdhesionService->applySearchFilter($query, $request);
+        // $this->demandeAdhesionService->applyRoleFilters($query, $user);
+        // $this->demandeAdhesionService->applyStatusFilters($query, $request);
+        // $this->demandeAdhesionService->applySearchFilter($query, $request);
         
         // Pagination
-        $perPage = $request->query('per_page', 10);
-        $demandes = $query->orderByDesc('created_at')->paginate($perPage);
+        // $perPage = $request->query('per_page', 10);
+        $demandes = $query->orderByDesc('created_at')->get();
 
-        $paginatedData = new LengthAwarePaginator(
-            DemandeAdhesionResource::collection($demandes),
-            $demandes->total(),
-            $demandes->perPage(),
-            $demandes->currentPage(),
-            ['path' => Paginator::resolveCurrentPath()]
-        );
-
-        return ApiResponse::success($paginatedData, 'Liste des demandes d\'adhésion récupérée avec succès', 200);
+       
+        return ApiResponse::success(DemandeAdhesionResource::collection($demandes), 'Liste des demandes d\'adhésion récupérée avec succès', 200);
     }
 
     public function hasDemande()
     {
-        $demande = DemandeAdhesion::with('reponsesQuestionnaire')
-            ->where('user_id', Auth::user()->id)
-            ->orderBy('created_at', 'desc')
-            ->first();
+        $user = Auth::user();
+        
+        // Récupérer la demande via la relation client
+        $demande = DemandeAdhesion::whereHas('client', function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })
+        ->orderBy('created_at', 'desc')
+        ->first();
 
         if (!$demande) {
             return ApiResponse::success([
@@ -495,7 +492,7 @@ class DemandeAdhesionController extends Controller
                 // 4. Notification au technicien
                 $this->notificationService->createNotification(
                     $proposition->technicien->user_id,
-                    'Contrat accepté par le client',
+                    'TypeContrat accepté par le client',
                     "Le client {$nom} a accepté votre proposition de contrat.",
                     'contrat_accepte_technicien', 
                     [
@@ -508,7 +505,7 @@ class DemandeAdhesionController extends Controller
                 // 5. Notification au client
                 $this->notificationService->createNotification(
                     $user->id,
-                    'Contrat accepté avec succès',
+                    'TypeContrat accepté avec succès',
                     "Votre contrat d'assurance est maintenant actif.",
                     'contrat_accepte',
                     [
@@ -522,8 +519,8 @@ class DemandeAdhesionController extends Controller
 
                 return ApiResponse::success([
                     'contrat_id' => $clientContrat->id,
-                    'message' => 'Contrat accepté avec succès'
-                ], 'Contrat accepté avec succès');
+                    'message' => 'TypeContrat accepté avec succès'
+                ], 'TypeContrat accepté avec succès');
 
             } catch (\Exception $e) {
                 DB::rollBack();

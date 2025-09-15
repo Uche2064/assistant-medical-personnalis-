@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\admin\StoreGestionnaireRequest;
 use App\Http\Resources\UserResource;
 use App\Jobs\SendCredentialsJob;
+use App\Models\Personne;
 use App\Models\Personnel;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -22,58 +23,30 @@ use Illuminate\Support\Facades\Log;
 class AdminController extends Controller
 {
 
-     /**
+    /**
      * Lister tous les gestionnaires avec filtres
      */
-    public function indexGestionnaires(Request $request)
+    public function indexGestionnaires()
     {
-        $perPage = $request->input('per_page', 10);
         $adminId = Auth::user()?->personnel?->id;
-    
-        $query = Personnel::with(['user.roles'])
-            ->whereHas('user.roles', fn ($q) => 
+
+        $gestionnaires = Personnel::with('user.roles')
+            ->whereHas(
+                'user.roles',
+                fn($q) =>
                 $q->where('name', RoleEnum::GESTIONNAIRE->value)
             )
-            ->when($adminId, fn ($q) => $q->where('id', '!=', $adminId))
-            ->when($request->filled('est_actif'), function ($q) use ($request) {
-                $estActif = filter_var($request->input('est_actif'), FILTER_VALIDATE_BOOLEAN);
-                $q->whereHas('user', fn ($q) => $q->where('est_actif', $estActif));
-            })
-            ->when($request->filled('sexe'), fn ($q) => 
-                $q->where('sexe', $request->input('sexe'))
-            )
-            ->when($request->filled('search'), function ($q) use ($request) {
-                $search = $request->input('search');
-                $q->where(fn ($q) => 
-                    $q->where('nom', 'like', "%$search%")
-                      ->orWhere('prenoms', 'like', "%$search%")
-                      ->orWhereHas('user', fn ($q) => 
-                          $q->where('email', 'like', "%$search%")
-                      )
-                );
-            })
-            ->orderBy(
-                $request->input('sort_by', 'created_at'),
-                $request->input('sort_order', 'desc')
-            );
-    
-        $gestionnaires = $query->paginate($perPage);
-    
-        // Extraire et transformer en UserResource
-        $users = UserResource::collection($gestionnaires->pluck('user'));
-    
-        // Re-créer la pagination sur les UserResource
-        $paginated = new LengthAwarePaginator(
-            $users,
-            $gestionnaires->total(),
-            $gestionnaires->perPage(),
-            $gestionnaires->currentPage(),
-            ['path' => Paginator::resolveCurrentPath()]
+            ->when($adminId, fn($q) => $q->where('id', '!=', $adminId))
+            ->get()
+            ->pluck('user');
+
+        return ApiResponse::success(
+            UserResource::collection($gestionnaires),
+            'Liste des gestionnaires récupérée avec succès'
         );
-    
-        return ApiResponse::success($paginated, 'Liste des gestionnaires récupérée avec succès');
     }
-    
+
+
     /**
      * Créer un nouveau gestionnaire
      */
@@ -85,7 +58,7 @@ class AdminController extends Controller
 
         // Gestion de l'upload de la photo
         if (isset($validated['photo'])) {
-            $photoUrl = ImageUploadHelper::uploadImage($validated['photo'], 'uploads/users/gestionnaires/'.$validated['email'].'/');
+            $photoUrl = ImageUploadHelper::uploadImage($validated['photo'], 'uploads/users/gestionnaires/' . $validated['email'] . '/');
             if (!$photoUrl) {
                 return ApiResponse::error('Erreur lors de l\'upload de la photo', 422);
             }
@@ -94,7 +67,16 @@ class AdminController extends Controller
         DB::beginTransaction();
 
         try {
-            // Créer l'utilisateur
+            // Créer d'abord la personne
+            $personne = Personne::create([
+                'nom' => $validated['nom'],
+                'prenoms' => $validated['prenoms'] ?? null,
+                'date_naissance' => $validated['date_naissance'] ?? null,
+                'sexe' => $validated['sexe'] ?? null,
+                'profession' => $validated['profession'] ?? null,
+            ]);
+
+            // Créer l'utilisateur avec le personne_id
             $user = User::create([
                 'email' => $validated['email'],
                 'contact' => $validated['contact'],
@@ -102,9 +84,12 @@ class AdminController extends Controller
                 'password' => Hash::make($password),
                 'est_actif' => false,
                 'mot_de_passe_a_changer' => true,
-                'email_verified_at' => now(),
-                'photo' => $photoUrl,
+                'email_verifier_a' => now(),
+                'photo_url' => $photoUrl,
+                'personne_id' => $personne->id,
             ]);
+
+            Log::info("adresse:".$validated['adresse']);
 
             // Assigner le rôle gestionnaire
             $user->assignRole(RoleEnum::GESTIONNAIRE->value);
@@ -119,7 +104,7 @@ class AdminController extends Controller
             ]);
             // Envoyer les identifiants par email
             dispatch(new SendCredentialsJob($user, $password));
-            
+
             Log::info("Gestionnaire créé - Email: {$user->email}, Mot de passe: {$password}");
 
             DB::commit();
@@ -127,7 +112,6 @@ class AdminController extends Controller
             return ApiResponse::success([
                 'gestionnaire' => new UserResource($user->load(['roles', 'personnel'])),
             ], 'Gestionnaire créé avec succès. Les identifiants ont été envoyés par email.');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Erreur lors de la création du gestionnaire: ' . $e->getMessage());
@@ -135,7 +119,7 @@ class AdminController extends Controller
         }
     }
 
-   
+
 
     /**
      * Afficher les détails d'un gestionnaire
@@ -155,7 +139,7 @@ class AdminController extends Controller
         }
 
         return ApiResponse::success(
-            new UserResource($gestionnaire->user), 
+            new UserResource($gestionnaire->user),
             'Détails du gestionnaire'
         );
     }
@@ -210,13 +194,12 @@ class AdminController extends Controller
         try {
             // Supprimer le personnel (cascade vers user)
             $gestionnaire->delete();
-            
+
             Log::info("Gestionnaire supprimé - ID: {$gestionnaire->id}, Email: {$gestionnaire->user->email}");
 
             DB::commit();
 
             return ApiResponse::success(null, 'Gestionnaire supprimé avec succès', 204);
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Erreur lors de la suppression du gestionnaire: ' . $e->getMessage());
@@ -235,29 +218,31 @@ class AdminController extends Controller
                     $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
                 });
             })->count(),
-            
+
             'actifs' => Personnel::whereHas('user', function ($q) {
                 $q->whereHas('roles', function ($roleQuery) {
                     $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
                 })->where('est_actif', true);
             })->count(),
-            
+
             'inactifs' => Personnel::whereHas('user', function ($q) {
                 $q->whereHas('roles', function ($roleQuery) {
                     $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
                 })->where('est_actif', false);
             })->count(),
-            
+
             'repartition_par_sexe' => Personnel::whereHas('user', function ($q) {
                 $q->whereHas('roles', function ($roleQuery) {
                     $roleQuery->where('name', RoleEnum::GESTIONNAIRE->value);
                 });
             })
-            ->selectRaw('sexe, COUNT(*) as count')
-            ->groupBy('sexe')
+            ->with('user.personne')
             ->get()
-            ->mapWithKeys(function ($item) {
-                return [$item->sexe ?? 'Non spécifié' => $item->count];
+            ->groupBy(function ($personnel) {
+                return optional($personnel->user->personne)->sexe ?? 'Non spécifié';
+            })
+            ->map(function ($group) {
+                return $group->count();
             }),
         ];
 

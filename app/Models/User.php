@@ -14,7 +14,7 @@ use Tymon\JWTAuth\Contracts\JWTSubject;
 
 class User extends Authenticatable implements JWTSubject
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -26,11 +26,15 @@ class User extends Authenticatable implements JWTSubject
         'contact',
         'password',
         'adresse',
-        'photo',
+        'photo_url',
         'est_actif',
-        'email_verified_at',
+        'email_verifier_a',
         'mot_de_passe_a_changer',
-        'solde'
+        'personne_id',
+        'lock_until',
+        'permanently_blocked',
+        'failed_attempts',
+        'phase'
     ];
 
     /**
@@ -49,12 +53,13 @@ class User extends Authenticatable implements JWTSubject
      * @var array<string, string>
      */
     protected $casts = [
-        'email_verified_at' => 'datetime',
+        'email_verifier_a' => 'datetime',
         'password' => 'hashed',
         'est_actif' => 'boolean',
         'mot_de_passe_a_changer' => 'boolean',
-    ];
+        'lock_until' => 'datetime',   // <-- important
 
+    ];
 
     /**
      * Get the identifier that will be stored in the subject claim of the JWT.
@@ -62,6 +67,11 @@ class User extends Authenticatable implements JWTSubject
     public function getJWTIdentifier()
     {
         return $this->getKey();
+    }
+
+    public function personne()
+    {
+        return $this->belongsTo(Personne::class);
     }
 
     /**
@@ -89,13 +99,7 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasOne(Personnel::class);
     }
 
-    /**
-     * Get the entreprise record associated with the user.
-     */
-    public function entreprise()
-    {
-        return $this->hasOne(Entreprise::class);
-    }
+    // Entreprise removed in new schema; use Client instead
 
     /**
      * Get the assure record associated with the user.
@@ -116,9 +120,17 @@ class User extends Authenticatable implements JWTSubject
     /**
      * Get the demandes d'adhésion associated with the user.
      */
+    // Demandes are now tied to Client; expose via client relation when present
     public function demandes()
     {
-        return $this->hasMany(DemandeAdhesion::class);
+        return $this->hasManyThrough(
+            DemandeAdhesion::class,
+            Client::class,
+            'user_id', // FK on clients
+            'client_id', // FK on demandes_adhesions
+            'id', // local key on users
+            'id' // local key on clients
+        );
     }
 
     /**
@@ -126,7 +138,29 @@ class User extends Authenticatable implements JWTSubject
      */
     public function clientContrats()
     {
-        return $this->hasMany(ClientContrat::class, 'user_id');
+        return $this->hasManyThrough(
+            ClientContrat::class,
+            Client::class,
+            'user_id', // FK on clients
+            'client_id', // FK on clients_contrats
+            'id',
+            'id'
+        );
+    }
+
+    public function client()
+    {
+        return $this->hasOne(Client::class);
+    }
+
+    /**
+     * Alias de compatibilité: certaines parties du code chargent encore "entreprise".
+     * Dans le nouveau schéma, l'entreprise est représentée par le modèle Client (client moral).
+     * On expose donc une relation alias vers Client pour éviter les erreurs d'eager loading.
+     */
+    public function entreprise()
+    {
+        return $this->hasOne(Client::class);
     }
 
     /**
@@ -136,39 +170,6 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasMany(Notification::class);
     }
-
-    /**
-     * Get the conversations where the user is participant 1.
-     */
-    // public function conversationsAsUser1()
-    // {
-    //     return $this->hasMany(Conversation::class, 'user_id_1');
-    // }
-
-    // /**
-    //  * Get the conversations where the user is participant 2.
-    //  */
-    // public function conversationsAsUser2()
-    // {
-    //     return $this->hasMany(Conversation::class, 'user_id_2');
-    // }
-
-    // /**
-    //  * Get all conversations for the user.
-    //  */
-    // public function conversations()
-    // {
-    //     return $this->conversationsAsUser1()->union($this->conversationsAsUser2());
-    // }
-
-    // /**
-    //  * Get the messages sent by the user.
-    //  */
-    // public function messages()
-    // {
-    //     return $this->hasMany(Message::class, 'expediteur_id');
-    // }
-
 
 
     /**
@@ -180,8 +181,9 @@ class User extends Authenticatable implements JWTSubject
             return $this->personnel->nom . ' ' . $this->personnel->prenoms;
         }
         
-        if ($this->entreprise) {
-            return $this->entreprise->raison_sociale;
+        if ($this->client) {
+            // If client is moral, you can adapt to show company name from related place if stored
+            return $this->email;
         }
         
         return $this->email;
@@ -194,12 +196,8 @@ class User extends Authenticatable implements JWTSubject
     {
         if ($this->personnel) return 'personnel';
         if ($this->client) return 'client';
-        if ($this->entreprise) return 'entreprise';
         if ($this->assure) return 'assure';
-        if ($this->prestataire) return 'prestataire';
-        if($this->prestataire) return 'prestataire';
-        
-        
+        if($this->prestataire) return 'prestataire';        
         return 'user';
     }
 

@@ -4,7 +4,9 @@ namespace Database\Seeders;
 
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
+use App\Enums\RoleEnum;
 use App\Models\Question;
+use App\Models\Personnel;
 use Illuminate\Database\Seeder;
 
 class ProspectPhysiqueMedicalQuestionSeeder extends Seeder
@@ -15,51 +17,62 @@ class ProspectPhysiqueMedicalQuestionSeeder extends Seeder
         $questions = [
             // [
             //     'libelle' => 'Souffrez vous du diabète',
-            //     'type_donnee' => TypeDonneeEnum::BOOLEAN,
+            //     'type_de_donnee' => TypeDonneeEnum::BOOLEAN,
             //     'destinataire' => TypeDemandeurEnum::PHYSIQUE,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             // [
             //     'libelle' => 'Mangez vous le porc ?',
-            //     'type_donnee' => TypeDonneeEnum::BOOLEAN,
+            //     'type_de_donnee' => TypeDonneeEnum::BOOLEAN,
             //     'destinataire' => TypeDemandeurEnum::PHYSIQUE,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             [
                 'libelle' => 'Quel sport pratiquez-vous?',
-                'type_donnee' => TypeDonneeEnum::TEXT,
+                'type_de_donnee' => TypeDonneeEnum::TEXT,
                 'destinataire' => TypeDemandeurEnum::PHYSIQUE,
-                'obligatoire' => true,
-                'est_actif' => true,
+                'est_obligatoire' => true,
+                'est_active' => true,
             ],
             [
                 'libelle' => 'Consommation du tabac',
-                'type_donnee' => TypeDonneeEnum::RADIO,
+                'type_de_donnee' => TypeDonneeEnum::RADIO,
                 'destinataire' => TypeDemandeurEnum::PHYSIQUE,
-                'obligatoire' => true,
-                'est_actif' => true,
+                'est_obligatoire' => true,
+                'est_active' => true,
                 'options' => ['pas du tout', 'un peu', 'modérément', 'beaucoup'],
             ],
             [
                 'libelle' => 'Consommation d\'alcool',
-                'type_donnee' => TypeDonneeEnum::RADIO,
+                'type_de_donnee' => TypeDonneeEnum::RADIO,
                 'destinataire' => TypeDemandeurEnum::PHYSIQUE,
-                'obligatoire' => true,
-                'est_actif' => true,
+                'est_obligatoire' => true,
+                'est_active' => true,
                 'options' => ['pas du tout', 'un peu', 'modérément', 'beaucoup'],
             ],
             [
                 'libelle' => 'Nom et Adresse de votre médecin traitant',
-                'type_donnee' => TypeDonneeEnum::TEXT,
+                'type_de_donnee' => TypeDonneeEnum::TEXT,
                 'destinataire' => TypeDemandeurEnum::PHYSIQUE,
-                'obligatoire' => true,
-                'est_actif' => true,
+                'est_obligatoire' => true,
+                'est_active' => true,
             ],
         ];
 
+        // Assign creator (cree_par_id) to a medecin controleur personnel only
+        $personnel = Personnel::whereHas('user', function($q) {
+            $q->whereHas('roles', function($qr) {
+                $qr->where('name', RoleEnum::MEDECIN_CONTROLEUR->value);
+            });
+        })->first();
+        if (!$personnel) {
+            throw new \RuntimeException('Aucun médecin contrôleur trouvé pour renseigner cree_par_id des questions.');
+        }
+
         foreach ($questions as $question) {
+            $question['cree_par_id'] = $personnel->id;
             Question::create($question);
         }
     }

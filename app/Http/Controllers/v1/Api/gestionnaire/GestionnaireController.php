@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\gestionnaire\StorePersonnelRequest;
 use App\Http\Resources\UserResource;
 use App\Jobs\SendCredentialsJob;
+use App\Models\Personne;
 use App\Models\Personnel;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -24,63 +25,24 @@ class GestionnaireController extends Controller
     /**
      * Lister tous les personnels gérés par le gestionnaire connecté
      */
-    public function indexPersonnels(Request $request)
-    {
-        $perPage = $request->input('per_page', 10);
-        $currentGestionnaire = Auth::user();
-    
-        $query = Personnel::with(['user', 'user.roles'])
-            ->where('id', '!=', $currentGestionnaire->personnel->id)
-            ->whereNotNull('gestionnaire_id')
-    
-            // Filtre par statut actif
-            ->when($request->has('est_actif'), function ($q) use ($request) {
-                $estActif = filter_var($request->input('est_actif'), FILTER_VALIDATE_BOOLEAN);
-                $q->whereHas('user', fn ($subQ) => $subQ->where('est_actif', $estActif));
-            })
-    
-            // Filtre par sexe
-            ->when($request->filled('sexe'), function ($q) use ($request) {
-                $q->where('sexe', $request->input('sexe'));
-            })
-    
-            // Filtre par rôle
-            ->when($request->filled('role'), function ($q) use ($request) {
-                $q->whereHas('user.roles', fn ($subQ) => $subQ->where('name', $request->input('role')));
-            })
-    
-            // Recherche globale (nom, prénoms, email)
-            ->when($request->filled('search'), function ($q) use ($request) {
-                $search = $request->input('search');
-                $q->where(function ($subQ) use ($search) {
-                    $subQ->where('nom', 'like', "%{$search}%")
-                        ->orWhere('prenoms', 'like', "%{$search}%")
-                        ->orWhereHas('user', fn ($userQ) => $userQ->where('email', 'like', "%{$search}%"));
-                });
-            });
-    
-        // Tri
-        $query->orderBy(
-            $request->input('sort_by', 'created_at'),
-            $request->input('sort_order', 'desc')
-        );
-    
-        $personnels = $query->paginate($perPage);
-    
-        // Mapper en UserResource
-        $userCollection = $personnels->getCollection()->map(fn ($personnel) => $personnel->user);
-    
-        $paginatedUsers = new LengthAwarePaginator(
-            UserResource::collection($userCollection),
-            $personnels->total(),
-            $personnels->perPage(),
-            $personnels->currentPage(),
-            ['path' => Paginator::resolveCurrentPath()]
-        );
-    
-        return ApiResponse::success($paginatedUsers, 'Liste des personnels récupérée avec succès');
-    }
-    
+    public function indexPersonnels()
+{
+    $currentUser = Auth::user();
+    $currentPersonnelId = $currentUser?->personnel?->id;
+
+    $personnels = Personnel::with(['user.roles', 'user.personne'])
+        ->where('id', '!=', $currentPersonnelId) // exclure le gestionnaire connecté
+        ->whereHas('user.roles', function ($q) {
+            $q->whereNotIn('name', [RoleEnum::ADMIN_GLOBAL->value, RoleEnum::GESTIONNAIRE->value]);
+        })->orderBy('created_at', 'desc')
+        ->get()
+        ->pluck('user');
+
+    return ApiResponse::success(
+        UserResource::collection($personnels),
+        'Liste des personnels récupérée avec succès'
+    );
+}
 
     /**
      * Créer un nouveau personnel
@@ -102,16 +64,26 @@ class GestionnaireController extends Controller
         DB::beginTransaction();
 
         try {
-            // Créer l'utilisateur
+            // Créer d'abord la personne
+            $personne = Personne::create([
+                'nom' => $validated['nom'],
+                'prenoms' => $validated['prenoms'] ?? null,
+                'date_naissance' => $validated['date_naissance'] ?? null,
+                'sexe' => $validated['sexe'] ?? null,
+                'profession' => $validated['profession'] ?? null,
+            ]);
+
+            // Créer l'utilisateur avec le personne_id
             $user = User::create([
                 'email' => $validated['email'],
                 'contact' => $validated['contact'] ?? null,
                 'adresse' => $validated['adresse'],
-                'photo' => $photoUrl,
+                'photo_url' => $photoUrl,
                 'mot_de_passe_a_changer' => true,
                 'est_actif' => false,
                 'password' => Hash::make($password),
-                'email_verified_at' => now(),
+                'email_verifier_a' => now(),
+                'personne_id' => $personne->id,
             ]);
 
             // Assigner le rôle
@@ -274,11 +246,12 @@ class GestionnaireController extends Controller
             'repartition_par_sexe' => Personnel::with(['user', 'user.roles'])
             ->where('id', '!=', $currentGestionnaire->personnel->id)
             ->whereNotNull('gestionnaire_id')
-            ->selectRaw('sexe, COUNT(*) as count')
-            ->groupBy('sexe')
             ->get()
-                ->mapWithKeys(function ($item) {
-                    return [$item->sexe ?? 'Non spécifié' => $item->count];
+                ->groupBy(function ($personnel) {
+                    return optional($personnel->user->personne)->sexe ?? 'Non spécifié';
+                })
+                ->map(function ($group) {
+                    return $group->count();
                 }),
         ];
 

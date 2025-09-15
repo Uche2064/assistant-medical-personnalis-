@@ -4,8 +4,10 @@ namespace Database\Seeders;
 
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
+use App\Enums\RoleEnum;
 use App\Models\Question;
 use Illuminate\Database\Seeder;
+use App\Models\Personnel;
 
 class PrestataireMedicalQuestionSeeder extends Seeder
 {
@@ -18,38 +20,38 @@ class PrestataireMedicalQuestionSeeder extends Seeder
         $questionsPharmacie = [
             [
                 'libelle' => 'Autorisation officielle d\'ouverture',
-                'type_donnee' => TypeDonneeEnum::FILE,
+                'type_de_donnee' => TypeDonneeEnum::FILE,
                 'destinataire' => TypeDemandeurEnum::PHARMACIE,
-                'obligatoire' => true,
-                'est_actif' => true,
+                'est_obligatoire' => true,
+                'est_active' => true,
             ],
             // [
             //     'libelle' => 'Plan de situation géographique',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::PHARMACIE,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             // [
             //     'libelle' => 'Diplôme du responsable',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::PHARMACIE,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             // [
             //     'libelle' => 'Attestation d\'inscription à l\'ordre',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::PHARMACIE,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             // [
             //     'libelle' => 'Présentation en images de la structure',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::PHARMACIE,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
         ];
 
@@ -57,45 +59,45 @@ class PrestataireMedicalQuestionSeeder extends Seeder
         $questionsCentreSoins = [
             [
                 'libelle' => 'Autorisation officielle d\'ouverture',
-                'type_donnee' => TypeDonneeEnum::FILE,
+                'type_de_donnee' => TypeDonneeEnum::FILE,
                 'destinataire' => TypeDemandeurEnum::CENTRE_DE_SOINS,
-                'obligatoire' => true,
-                'est_actif' => true,
+                'est_obligatoire' => true,
+                'est_active' => true,
             ],
             [
                 'libelle' => 'Plan de situation géographique',
-                'type_donnee' => TypeDonneeEnum::FILE,
+                'type_de_donnee' => TypeDonneeEnum::FILE,
                 'destinataire' => TypeDemandeurEnum::CENTRE_DE_SOINS,
-                'obligatoire' => true,
-                'est_actif' => true,
+                'est_obligatoire' => true,
+                'est_active' => true,
             ],
             // [
             //     'libelle' => 'Diplôme des responsables des différents services',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::CENTRE_DE_SOINS,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             // [
             //     'libelle' => 'Grille tarifaire actuelle',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::CENTRE_DE_SOINS,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             // [
             //     'libelle' => 'Présentation en images de la structure',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::CENTRE_DE_SOINS,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             // [
             //     'libelle' => 'Carte d\'immatriculation fiscale',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::CENTRE_DE_SOINS,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
         ];
 
@@ -103,45 +105,45 @@ class PrestataireMedicalQuestionSeeder extends Seeder
         $questionsOptique = [
             [
                 'libelle' => 'Autorisation officielle d\'ouverture',
-                'type_donnee' => TypeDonneeEnum::FILE,
+                'type_de_donnee' => TypeDonneeEnum::FILE,
                 'destinataire' => TypeDemandeurEnum::OPTIQUE,
-                'obligatoire' => true,
-                'est_actif' => true,
+                'est_obligatoire' => true,
+                'est_active' => true,
             ],
             [
                 'libelle' => 'Plan de situation géographique',
-                'type_donnee' => TypeDonneeEnum::FILE,
+                'type_de_donnee' => TypeDonneeEnum::FILE,
                 'destinataire' => TypeDemandeurEnum::OPTIQUE,
-                'obligatoire' => true,
-                'est_actif' => true,
+                'est_obligatoire' => true,
+                'est_active' => true,
             ],
             // [
             //     'libelle' => 'Diplôme des responsables des différents services',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::OPTIQUE,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             // [
             //     'libelle' => 'Grille tarifaire actuelle',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::OPTIQUE,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             // [
             //     'libelle' => 'Présentation en images de la structure',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::OPTIQUE,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             // [
             //     'libelle' => 'Carte d\'immatriculation fiscale',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::OPTIQUE,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
         ];
 
@@ -149,45 +151,45 @@ class PrestataireMedicalQuestionSeeder extends Seeder
         $questionsLaboratoire = [
             [
                 'libelle' => 'Autorisation officielle d\'ouverture',
-                'type_donnee' => TypeDonneeEnum::FILE,
+                'type_de_donnee' => TypeDonneeEnum::FILE,
                 'destinataire' => TypeDemandeurEnum::LABORATOIRE_CENTRE_DIAGNOSTIC,
-                'obligatoire' => true,
-                'est_actif' => true,
+                'est_obligatoire' => true,
+                'est_active' => true,
             ],
             // [
             //     'libelle' => 'Plan de situation géographique',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::LABORATOIRE_CENTRE_DIAGNOSTIC,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             // [
             //     'libelle' => 'Diplôme des responsables des différents services',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::LABORATOIRE_CENTRE_DIAGNOSTIC,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             // [
             //     'libelle' => 'Grille tarifaire actuelle',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::LABORATOIRE_CENTRE_DIAGNOSTIC,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             // [
             //     'libelle' => 'Présentation en images de la structure',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::LABORATOIRE_CENTRE_DIAGNOSTIC,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
             // [
             //     'libelle' => 'Carte d\'immatriculation fiscale',
-            //     'type_donnee' => TypeDonneeEnum::FILE,
+            //     'type_de_donnee' => TypeDonneeEnum::FILE,
             //     'destinataire' => TypeDemandeurEnum::LABORATOIRE_CENTRE_DIAGNOSTIC,
-            //     'obligatoire' => true,
-            //     'est_actif' => true,
+            //     'est_obligatoire' => true,
+            //     'est_active' => true,
             // ],
         ];
         
@@ -200,7 +202,19 @@ class PrestataireMedicalQuestionSeeder extends Seeder
             $questionsOptique
         );
 
+        // Only medecin controleur can create questions
+        $medecin = Personnel::whereHas('user', function($q) {
+            $q->whereHas('roles', function($qr) {
+                $qr->where('name', RoleEnum::MEDECIN_CONTROLEUR->value);
+            });
+        })->first();
+
+        if (!$medecin) {
+            throw new \RuntimeException('Aucun médecin contrôleur trouvé pour créer les questions des prestataires.');
+        }
+
         foreach ($allQuestions as $question) {
+            $question['cree_par_id'] = $medecin->id;
             Question::create($question);
         }
     }

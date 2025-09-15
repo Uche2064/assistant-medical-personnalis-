@@ -7,20 +7,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Enums\StatutDemandeAdhesionEnum;
 use App\Enums\TypeDemandeurEnum;
+use Illuminate\Support\Facades\Log;
 
 class DemandeAdhesion extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $table = 'demandes_adhesions';
 
     protected $fillable = [
-        'user_id',
+        'client_id',
         'type_demandeur',
         'statut',
         'motif_rejet',
         'valide_par_id',
-        'code_parainage',
         'valider_a',
     ];
 
@@ -33,9 +33,9 @@ class DemandeAdhesion extends Model
     /**
      * Get the user that owns the demande adhesion.
      */
-    public function user()
+    public function client()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Client::class);
     }
 
 
@@ -50,10 +50,9 @@ class DemandeAdhesion extends Model
     /**
      * Get the reponses questionnaire for this demande.
      */
-    public function reponsesQuestionnaire()
+    public function reponsesQuestions()
     {
-        // Pour l'assuré principal
-        return $this->hasMany(ReponseQuestionnaire::class, 'personne_id', 'user_id');
+        return $this->hasMany(ReponseQuestion::class, 'demande_adhesion_id');
     }
 
 
@@ -62,14 +61,7 @@ class DemandeAdhesion extends Model
      */
     public function assures()
     {
-        return $this->hasManyThrough(
-            Assure::class,
-            User::class,
-            'id', // Clé étrangère sur users
-            'user_id', // Clé étrangère sur assures
-            'user_id', // Clé locale sur demandes_adhesions
-            'id' // Clé locale sur users
-        );
+        return $this->hasMany(Assure::class, 'client_id', 'client_id');
     }
 
     /**
@@ -77,19 +69,16 @@ class DemandeAdhesion extends Model
      */
     public function employes()
     {
-        return $this->hasMany(Assure::class)->where('est_principal', true)->where('entreprise_id', $this->user->entreprise->id);
+        return $this->hasMany(Assure::class, 'client_id', 'client_id')->where('est_principal', true);
     }
 
     /**
      * Get all reponses questionnaire for this demande (including beneficiaires and employes)
      */
-    public function allReponsesQuestionnaire()
+    // With new schema, responses are tied directly via demande_adhesion_id
+    public function allReponsesQuestions()
     {
-        return $this->hasMany(ReponseQuestionnaire::class, 'personne_id', 'user_id')
-            ->orWhere(function($query) {
-                $query->whereIn('personne_id', $this->assures()->pluck('assures.id'))
-                    ->where('personne_type', Assure::class);
-            });
+        return $this->reponsesQuestions();
     }
 
     /**

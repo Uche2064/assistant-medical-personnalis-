@@ -15,12 +15,14 @@ class Notification extends Model
         'titre',
         'message',
         'data',
-        'lu',
+        'est_lu',
+        'lu_a',
     ];
 
     protected $casts = [
         'data' => 'array',
-        'lu' => 'boolean',
+        'est_lu' => 'boolean',
+        'lu_a' => 'date',
     ];
 
     /**
@@ -36,7 +38,7 @@ class Notification extends Model
      */
     public function scopeUnread($query)
     {
-        return $query->where('lu', false);
+        return $query->where('est_lu', false);
     }
 
     /**
@@ -44,7 +46,7 @@ class Notification extends Model
      */
     public function scopeRead($query)
     {
-        return $query->where('lu', true);
+        return $query->where('est_lu', true);
     }
 
     /**
@@ -60,7 +62,8 @@ class Notification extends Model
      */
     public function markAsRead()
     {
-        $this->lu = true;
+        $this->est_lu = true;
+        $this->lu_a = now();
         $this->save();
     }
 
@@ -69,7 +72,7 @@ class Notification extends Model
      */
     public function markAsUnread()
     {
-        $this->lu = false;
+        $this->est_lu = false;
         $this->save();
     }
 
@@ -78,7 +81,7 @@ class Notification extends Model
      */
     public function isRead()
     {
-        return $this->lu;
+        return $this->est_lu;
     }
 
     /**
@@ -86,6 +89,6 @@ class Notification extends Model
      */
     public function isUnread()
     {
-        return !$this->lu;
+        return !$this->est_lu;
     }
 } 

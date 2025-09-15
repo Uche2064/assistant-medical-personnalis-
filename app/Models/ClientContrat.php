@@ -15,9 +15,8 @@ class ClientContrat extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
-        'contrat_id',
-        'type_client',
+        'client_id',
+        'type_contrat_id',
         'date_debut',
         'date_fin',
         'statut',
@@ -53,15 +52,15 @@ class ClientContrat extends Model
      */
     public function client(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(Client::class, 'client_id');
     }
 
     /**
      * Relation avec le contrat
      */
-    public function contrat(): BelongsTo
+    public function typeContrat(): BelongsTo
     {
-        return $this->belongsTo(Contrat::class, 'contrat_id');
+        return $this->belongsTo(TypeContrat::class, 'type_contrat_id');
     }
 
     /**

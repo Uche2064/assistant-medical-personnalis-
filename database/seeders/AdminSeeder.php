@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Enums\RoleEnum;
 use App\Jobs\SendCredentialsJob;
 use App\Models\Personnel;
+use App\Models\Personne;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Database\Seeder;
@@ -22,32 +23,33 @@ class AdminSeeder extends Seeder
         $adminEmail = 'tutowordpress2064@gmail.com';
         $nom = 'admin';
         $prenoms = 'global';
-        $contact = '22871610653';
         $plainPassword = User::genererMotDePasse();
-        // creer l'entrée dans user
+
+        // Create Personne then User linked to it
+        $personne = Personne::updateOrCreate(
+            [ 'nom' => $nom, 'prenoms' => $prenoms ],
+            [ 'sexe' => 'M' ]
+        );
+
         $user = User::updateOrCreate(
             ['email' => $adminEmail],
             [
                 'password' => Hash::make($plainPassword),
                 'adresse' => 'nyekonakpoè',
-                'contact' => $contact,
+                'contact' => random_int(10000000, 99999999),
+                'personne_id' => $personne->id,
             ]
         );
 
-        // on créer l'entrée dans personnel
-
+        // Create minimal personnel row linked to user (schema only has user_id)
         Personnel::updateOrCreate(
-            [
-                'nom' => $nom,
-                'prenoms' => $prenoms,
-                'user_id' => $user->id,
-                "sexe" => 'M'
-            ],
+            [ 'user_id' => $user->id ],
+            []
         );
 
         Log::info("Admin created with password: " . $plainPassword);
         $user->assignRole(RoleEnum::ADMIN_GLOBAL->value);
 
-        dispatch(new SendCredentialsJob($user->load('personnel'), $plainPassword));
+        dispatch(new SendCredentialsJob($user, $plainPassword));
     }
 }

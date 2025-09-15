@@ -11,7 +11,7 @@ use App\Enums\StatutPropositionContratEnum;
 use App\Helpers\ApiResponse;
 use App\Helpers\ImageUploadHelper;
 use App\Models\Assure;
-use App\Models\Contrat;
+use App\Models\TypeContrat;
 use App\Models\DemandeAdhesion;
 use App\Models\InvitationEmploye;
 use App\Models\Question;
@@ -184,7 +184,7 @@ class DemandeAdhesionService
     public function getContratsDisponibles()
     {
         try {
-            $contrats = Contrat::with(['garanties.categorieGarantie'])
+            $contrats = TypeContrat::with(['garanties.categorieGarantie'])
                 ->where('est_actif', true)
                 ->get()
                 ->map(function ($contrat) {
@@ -276,7 +276,7 @@ class DemandeAdhesionService
         };
 
         // Appliquer les filtres de rôle
-        $this->applyRoleFilters($query, $user);
+        // $this->applyRoleFilters($query, $user);
 
         $stats = [
             'total' => $query->count(),
@@ -291,15 +291,6 @@ class DemandeAdhesionService
                 ->mapWithKeys(function ($item) {
                     $typeDemandeur = $item->type_demandeur?->value ?? $item->type_demandeur;
                     return [(string) $typeDemandeur => $item->count];
-                }),
-            'evolution_mensuelle' => (clone $query)
-                ->selectRaw("$monthExpression as mois, COUNT(*) as count")
-                ->whereYear('created_at', now()->year)
-                ->groupBy('mois')
-                ->orderBy('mois')
-                ->get()
-                ->mapWithKeys(function ($item) {
-                    return [$item->mois => $item->count];
                 }),
         ];
 

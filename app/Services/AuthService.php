@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\ClientTypeEnum;
 use App\Enums\StatutClientEnum;
-use App\Enums\TypeClientEnum;
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypePrestataireEnum;
 use App\Helpers\ApiResponse;
@@ -12,9 +12,12 @@ use App\Models\Assure;
 use App\Models\Client;
 use App\Models\Entreprise;
 use App\Models\InvitationEmploye;
+use App\Models\LienInvitation;
 use App\Models\Prestataire;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Carbon;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthService
@@ -35,7 +38,7 @@ class AuthService
         return ApiResponse::success([
             'access_token' => $token,
             'expires_in' => JWTAuth::factory()->getTTL() * 60,
-            'user' => new UserResource($user->load(['roles', 'entreprise', 'assure', 'personnel', 'prestataire'])),
+            'user' => new UserResource($user->load(['roles', 'assure', 'personne', 'personnel', 'prestataire'])),
         ], 'Authentification réussie');
     }
 
@@ -44,8 +47,16 @@ class AuthService
      */
     public function createClientPhysique(User $user, array $validated): void
     {
+        // Créer d'abord le client
+        $client = Client::create([
+            'user_id' => $user->id,
+            'type_client' => ClientTypeEnum::PHYSIQUE->value,
+        ]);
+
+        // Puis créer l'assuré lié au client
         Assure::create([
             'user_id' => $user->id,
+            'client_id' => $client->id,
             'nom' => $validated['nom'],
             'prenoms' => $validated['prenoms'] ?? null,
             'date_naissance' => $validated['date_naissance'],
@@ -53,7 +64,6 @@ class AuthService
             'profession' => $validated['profession'] ?? null,
             'commercial_id' => $validated['commercial_id'] ?? null,
             'est_principal' => true,
-            'profession' => $validated['profession'] ?? null,
             'photo' => $validated['photo'] ?? null,
         ]);
     }
@@ -64,14 +74,14 @@ class AuthService
      */
     public function createEntreprise(User $user, array $validated): void
     {
-        Entreprise::create([
+        Client::create([
             'user_id' => $user->id,
             'raison_sociale' => $validated['raison_sociale'],
         ]);
 
-        $invitation = InvitationEmploye::create([
-            'entreprise_id' => $user->entreprise->id,
-            'token' => InvitationEmploye::generateToken(),
+        $invitation = LienInvitation::create([
+            'client_id' => $user->client->id,
+            'token' => LienInvitation::generateToken(),
             'expire_at' => now()->addDays(7),
         ]);
     }
@@ -94,6 +104,62 @@ class AuthService
             'type_prestataire' => $typePrestataire,
             'raison_sociale' => $validated['raison_sociale'],
         ]);
+    }
+
+    /**
+     * Vérifie si le compte est bloqué (temporairement ou définitivement).
+     */
+    public function checkAccountStatus($user)
+    {
+        $now = Carbon::now();
+
+        if ($user->permanently_blocked) {
+            throw new HttpException(
+                403,
+                "Compte bloqué définitivement. Contactez le support."
+            );
+        }
+
+        if ($user->lock_until && $user->lock_until->isFuture()) {
+            throw new HttpException(
+                403,
+                "Compte bloqué jusqu’à " . $user->lock_until->format('d/m/Y H:i')
+            );
+        }
+    }
+
+    /**
+     * Gestion d’un échec de connexion.
+     */
+    public function handleFailedAttempt($user)
+    {
+        $now = Carbon::now();
+        $user->failed_attempts += 1;
+
+        if ($user->phase === 1) { // Phase 1 → 5 essais
+            if ($user->failed_attempts >= 5) {
+                $user->lock_until = $now->copy()->addHour(); // Bloqué 1h
+                $user->failed_attempts = 0; // reset pour la phase suivante
+                $user->phase = 2;
+            }
+        } elseif ($user->phase === 2) { // Phase 2 → 3 essais
+            if ($user->failed_attempts >= 3) {
+                $user->permanently_blocked = true; // Blocage définitif
+            }
+        }
+
+        $user->save();
+    }
+
+    /**
+     * Reset des tentatives après un succès.
+     */
+    public function resetAttempts($user)
+    {
+        $user->failed_attempts = 0;
+        $user->lock_until = null;
+        $user->phase = 1; // On repart toujours à la phase 1 après un succès
+        $user->save();
     }
 
 }

@@ -14,7 +14,7 @@ use App\Jobs\SendEmailJob;
 use App\Models\Assure;
 use App\Models\ClientContrat;
 use App\Models\ClientPrestataire;
-use App\Models\Contrat;
+use App\Models\TypeContrat;
 use App\Models\DemandeAdhesion;
 use App\Models\Prestataire;
 use App\Models\User;
@@ -286,7 +286,7 @@ class PrestataireController extends Controller
             $contrat = $assure->getContratAssocie();
         
             if ($contrat) {
-                Log::info("Contrat trouvé pour {$assure->nom} {$assure->prenoms}: " . $contrat->statut->value);
+                Log::info("TypeContrat trouvé pour {$assure->nom} {$assure->prenoms}: " . $contrat->statut->value);
             } else {
                 Log::warning("Aucun contrat pour {$assure->nom} {$assure->prenoms}");
             }

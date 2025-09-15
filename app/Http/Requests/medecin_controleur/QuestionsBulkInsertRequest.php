@@ -24,12 +24,12 @@ class QuestionsBulkInsertRequest extends FormRequest
         return [
             '*' => ['required', 'array', 'min:1'],
             '*.libelle' => ['required', 'string', 'max:255'],
-            '*.type_donnee' => ['required', 'string', Rule::in(TypeDonneeEnum::values())],
+            '*.type_de_donnee' => ['required', 'string', Rule::in(TypeDonneeEnum::values())],
             '*.destinataire' => ['required', 'string', Rule::in(TypeDemandeurEnum::values())],
-            '*.obligatoire' => ['boolean'],
-            '*.est_actif' => ['boolean'],
+            '*.est_obligatoire' => ['boolean'],
+            '*.est_active' => ['boolean'],
             // options doit être un tableau si type_donnee est select, checkbox ou radio
-            '*.options' => ['nullable', 'array', 'required_if:*.type_donnee,select,checkbox,radio'],
+            '*.options' => ['nullable', 'array', 'required_if:*.type_de_donnee,select,checkbox,radio'],
         ];
     }
 
@@ -41,20 +41,21 @@ class QuestionsBulkInsertRequest extends FormRequest
     public function messages()
     {
         return [
+            '' => 'Vous devez fournir au moins une question.',
             '*.libelle.required' => 'Le libellé est obligatoire.',
             '*.libelle.string' => 'Le libellé doit être une chaîne de caractères.',
             '*.libelle.max' => 'Le libellé ne doit pas dépasser :max caractères.',
 
-            '*.type_donnee.required' => 'Le type de donnée est obligatoire.',
-            '*.type_donnee.string' => 'Le type de donnée doit être une chaîne de caractères.',
-            '*.type_donnee.in' => 'Le type de donnée non trouvé.',
+            '*.type_de_donnee.required' => 'Le type de donnée est obligatoire.',
+            '*.type_de_donnee.string' => 'Le type de donnée doit être une chaîne de caractères.',
+            '*.type_de_donnee.in' => 'Le type de donnée non trouvé.',
 
             '*.destinataire.required' => 'Le destinataire est obligatoire.',
             '*.destinataire.string' => 'Le destinataire doit être une chaîne de caractères.',
             '*.destinataire.in' => 'Le destinataire non trouvé',
 
-            '*.obligatoire.boolean' => 'La valeur du champ "obligatoire" doit être un booléen.',
-            '*.est_actif.boolean' => 'La valeur du champ "est actif" doit être un booléen.',
+            '*.est_obligatoire.boolean' => 'La valeur du champ "obligatoire" doit être un booléen.',
+            '*.est_active.boolean' => 'La valeur du champ "est actif" doit être un booléen.',
             '*.options.array' => 'Le champ options doit être un tableau ou un objet JSON.',
             '*.options.required_if' => 'Le champ options est obligatoire pour les types select, checkbox ou radio.',
         ];

@@ -67,38 +67,26 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
 
     // ---------------------- gestion des personnels par le gestionnaire --------------------
-
     // Lecture : admin + gestionnaire
-    Route::middleware(['auth:api', 'checkRole:gestionnaire,admin_global'])->prefix('gestionnaire/personnels')->group(function () {
-        Route::get('/', [GestionnaireController::class, 'indexPersonnels']);
-        Route::get('/stats', [GestionnaireController::class, 'personnelStats']);
-        Route::get('/{id}', [GestionnaireController::class, 'showPersonnel']);
+    Route::middleware(['auth:api'])->prefix('gestionnaire/personnels')->group(function () {
+        Route::get('/', [GestionnaireController::class, 'indexPersonnels'])->middleware('checkRole:gestionnaire,admin_global');
+        Route::get('/stats', [GestionnaireController::class, 'personnelStats'])->middleware('checkRole:gestionnaire,admin_global');
+        Route::get('/{id}', [GestionnaireController::class, 'showPersonnel'])->middleware('checkRole:gestionnaire,admin_global');
+        Route::post('/', [GestionnaireController::class, 'storePersonnel'])->middleware('checkRole:gestionnaire');
+        Route::patch('/{id}/change-status', [GestionnaireController::class, 'togglePersonnelStatus'])->middleware('checkRole:gestionnaire');
+        Route::delete('/{id}', [GestionnaireController::class, 'destroyPersonnel'])->middleware('checkRole:gestionnaire');
     });
-
-    // Écriture : uniquement gestionnaire
-    Route::middleware(['auth:api', 'checkRole:gestionnaire'])->prefix('gestionnaire/personnels')->group(function () {
-        Route::post('/', [GestionnaireController::class, 'storePersonnel']);
-        Route::patch('/{id}/change-status', [GestionnaireController::class, 'togglePersonnelStatus']);
-        Route::delete('/{id}', [GestionnaireController::class, 'destroyPersonnel']);
-    });
-
-
     // --------------------- gestion des questions pour les prospects et prestataire par le médecin contrôleur --------------------
-
-
-
-
     Route::middleware(['auth:api', 'checkRole:medecin_controleur,admin_global'])->prefix('questions')->group(function () {
-        Route::get('/all', [QuestionController::class, 'indexQuestions']); // toutes les questions
-        Route::get('/stats', [QuestionController::class, 'questionStats']); // statistiques des questions
-        Route::get('/{id}', [QuestionController::class, 'showQuestion']); // toutes les questions
-        Route::post('/', [QuestionController::class, 'bulkInsertQuestions']);
+        Route::get('/', [QuestionController::class, 'indexQuestions']); // 👌
+        Route::get('/stats', [QuestionController::class, 'questionStats']); // 👌
+        Route::get('/{id}', [QuestionController::class, 'showQuestion']); // 👌
+        Route::post('/', [QuestionController::class, 'bulkInsertQuestions']); // 👌
         Route::put('/{id}', [QuestionController::class, 'updateQuestion']);
         Route::patch('/{id}/toggle', [QuestionController::class, 'toggleQuestionStatus']);
         Route::delete('/{id}', [QuestionController::class, 'destroyQuestion']); // suppression simple
         Route::post('/bulk-delete', [QuestionController::class, 'bulkDestroyQuestions']); // suppression en masse
     });
-    Route::get('/questions', [QuestionController::class, 'getQuestionsByDestinataire']); // questions par destinataire
 
 
     // --------------------- Routes pour les demandes d'adhésion ---------------------
@@ -106,7 +94,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     Route::get('/has-demande', [DemandeAdhesionController::class, 'hasDemande'])->middleware('auth:api');
 
     Route::middleware(['auth:api'])->prefix('demandes-adhesions')->group(function () {
-        Route::get('/', [DemandeAdhesionController::class, 'index'])->middleware('checkRole:medecin_controleur,technicien,admin_global');
+        Route::get('/', [DemandeAdhesionController::class, 'index'])->middleware('checkRole:medecin_controleur,technicien,admin_global,gestionnaire,commercial');
         // Demande d'adhésion personne physique (assuré principal)
         Route::post('/', [DemandeAdhesionController::class, 'store'])->middleware('checkRole:physique');
         Route::post('/prestataire', [DemandeAdhesionController::class, 'store'])->middleware('checkRole:prestataire');
@@ -114,7 +102,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::post('/entreprise', [EntrepriseController::class, 'soumettreDemandeAdhesionEntreprise'])->middleware('checkRole:entreprise');
         Route::post('/{id}/valider-physique', [TechnicienController::class, 'validerDemande']);
 
-        Route::get('/stats', [DemandeAdhesionController::class, 'stats'])->middleware('checkRole:admin_global,medecin_controleur,technicien');
+        Route::get('/stats', [DemandeAdhesionController::class, 'stats'])->middleware('checkRole:admin_global,medecin_controleur,technicien,gestionnaire,commercial');
         Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware('checkRole:medecin_controleur,technicien');
 
         // Actions sur les demandes (proposer contrat, valider, rejeter)

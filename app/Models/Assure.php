@@ -9,31 +9,18 @@ use Illuminate\Support\Facades\Log;
 
 class Assure extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
         'user_id',
-        'entreprise_id',
-        'assure_principal_id',
-        'email',
-        'contrat_id',
-        'nom', // ✅ Ajouté pour les bénéficiaires
-        'prenoms', // ✅ Ajouté pour les bénéficiaires
-        'date_naissance', // ✅ Ajouté pour les bénéficiaires
-        'sexe', // ✅ Ajouté pour les bénéficiaires
+        'client_id',
         'lien_parente',
         'est_principal',
-        'profession',
-        'contact',
-        'photo',
-        'demande_adhesion_id',
     ];
 
     protected $casts = [
         'est_principal' => 'boolean',
-        'date_naissance' => 'date', // ✅ Ajouté
         'lien_parente' => \App\Enums\LienParenteEnum::class,
-        'sexe' => \App\Enums\SexeEnum::class, // ✅ Ajouté
     ];
 
     /**
@@ -47,39 +34,27 @@ class Assure extends Model
     /**
      * Get the entreprise that owns the assure.
      */
-    public function entreprise()
+    public function client()
     {
-        return $this->belongsTo(Entreprise::class);
+        return $this->belongsTo(Client::class);
     }
 
     /**
      * Get the principal assure for this beneficiary.
      */
-    public function assurePrincipal()
-    {
-        return $this->belongsTo(Assure::class, 'assure_principal_id');
-    }
+    // Removed principal/beneficiary self-reference per new schema
 
     /**
      * Get the beneficiaries for this principal assure.
      */
-    public function beneficiaires()
-    {
-        return $this->hasMany(Assure::class, 'assure_principal_id');
-    }
+    // Removed beneficiaires relation per new schema
 
     /**
      * Get the contrat for this assure.
      */
-    public function contrat()
-    {
-        return $this->belongsTo(Contrat::class);
-    }
+    // Contract linkage handled via client->clientsContrats
 
-    public function reponsesQuestionnaire()
-    {
-        return $this->hasMany(ReponseQuestionnaire::class, 'personne_id');
-    }
+    // Responses now tied to DemandeAdhesion via ReponseQuestion
 
 
     /**
@@ -109,37 +84,25 @@ class Assure extends Model
     /**
      * Check if assure is active.
      */
-    public function isActive()
-    {
-        return $this->statut === 'actif';
-    }
+    // Status fields not present in new schema
 
     /**
      * Check if assure is inactive.
      */
-    public function isInactive()
-    {
-        return $this->statut === 'inactif';
-    }
+    // Status fields not present in new schema
 
     /**
      * Check if assure is suspended.
      */
-    public function isSuspended()
-    {
-        return $this->statut === 'suspendu';
-    }
+    // Status fields not present in new schema
 
     /**
      * Get the assure's full name.
      */
+    // No name attributes in schema; keep for potential user full_name
     public function getFullNameAttribute()
     {
-        if ($this->user) {
-            return $this->user->full_name;
-        }
-
-        return 'Assuré #' . $this->id;
+        return $this->user ? $this->user->full_name : 'Assuré #' . $this->id;
     }
 
     /**
@@ -153,17 +116,10 @@ class Assure extends Model
     /**
      * Get the assure's source (client or entreprise).
      */
+    // Source simplified
     public function getSourceAttribute()
     {
-        if ($this->client) {
-            return $this->client->isPhysique() ? 'Client Physique' : 'Client Moral';
-        }
-
-        if ($this->entreprise) {
-            return 'Employé Entreprise';
-        }
-
-        return 'Inconnu';
+        return $this->client ? 'Client' : 'Inconnu';
     }
 
     public function hasContratActif(): bool
@@ -182,26 +138,9 @@ class Assure extends Model
 
     public function getContratAssocie()
     {
-        if ($this->est_principal && $this->entreprise_id) {
-            // Assuré principal : on récupère le client contrat lié directement
-            return ClientContrat::with('contrat.categoriesGaranties.garanties')
-                ->where('user_id', $this->entreprise->user->id)
-                ->where('statut', 'actif')
-                ->first();
-        }
-
-
-        // Sinon on récupère le contrat de l'assuré principal (s'il y a un)
-        if ($this->assure_principal_id) {
-            $principal = self::find($this->assure_principal_id);
-            if ($principal) {
-                return ClientContrat::with('contrat.categoriesGaranties.garanties')
-                    ->where('user_id', $principal->user_id)
-                    ->where('statut', 'actif')
-                    ->first();
-            }
-        }
-
-        return null;
+        return ClientContrat::with('typeContrat')
+            ->where('client_id', $this->client_id)
+            ->where('statut', \App\Enums\StatutContratEnum::ACTIF)
+            ->first();
     }
 }

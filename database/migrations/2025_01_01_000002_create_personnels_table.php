@@ -13,15 +13,10 @@ return new class extends Migration
     {
         Schema::create('personnels', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->string('nom');
-            $table->string('prenoms')->nullable();
-            $table->enum('sexe', ['M', 'F']);
-            $table->date('date_naissance')->nullable();
-            $table->string('code_parainage')->nullable()->unique();
-            $table->foreignId('gestionnaire_id')->nullable()->constrained('personnels')->onDelete('set null');
             $table->timestamps();
-            $table->softDeletes();
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('gestionnaire_id')->nullable()->constrained('personnels')->onDelete('cascade');
+
         });
     }
 
@@ -32,4 +27,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('personnels');
     }
-}; 
+};

@@ -8,20 +8,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Personnel extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
         'user_id',
-        'nom',
-        'prenoms',
-        'sexe',
-        'date_naissance',
-        'code_parainage',
         'gestionnaire_id',
     ];
 
     protected $casts = [
-        'date_naissance' => 'date',
     ];
 
     /**
@@ -54,7 +48,7 @@ class Personnel extends Model
      */
     public function contrats()
     {
-        return $this->hasMany(Contrat::class, 'technicien_id');
+        return $this->hasMany(TypeContrat::class, 'technicien_id');
     }
 
     /**
@@ -136,9 +130,10 @@ class Personnel extends Model
     /**
      * Get the full name of the personnel.
      */
+    // Name fields moved to Personne via User
     public function getFullNameAttribute()
     {
-        return $this->nom . ' ' . $this->prenoms;
+        return optional($this->user->personne)->nom . ' ' . optional($this->user->personne)->prenoms;
     }
 
     /**

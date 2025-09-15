@@ -15,9 +15,9 @@ return new class extends Migration
             $table->id();
             $table->string('libelle')->unique();
             $table->text('description')->nullable();
-            $table->foreignId('medecin_controleur_id')->nullable()->constrained('personnels')->onDelete('set null');
+            $table->boolean('est_active')->default(true);
+            $table->foreignId('medecin_controleur_id')->nullable()->constrained('personnels')->onDelete('cascade');
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 

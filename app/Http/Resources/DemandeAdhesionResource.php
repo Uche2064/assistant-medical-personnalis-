@@ -16,6 +16,20 @@ class DemandeAdhesionResource extends JsonResource
     {
         $demandeur = $this;
 
+        // Construire le nom complet si disponible
+        $nom = $demandeur->user->assure->nom ?? null;
+        $prenoms = $demandeur->user->assure->prenoms ?? null;
+        $fullName = trim(($nom ?? '') . ' ' . ($prenoms ?? ''));
+
+        if ($fullName === '') {
+            $fullName = null; // si aucun des deux n’est fourni
+        }
+
+        // Déterminer le champ "demandeur"
+        $demandeurLabel = $demandeur->user->entreprise->raison_sociale
+            ?? $demandeur->user->prestataire->raison_sociale
+            ?? $fullName;
+
         return [
             'id' => $demandeur->id,
             'type_demandeur' => $this->type_demandeur,
@@ -25,15 +39,17 @@ class DemandeAdhesionResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'deleted_at' => $this->when($this->deleted_at, $this->deleted_at),
-            'nom' => $demandeur->user->assure->nom ?? null,
-            'raison_sociale' => $demandeur->user->entreprise->raison_sociale ?? $demandeur->user->prestataire->raison_sociale ?? null,
-            'prenoms' => $demandeur->user->assure->prenoms ?? null,
+
+            // 👇 Ici c'est corrigé
+            'demandeur' => $demandeurLabel,
+
             'date_naissance' => $demandeur->user->assure->date_naissance ?? null,
             'sexe' => $demandeur->user->assure->sexe ?? null,
             'profession' => $demandeur->user->assure->profession ?? null,
             'email' => $demandeur->user->email,
             'contact' => $demandeur->user->contact,
-            'reponses_questionnaire' => $this->when('reponsesQuestionnaire', function () {
+
+            'reponses_questionnaire' => $this->whenLoaded('reponsesQuestionnaire', function () {
                 return $this->reponsesQuestionnaire->map(function ($reponse) {
                     return [
                         'id' => $reponse->id,
@@ -43,9 +59,9 @@ class DemandeAdhesionResource extends JsonResource
                         'reponse_fichier' => $reponse->reponse_fichier,
                         'question_id' => $reponse->question_id,
                         'created_at' => $reponse->created_at,
-                        'updated_at' => $reponse->updated_at, 
+                        'updated_at' => $reponse->updated_at,
                         'deleted_at' => $reponse->deleted_at,
-                        'question' => $reponse->when('question', function () use ($reponse) {
+                        'question' => $reponse->whenLoaded('question', function () use ($reponse) {
                             return [
                                 'id' => $reponse->question->id,
                                 'libelle' => $reponse->question->libelle,

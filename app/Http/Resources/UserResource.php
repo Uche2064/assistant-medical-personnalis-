@@ -19,21 +19,21 @@ class UserResource extends JsonResource
             'id' => $this->id,
             'email' => $this->email,
             'contact' => $this->contact,
-            'role' => $this->roles[0]->name,
+            'role' => $this->roles && count($this->roles) > 0 ? $this->roles[0]->name : null,
             'adresse' => $this->adresse,
             'est_actif' => $this->est_actif,
             'mot_de_passe_a_changer' => $this->mot_de_passe_a_changer,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
-            'solde' => $this->solde,
+            'solde' => $this->solde ?? 0,
         ];
 
-        if ($this->whenLoaded('personnel') && $this->personnel) {
-            $userData['nom'] = $this->personnel->nom;
-            $userData['prenoms'] = $this->personnel->prenoms;
-            $userData['sexe'] = $this->personnel->sexe;
-            $userData['date_naissance'] = $this->personnel->date_naissance;
-            $userData['gestionnaire_id'] = $this->personnel->gestionnaire_id;
+        if ($this->whenLoaded('personne') && $this->personne) {
+            $userData['nom'] = $this->personne->nom;
+            $userData['prenoms'] = $this->personne->prenoms;
+            $userData['sexe'] = $this->personne->sexe;
+            $userData['date_naissance'] = $this->personne->date_naissance;
+            $userData['gestionnaire_id'] = $this->personne->gestionnaire_id;
             $userData['photo'] = $this->photo ?? null;
         } else if ($this->whenLoaded('assure') && $this->assure) {
             $userData['nom'] = $this->assure->nom ?? null;

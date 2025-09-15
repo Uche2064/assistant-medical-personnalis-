@@ -5,8 +5,7 @@ namespace Database\Seeders;
 use App\Enums\RoleEnum;
 use App\Enums\TypeContratEnum;
 use App\Models\CategorieGarantie;
-use App\Models\Contrat;
-use App\Models\ContratCategorieGarantie;
+use App\Models\TypeContrat;
 use App\Models\Personnel;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -41,44 +40,42 @@ class ContratSeeder extends Seeder
                 'libelle' => TypeContratEnum::BASIC,
                 'technicien_id' => $technicien->id,
                 'prime_standard' => 250000,
-                'frais_gestion' => 250000 * Contrat::getFraisGestion(),
+                'frais_gestion' => 20.0,
                 'est_actif' => true,
             ],
             [
                 'libelle' => TypeContratEnum::STANDARD,
                 'technicien_id' => $technicien->id,
-                'prime_standard' => 450000, 
-                'frais_gestion' => 450000 * Contrat::getFraisGestion(),
+                'prime_standard' => 450000,
+                'frais_gestion' => 20.0,
                 'est_actif' => true,
             ],
             [
                 'libelle' => TypeContratEnum::PREMIUM,
                 'technicien_id' => $technicien->id,
-                'prime_standard' => 750000, 
-                'frais_gestion' => 750000 * Contrat::getFraisGestion(),
+                'prime_standard' => 750000,
+                'frais_gestion' => 20.0,
                 'est_actif' => true,
             ],
             [
                 'libelle' => TypeContratEnum::TEAM,
                 'technicien_id' => $technicien->id,
-                'prime_standard' => 5000000, 
-                'frais_gestion' => 5000000 * Contrat::getFraisGestion(),
+                'prime_standard' => 5000000,
+                'frais_gestion' => 20.0,
                 'est_actif' => true,
             ],
         ];
 
         foreach ($contrats as $contratData) {
-            $contrat = Contrat::create([
+            $typeContrat = TypeContrat::create([
                 'libelle' => $contratData['libelle'],
                 'technicien_id' => $contratData['technicien_id'],
                 'prime_standard' => $contratData['prime_standard'],
-                'frais_gestion' => $contratData['frais_gestion'],
-                'prime_totale' => $contratData['prime_standard'] + $contratData['frais_gestion'],
                 'est_actif' => $contratData['est_actif'],
             ]);
 
-            // Associer des catégories de garanties au contrat via la table pivot
-            $this->associerCategoriesGaranties($contrat, $categorieGaranties, $contratData['libelle']);
+            // Associer des catégories de garanties avec champs pivot
+            $this->associerCategoriesGaranties($typeContrat, $categorieGaranties, $contratData['libelle'], $contratData['frais_gestion']);
         }
 
         $this->command->info('Contrats créés avec succès par le technicien !');
@@ -87,7 +84,7 @@ class ContratSeeder extends Seeder
     /**
      * Associe des catégories de garanties à un contrat via la table pivot
      */
-    private function associerCategoriesGaranties(Contrat $contrat, $categorieGaranties, TypeContratEnum $typeContrat): void
+    private function associerCategoriesGaranties(TypeContrat $typeContratModel, $categorieGaranties, TypeContratEnum $typeContrat, float $fraisGestion): void
     {
         // Déterminer combien de catégories associer selon le type de contrat
         $nombreCategories = $this->getNombreCategoriesByType($typeContrat);
@@ -96,10 +93,9 @@ class ContratSeeder extends Seeder
         $categoriesSelectionnees = $categorieGaranties->random(min($nombreCategories, $categorieGaranties->count()));
         
         foreach ($categoriesSelectionnees as $categorie) {
-            ContratCategorieGarantie::create([
-                'contrat_id' => $contrat->id,
-                'categorie_garantie_id' => $categorie->id,
+            $typeContratModel->categoriesGaranties()->attach($categorie->id, [
                 'couverture' => $this->getCouvertureByType($typeContrat),
+                'frais_gestion' => $fraisGestion,
             ]);
         }
         

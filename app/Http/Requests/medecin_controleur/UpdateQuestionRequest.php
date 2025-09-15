@@ -36,7 +36,7 @@ class UpdateQuestionRequest extends FormRequest
             'obligatoire' => ['sometimes', 'boolean'],
             'est_actif' => ['sometimes', 'boolean'],
             // options doit être un tableau si type_donnee est select, checkbox ou radio
-            'options' => ['nullable', 'array', 'sometimes:type_donnee,select,checkbox,radio'],
+            'options' => ['nullable', 'array', 'sometimes:type_de_donnee,select,checkbox,radio'],
         ];
     }
 

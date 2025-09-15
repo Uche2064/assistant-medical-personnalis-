@@ -9,7 +9,7 @@ use App\Http\Requests\contrat\UpdateContratFormRequest;
 use App\Http\Resources\ContratResource;
 use App\Http\Resources\ContratCollection;
 use App\Http\Resources\CategorieGarantieResource;
-use App\Models\Contrat;
+use App\Models\TypeContrat;
 use App\Models\CategorieGarantie;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -43,7 +43,7 @@ class ContratController extends Controller
         $perPage = $request->query('per_page', 15);
         $estActif = $request->query('est_actif');   // statut
     
-        $query = Contrat::with(['technicien', 'categoriesGaranties.garanties', 'assures'])
+        $query = TypeContrat::with(['technicien', 'categoriesGaranties.garanties', 'assures'])
             ->when($search, function ($q, $search) {
                 $q->where('libelle', 'like', '%' . $search . '%');
             })
@@ -71,16 +71,16 @@ class ContratController extends Controller
      */
     public function show(string $id)
     {
-        $contrat = Contrat::with(['technicien', 'categoriesGaranties.garanties', 'assures'])
+        $contrat = TypeContrat::with(['technicien', 'categoriesGaranties.garanties', 'assures'])
             ->find($id);
 
         if (!$contrat) {
-            return ApiResponse::error('Contrat non trouvé', 404);
+            return ApiResponse::error('TypeContrat non trouvé', 404);
         }
 
         return ApiResponse::success(
             new ContratResource($contrat),
-            'Contrat récupéré avec succès'
+            'TypeContrat récupéré avec succès'
         );
     }
 
@@ -98,7 +98,7 @@ class ContratController extends Controller
             $technicien = Auth::user()->personnel;
 
             // Création du contrat
-            $contrat = Contrat::create([
+            $contrat = TypeContrat::create([
                 'libelle' => $validatedData['libelle'],
                 'prime_standard' => $validatedData['prime_standard'],
                 'technicien_id' => $technicien->id,
@@ -128,7 +128,7 @@ class ContratController extends Controller
 
             return ApiResponse::success(
                 new ContratResource($contrat),
-                'Contrat créé avec succès',
+                'TypeContrat créé avec succès',
                 201
             );
         } catch (\Exception $e) {
@@ -148,9 +148,9 @@ class ContratController extends Controller
             DB::beginTransaction();
 
             // Trouver le contrat
-            $contrat = Contrat::find($id);
+            $contrat = TypeContrat::find($id);
             if (!$contrat) {
-                return ApiResponse::error('Contrat non trouvé', 404);
+                return ApiResponse::error('TypeContrat non trouvé', 404);
             }
 
             // Vérifier que l'utilisateur est le technicien qui a créé le contrat
@@ -169,7 +169,7 @@ class ContratController extends Controller
 
             return ApiResponse::success(
                 new ContratResource($contrat),
-                'Contrat mis à jour avec succès'
+                'TypeContrat mis à jour avec succès'
             );
         } catch (\Exception $e) {
             DB::rollBack();
@@ -186,9 +186,9 @@ class ContratController extends Controller
             DB::beginTransaction();
 
             // Trouver le contrat
-            $contrat = Contrat::find($id);
+            $contrat = TypeContrat::find($id);
             if (!$contrat) {
-                return ApiResponse::error('Contrat non trouvé', 404);
+                return ApiResponse::error('TypeContrat non trouvé', 404);
             }
 
             // Vérifier que l'utilisateur est le technicien qui a créé le contrat
@@ -205,7 +205,7 @@ class ContratController extends Controller
 
             DB::commit();
 
-            return ApiResponse::success(null, 'Contrat supprimé avec succès');
+            return ApiResponse::success(null, 'TypeContrat supprimé avec succès');
         } catch (\Exception $e) {
             DB::rollBack();
             return ApiResponse::error('Erreur lors de la suppression du contrat: ' . $e->getMessage(), 500);
@@ -219,10 +219,10 @@ class ContratController extends Controller
     {
         try {
             $stats = [
-                'total' => Contrat::count(),
-                'actifs' => Contrat::where('est_actif', true)->count(),
-                'suspendus' => Contrat::where('est_actif', false)->count(),
-                'libelle' => Contrat::select('libelle', DB::raw('COUNT(*) as count'))
+                'total' => TypeContrat::count(),
+                'actifs' => TypeContrat::where('est_actif', true)->count(),
+                'suspendus' => TypeContrat::where('est_actif', false)->count(),
+                'libelle' => TypeContrat::select('libelle', DB::raw('COUNT(*) as count'))
                     ->groupBy('libelle')
                     ->get()
                     ->mapWithKeys(function ($item) {
@@ -230,10 +230,10 @@ class ContratController extends Controller
                         return [$typeValue ?? 'Non spécifié' => $item->count];
                     }),
                 'repartition_prix' => [
-                    '0-25000' => Contrat::where('prime_standard', '<=', 25000)->count(),
-                    '25001-50000' => Contrat::whereBetween('prime_standard', [25001, 50000])->count(),
-                    '50001-75000' => Contrat::whereBetween('prime_standard', [50001, 75000])->count(),
-                    '75001+' => Contrat::where('prime_standard', '>', 75000)->count(),
+                    '0-25000' => TypeContrat::where('prime_standard', '<=', 25000)->count(),
+                    '25001-50000' => TypeContrat::whereBetween('prime_standard', [25001, 50000])->count(),
+                    '50001-75000' => TypeContrat::whereBetween('prime_standard', [50001, 75000])->count(),
+                    '75001+' => TypeContrat::where('prime_standard', '>', 75000)->count(),
                 ],
             ];
 

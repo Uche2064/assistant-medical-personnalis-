@@ -18,7 +18,8 @@ return new class extends Migration
             $table->string('titre');
             $table->text('message');
             $table->json('data')->nullable();
-            $table->boolean('lu')->default(false);
+            $table->boolean('est_lu')->default(false);
+            $table->date('lu_a')->nullable();
             $table->timestamps();
         });
     }

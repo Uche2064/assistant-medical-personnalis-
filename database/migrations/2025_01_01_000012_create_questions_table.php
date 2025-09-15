@@ -13,15 +13,14 @@ return new class extends Migration
     {
         Schema::create('questions', function (Blueprint $table) {
             $table->id();
-            $table->text('libelle');
-            $table->string('type_donnee'); // Sera casté vers TypeDonneeEnum
-            $table->json('options')->nullable(); // Pour les questions à choix multiples
-            $table->string('destinataire'); // Sera casté vers TypeDemandeurEnum
-            $table->boolean('obligatoire')->default(false);
-            $table->boolean('est_actif')->default(true);
-            $table->foreignId('cree_par_id')->nullable()->constrained('personnels')->onDelete('set null');
+            $table->string('libelle');
+            $table->string('type_de_donnee');
+            $table->json('options')->nullable();
+            $table->string('destinataire');
+            $table->boolean('est_obligatoire')->default(false);
+            $table->boolean('est_active')->default(true);
+            $table->foreignId('cree_par_id')->constrained('personnels')->onDelete('cascade');
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 

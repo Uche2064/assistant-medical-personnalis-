@@ -11,8 +11,6 @@ use App\Http\Requests\beneficiaire\UpdateBeneficiaireRequest;
 use App\Http\Resources\BeneficiaireResource;
 use App\Http\Resources\EmployeAssureResource;
 use App\Models\Assure;
-use App\Models\Client;
-use App\Models\Contrat;
 use App\Models\Facture;
 use App\Models\Prestataire;
 use App\Models\User;
@@ -189,7 +187,7 @@ class AssureController extends Controller
             return ApiResponse::error('Aucun contrat trouvé', 404, ['existing' => false]);
         }
 
-        return ApiResponse::success($contrat, 'Contrat récupéré avec succès');
+        return ApiResponse::success($contrat, 'TypeContrat récupéré avec succès');
     }
 
     /**
@@ -282,7 +280,7 @@ class AssureController extends Controller
             return ApiResponse::error('Aucun contrat actif trouvé', 404);
         }
 
-        return ApiResponse::success($contrat, 'Contrat récupéré avec succès');
+        return ApiResponse::success($contrat, 'TypeContrat récupéré avec succès');
     }
 
     /**
@@ -340,7 +338,7 @@ class AssureController extends Controller
                 ->sum('montant'),
         ];
 
-        // Contrat actif
+        // TypeContrat actif
         $contratActif = $assure->contrat;
 
         // Factures récentes

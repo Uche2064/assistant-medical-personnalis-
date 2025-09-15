@@ -5,10 +5,12 @@ namespace Database\Seeders;
 use App\Enums\RoleEnum;
 use App\Jobs\SendCredentialsJob;
 use App\Models\Personnel;
+use App\Models\Personne;
 use App\Models\User;
 // use App\Services\NotificationService; // Commenté car service non vérifié
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
@@ -41,38 +43,26 @@ class PersonnelSeeder extends Seeder
     {
         $plainPassword = User::genererMotDePasse();
 
+        $personne = Personne::updateOrCreate(
+            ['nom' => $nom, 'prenoms' => $prenoms],
+            ['sexe' => 'M']
+        );
+
         $user = User::updateOrCreate(
             ['email' => $email],
             [
                 'password' => Hash::make($plainPassword),
                 'adresse' => 'Nyékonakpoè',
                 'est_actif' => false,
+                'personne_id' => $personne->id,
+                'contact' => random_int(10000000, 99999999)
             ]
         );
 
-        $code_parainage = Personnel::genererCodeParainage();
-
-        if($role == RoleEnum::COMPTABLE->value){
-            Personnel::create([
-                'user_id' => $user->id,
-                'nom' => $nom,
-                'prenoms' => $prenoms,
-                'code_parainage' => $code_parainage,
-                'gestionnaire_id' => $gestionnaireId,
-                "sexe" => 'M'
-
-
-
-            ]);
-        } else {
-            Personnel::create([
-                'user_id' => $user->id,
-                'nom' => $nom,
-                'prenoms' => $prenoms,
-                "sexe" => 'M',
-                'gestionnaire_id' => $gestionnaireId,
-            ]);
-        }
+        Personnel::updateOrCreate(
+            ['user_id' => $user->id],
+            ['gestionnaire_id' => $gestionnaireId]
+        );
 
         $user->assignRole($role);
         Log::info("{$role} credentials - Email: {$email}, Password: {$plainPassword}");

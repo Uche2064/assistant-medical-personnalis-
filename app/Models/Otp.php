@@ -10,18 +10,18 @@ class Otp extends Model
 {
     use HasFactory;
 
-    protected $table = 'otp';
+    protected $table = 'otps';
 
     protected $fillable = [
         'email',
         'otp',
-        'expire_at',
+        'expire_a',
         'verifier_a',
         'type',
     ];
 
     protected $casts = [
-        'expire_at' => 'datetime',
+        'expire_a' => 'datetime',
         'verifier_a' => 'datetime',
         'type' => OtpTypeEnum::class,
 
@@ -32,7 +32,7 @@ class Otp extends Model
      */
     public function isExpired()
     {
-        return $this->expire_at < now();
+        return $this->expire_a < now();
     }
 
     /**
@@ -57,7 +57,7 @@ class Otp extends Model
             'email' => $email,
             'otp' => $otp,
             'type' => $type,
-            'expire_at' => now()->addMinutes($minutes),
+            'expire_a' => now()->addMinutes($minutes),
         ]);
         return $otp;
     }
@@ -69,7 +69,7 @@ class Otp extends Model
     {
         $otpRecord = self::where('email', $email)
                          ->where('otp', $otp)
-                         ->where('expire_at', '>', now())
+                         ->where('expire_a', '>', now())
                          ->first();
 
         if ($otpRecord) {
@@ -85,6 +85,6 @@ class Otp extends Model
      */
     public static function cleanExpired()
     {
-        return self::where('expire_at', '<', now())->delete();
+        return self::where('expire_a', '<', now())->delete();
     }
 }

@@ -13,20 +13,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('client_prestataires', function (Blueprint $table) {
+        Schema::create('clients_prestataires', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('client_contrat_id')->constrained('client_contrats')->onDelete('cascade');
+            $table->foreignId('client_id')->constrained('clients')->onDelete('cascade');
             $table->foreignId('prestataire_id')->constrained('prestataires')->onDelete('cascade');
-            $table->enum('type_prestataire', TypePrestataireEnum::values());
             $table->enum('statut', StatutClientPrestataireEnum::values())->default(StatutClientPrestataireEnum::ACTIF);
             $table->timestamps();
-            
-            // Index pour optimiser les requêtes
-            $table->index(['client_contrat_id', 'statut']);
-            $table->index(['prestataire_id', 'type_prestataire']);
-
-            $table->unique(['prestataire_id', 'client_contrat_id'], 'client_prestataire_unique');
-
         });
     }
 
@@ -35,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('client_prestataires');
+        Schema::dropIfExists('clients_prestataires');
     }
 };

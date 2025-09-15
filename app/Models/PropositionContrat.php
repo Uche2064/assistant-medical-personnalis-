@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PropositionContrat extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
         'demande_adhesion_id',
@@ -41,7 +41,8 @@ class PropositionContrat extends Model
      */
     public function contrat()
     {
-        return $this->belongsTo(Contrat::class);
+        // Now references types_contrats
+        return $this->belongsTo(TypeContrat::class, 'contrat_id');
     }
 
     /**
@@ -55,10 +56,7 @@ class PropositionContrat extends Model
     /**
      * Get the garanties for this proposition.
      */
-    public function garanties()
-    {
-        return $this->belongsToMany(Garantie::class, 'proposition_contrat_garantie');
-    }
+    // No pivot defined in migrations; remove garanties relation to avoid runtime errors
 
     /**
      * Check if proposition is pending.
