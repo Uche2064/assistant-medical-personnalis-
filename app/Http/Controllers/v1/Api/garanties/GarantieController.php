@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\garanties\StoreGarantieFormRequest;
 use App\Http\Requests\garanties\UpdateGarantieFormRequest;
 use App\Http\Resources\GarantieResource;
+use App\Models\CategorieGarantie;
 use App\Models\Garantie;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -22,31 +23,14 @@ class GarantieController extends Controller
      */
     public function indexGaranties(Request $request)
     {
-        $search = $request->query('search');
-        $perPage = $request->query('per_page', 10);
+        $query = Garantie::with(['categorieGarantie', 'medecinControleur']);
 
-        $query = Garantie::with('categorieGarantie');   
-
-        if ($search) {
-            $query->where('libelle', 'like', '%' . $search . '%');
-        }
-        if ($request->query('categorie_garantie_id')) {
-            $query->where('categorie_garantie_id', $request->query('categorie_garantie_id'));
-        }
 
         $query->orderBy('created_at', 'desc');
 
-        $garanties = $query->paginate($perPage);
+        $garanties = $query->get();
 
-        $paginatedData = new LengthAwarePaginator(
-            GarantieResource::collection($garanties),
-            $garanties->total(),
-            $garanties->perPage(),
-            $garanties->currentPage(),
-            ['path' => Paginator::resolveCurrentPath()]
-        );
-
-        return ApiResponse::success($paginatedData, 'Liste des garanties récupérée avec succès', 200);
+        return ApiResponse::success(GarantieResource::collection($garanties), 'Liste des garanties récupérée avec succès', 200);
     }
 
 
@@ -62,55 +46,37 @@ class GarantieController extends Controller
             $libelle = strtolower(trim($data['libelle']));
             $categorieId = $data['categorie_garantie_id'];
 
-            // Vérifier si une garantie (non supprimée) existe avec le même libellé dans la même catégorie
-            $garantieExistante = Garantie::where('libelle', $libelle)
+            // vérifier que le libellé est unique pour la catégorie choisie
+            $existingGarantie = Garantie::whereRaw('LOWER(libelle) = ?', [$libelle])
                 ->where('categorie_garantie_id', $categorieId)
-                ->first();
+                ->exists();
 
-            if ($garantieExistante) {
-                return ApiResponse::error('Cette garantie existe déjà dans cette catégorie', 422);
+            if ($existingGarantie) {
+                return ApiResponse::error("Une garantie avec le même libellé existe déjà dans cette catégorie");
             }
 
-            // Vérifier si une garantie supprimée existe
-            $garantieSupprimee = Garantie::withTrashed()
-                ->where('libelle', $libelle)
-                ->where('categorie_garantie_id', $categorieId)
-                ->first();
-
-            if ($garantieSupprimee) {
-                // Restaurer et mettre à jour la garantie existante
-                $garantieSupprimee->restore();
-                $garantieSupprimee->update([
-                    'plafond' => $data['plafond'],
-                    'taux_couverture' => $data['taux_couverture'],
-                    'prix_standard' => $data['prix_standard'],
-                    'description' => trim($data['description'] ?? null),
-                    'deleted_at' => null
-                ]);
-                $garantie = $garantieSupprimee;
-            } else {
-                // Créer une nouvelle garantie
-                $garantie = Garantie::create([
-                    'libelle' => $libelle,
-                    'plafond' => $data['plafond'],
-                    'taux_couverture' => $data['taux_couverture'],
-                    'prix_standard' => $data['prix_standard'],
-                    'description' => trim($data['description'] ?? null),
-                    'categorie_garantie_id' => $categorieId,
-                    'medecin_controleur_id' => Auth::user()->personnel->id,
-                ]);
-            }
-
+            // Créer une nouvelle garantie
+            $garantie = Garantie::create([
+                'libelle' => $libelle,
+                'plafond' => $data['plafond'],
+                'taux_couverture' => $data['taux_couverture'],
+                'prix_standard' => $data['prix_standard'],
+                'description' => trim($data['description'] ?? null),
+                'est_active' => $data['est_active'],
+                'categorie_garantie_id' => $categorieId,
+                'medecin_controleur_id' => Auth::user()->personnel->id,
+            ]);
+            $garantie->load(['categorieGarantie', 'medecinControleur']);
             DB::commit();
 
-            return ApiResponse::success(null, 'Garantie créée avec succès', 201);
+            return ApiResponse::success(new GarantieResource($garantie), 'Garantie créée avec succès', 201);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Erreur lors de la création de la garantie', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return ApiResponse::error('Une erreur est survenue lors de la création de la garantie', 500);
+            return ApiResponse::error('Une erreur est survenue lors de la création de la garantie', 500, $e->getMessage());
         }
     }
     /**
@@ -118,13 +84,13 @@ class GarantieController extends Controller
      */
     public function showGarantie(string $id)
     {
-        $garantie = Garantie::with('categorieGarantie')->find($id);
+        $garantie = Garantie::with(['categorieGarantie', 'medecinControleur'])->find($id);
 
         if (!$garantie) {
             return ApiResponse::error('Garantie non trouvée', 404);
         }
 
-        return ApiResponse::success($garantie, 'Garantie récupérée avec succès');
+        return ApiResponse::success(new GarantieResource($garantie), 'Garantie récupérée avec succès');
     }
 
     /**
@@ -133,71 +99,47 @@ class GarantieController extends Controller
     public function updateGarantie(UpdateGarantieFormRequest $request, int $id)
     {
         try {
-            DB::beginTransaction();
-    
+
             $data = $request->validated();
-            $garantie = Garantie::find($id);
-    
+            $garantie = Garantie::with(['categorieGarantie', 'medecinControleur'])->find($id);
+
             if (!$garantie) {
                 return ApiResponse::error('Garantie non trouvée', 404);
             }
-    
+
             $libelle = strtolower(trim($data['libelle'] ?? $garantie->libelle));
-            $categorieId = $data['categorie_garantie_id'] ?? $garantie->categorie_garantie_id;
-    
-            // Vérifier s’il existe une autre garantie identique (hors elle-même)
-            $existing = Garantie::withTrashed()
-                ->where('libelle', $libelle)
-                ->where('categorie_garantie_id', $categorieId)
-                ->where('id', '!=', $garantie->id)
-                ->first();
-    
-            if ($existing) {
-                if ($existing->trashed()) {
-                    $existing->restore();
-                    $existing->update([
-                        'description' => trim($data['description'] ?? $existing->description),
-                        'taux_couverture' => $data['taux_couverture'] ?? $existing->taux_couverture,
-                        'plafond' => $data['plafond'] ?? $existing->plafond,
-                        'prix_standard' => $data['prix_standard'] ?? $existing->prix_standard,
-                        'categorie_garantie_id' => $categorieId,
-                    ]);
-                    // Supprimer ou désactiver l’ancienne garantie
-                    $garantie->delete(); // soft delete si activé
-                    $garantie = $existing;
-                } else {
-                    return ApiResponse::error('Cette garantie existe déjà dans cette catégorie', 422);
-                }
-            } else {
-                // Mise à jour normale
-                $garantie->update([
-                    'libelle' => $libelle,
-                    'plafond' => $data['plafond'] ?? $garantie->plafond,
-                    'taux_couverture' => $data['taux_couverture'] ?? $garantie->taux_couverture,
-                    'prix_standard' => $data['prix_standard'] ?? $garantie->prix_standard,
-                    'description' => trim($data['description'] ?? $garantie->description),
-                    'categorie_garantie_id' => $categorieId,
-                    'medecin_controleur_id' => Auth::user()?->personnel->id ?? null,
-                ]);
-            }
-    
+            $catGarantieId = $data['categorie_garantie_id'] ?? $garantie->categorie_garantie_id;
+
+            DB::beginTransaction();
+            // vérifier que la categorie de garantie existe
+            $catGarantie = CategorieGarantie::find($catGarantieId);
+
+            // Mise à jour normale
+            $garantie->update([
+                'libelle' => $libelle,
+                'plafond' => $data['plafond'] ?? $garantie->plafond,
+                'taux_couverture' => $data['taux_couverture'] ?? $garantie->taux_couverture,
+                'prix_standard' => $data['prix_standard'] ?? $garantie->prix_standard,
+                'description' => trim($data['description'] ?? $garantie->description),
+                'est_active' => $data['est_active'] ?? $garantie->est_active,
+                'categorie_garantie_id' => $catGarantieId,
+                'medecin_controleur_id' => Auth::user()?->personnel->id ?? null,
+            ]);
+
             DB::commit();
-    
-            return ApiResponse::success([
-                'garantie' => $garantie->load('categorieGarantie')
-            ], 'Garantie mise à jour avec succès');
-    
+
+            return ApiResponse::success(new GarantieResource($garantie),  'Garantie mise à jour avec succès');
         } catch (\Exception $e) {
             DB::rollBack();
             return ApiResponse::error($e->getMessage(), 500);
         }
     }
-    
+
 
     /**
      * Supprimer une garantie.
      */
-    public function destroyGarantie(string $id)
+    public function destroyGarantie($id)
     {
         $garantie = Garantie::find($id);
 
@@ -207,5 +149,21 @@ class GarantieController extends Controller
 
         $garantie->delete();
         return ApiResponse::success(null, 'Garantie supprimée avec succès', 204);
+    }
+
+    public function toggleGarantieStatus($id)
+    {
+        $garantie = Garantie::find($id);
+
+        if (!$garantie) {
+            return ApiResponse::error('Garantie non trouvée', 404);
+        }
+
+        $garantie->update([
+            'est_active' => !$garantie->est_active
+        ]);
+        $status = $garantie->est_active ? 'activée' : 'désactivé';
+        return ApiResponse::success(new GarantieResource($garantie), 'Garantie '. $status . ' avec succès');
+
     }
 }

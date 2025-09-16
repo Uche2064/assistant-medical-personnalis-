@@ -18,7 +18,7 @@ class UpdateGarantieFormRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return Auth::check() && Auth::user()->hasRole('medecin_controleur');
+        return Auth::check() && Auth::user()->hasRole('medecin_controleur|technicien');
     }
 
     /**
@@ -28,21 +28,17 @@ class UpdateGarantieFormRequest extends FormRequest
      */
     public function rules()
     {
-        $garantieId = $this->route('id');
-        
         return [
             'libelle' => [
                 'sometimes',
                 'string',
-                Rule::unique('garanties', 'libelle')
-                    ->ignore($garantieId)
-                    ->whereNull('deleted_at')
             ],
             'plafond' => ['sometimes', 'numeric', 'min:0'],
             'taux_couverture' => ['sometimes', 'numeric', 'min:0', 'max:100'],
             'prix_standard' => ['sometimes', 'numeric', 'min:0'],
+            'est_active' => ['sometimes', 'boolean'],
             'categorie_garantie_id' => ['sometimes', 'exists:categories_garanties,id'],
-            'description' => ['nullable', 'string'],
+            'description' => ['sometimes', 'string'],
         ];
     }
     public function failedValidation(Validator $validator)

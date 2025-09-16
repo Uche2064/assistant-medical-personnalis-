@@ -17,12 +17,14 @@ class Garantie extends Model
         'plafond',
         'prix_standard',
         'taux_couverture',
+        'est_active',
     ];
 
     protected $casts = [
         'plafond' => 'decimal:2',
         'prix_standard' => 'decimal:2',
         'taux_couverture' => 'decimal:2',
+        'est_active' => 'boolean',
     ];
 
     /**

@@ -77,15 +77,27 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::delete('/{id}', [GestionnaireController::class, 'destroyPersonnel'])->middleware('checkRole:gestionnaire');
     });
     // --------------------- gestion des questions pour les prospects et prestataire par le médecin contrôleur --------------------
-    Route::middleware(['auth:api', 'checkRole:medecin_controleur,admin_global'])->prefix('questions')->group(function () {
+    Route::prefix('questions')->group(function () {
         Route::get('/', [QuestionController::class, 'indexQuestions']); // 👌
-        Route::get('/stats', [QuestionController::class, 'questionStats']); // 👌
-        Route::get('/{id}', [QuestionController::class, 'showQuestion']); // 👌
-        Route::post('/', [QuestionController::class, 'bulkInsertQuestions']); // 👌
-        Route::put('/{id}', [QuestionController::class, 'updateQuestion']);
-        Route::patch('/{id}/toggle', [QuestionController::class, 'toggleQuestionStatus']);
-        Route::delete('/{id}', [QuestionController::class, 'destroyQuestion']); // suppression simple
-        Route::post('/bulk-delete', [QuestionController::class, 'bulkDestroyQuestions']); // suppression en masse
+        Route::get('/stats', [QuestionController::class, 'questionStats'])->middleware(['auth:api', 'checkRole:medecin_controleur']); // 👌
+        Route::get('/{id}', [QuestionController::class, 'showQuestion'])->middleware(['auth:api', 'checkRole:medecin_controleur']);; // 👌
+        Route::post('/', [QuestionController::class, 'bulkInsertQuestions'])->middleware(['auth:api', 'checkRole:medecin_controleur']);; // 👌
+        Route::put('/{id}', [QuestionController::class, 'updateQuestion'])->middleware(['auth:api', 'checkRole:medecin_controleur']);; // 👌
+        Route::delete('/{id}', [QuestionController::class, 'destroyQuestion'])->middleware(['auth:api', 'checkRole:medecin_controleur']);; // 👌
+
+        // Route::patch('/{id}/toggle', [QuestionController::class, 'toggleQuestionStatus'])->middleware(['auth:api', 'checkRole:medecin_controleur']);; 
+        // Route::post('/bulk-delete', [QuestionController::class, 'bulkDestroyQuestions']); // suppression en masse
+    });
+
+    // --------------- Gestion des garanties par le médecin contrôleur ------------------
+    // ############# Accès lecture : médecin + technicien ##############
+    Route::middleware(["auth:api"])->prefix('garanties')->group(function () {
+        Route::get('/', [GarantieController::class, 'indexGaranties']); //👌
+        Route::get('/{id}', [GarantieController::class, 'showGarantie']);  //👌
+        Route::post('/', [GarantieController::class, 'storeGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]); //👌
+        Route::put('/{id}', [GarantieController::class, 'updateGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]); //👌
+        Route::delete('/{id}', [GarantieController::class, 'destroyGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]);  //👌
+        Route::patch('/{id}', [GarantieController::class, 'toggleGarantieStatus'])->middleware(["checkRole:medecin_controleur,technicien"]);  //👌
     });
 
 
@@ -143,7 +155,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/', [ClientPrestataireController::class, 'index']);
         Route::get('/statistiques', [ClientPrestataireController::class, 'statistiques']);
         Route::get('/{id}', [ClientPrestataireController::class, 'show']);
-        
+
         // Routes pour modification/suppression (admin et technicien uniquement)
         Route::middleware(['checkRole:admin_global,technicien'])->group(function () {
             Route::put('/{id}', [ClientPrestataireController::class, 'update']);
@@ -191,21 +203,6 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::post('/', [CategorieGarantieController::class, 'storeCategorieGarantie']);
         Route::put('/{id}', [CategorieGarantieController::class, 'updateCategorieGarantie']);
         Route::delete('/{id}', [CategorieGarantieController::class, 'destroyCategorieGarantie']);
-    });
-
-
-
-    // --------------- Gestion des garanties par le médecin contrôleur ------------------
-    // ############# Accès lecture : médecin + technicien ##############
-    Route::middleware(["auth:api", "checkRole:medecin_controleur,technicien"])->prefix('garanties')->group(function () {
-        Route::get('/', [GarantieController::class, 'indexGaranties']);
-        Route::get('/{id}', [GarantieController::class, 'showGarantie']);
-
-        Route::middleware('checkRole:medecin_controleur')->group(function () {
-            Route::post('/', [GarantieController::class, 'storeGarantie']);
-            Route::put('/{id}', [GarantieController::class, 'updateGarantie']);
-            Route::delete('/{id}', [GarantieController::class, 'destroyGarantie']);
-        });
     });
 
     Route::middleware(['auth:api'])->prefix('contrats')->group(function () {
@@ -422,7 +419,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/{id}', [FactureController::class, 'showFacture']);
 
         // --------------------- Routes pour la validation des factures ---------------------
-        
+
         // Validation par technicien
         Route::post('/{factureId}/validate-technicien', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'validateByTechnicien'])
             ->middleware('checkRole:technicien');
@@ -454,8 +451,5 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     // Routes de broadcasting - en dehors du groupe middleware verifyApiKey
     Route::post('/v1/broadcasting/auth', function (Request $request) {
         return Broadcast::auth($request);
-    })->middleware('auth:api');});
-
-
-
-
+    })->middleware('auth:api');
+});

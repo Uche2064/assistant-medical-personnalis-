@@ -46,6 +46,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 15000,
                 'prix_standard' => 5000,
                 'taux_couverture' => 80.00,
+                'est_active' => true,
             ],
             [
                 'libelle' => 'consultation specialiste',
@@ -54,6 +55,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 25000,
                 'prix_standard' => 8000,
                 'taux_couverture' => 80.00,
+                'est_active' => false,
             ],
             [
                 'libelle' => 'hospitalisation',
@@ -62,6 +64,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 500000,
                 'prix_standard' => 150000,
                 'taux_couverture' => 85.00,
+                'est_active' => true,
             ],
             [
                 'libelle' => 'chirurgie',
@@ -70,6 +73,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 1000000,
                 'prix_standard' => 300000,
                 'taux_couverture' => 90.00,
+                'est_active' => false,
             ],
 
             // Garanties Pharmacie
@@ -80,6 +84,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 50000,
                 'prix_standard' => 15000,
                 'taux_couverture' => 70.00,
+                'est_active' => true,
             ],
             [
                 'libelle' => 'medicaments specialises',
@@ -88,6 +93,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 100000,
                 'prix_standard' => 25000,
                 'taux_couverture' => 75.00,
+                'est_active' => true,
             ],
             [
                 'libelle' => 'produits pharmaceutiques',
@@ -96,6 +102,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 30000,
                 'prix_standard' => 8000,
                 'taux_couverture' => 65.00,
+                'est_active' => false,
             ],
 
             // Garanties Laboratoire
@@ -106,6 +113,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 75000,
                 'prix_standard' => 20000,
                 'taux_couverture' => 80.00,
+                'est_active' => true,
             ],
             [
                 'libelle' => 'examens radiologiques',
@@ -114,6 +122,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 120000,
                 'prix_standard' => 35000,
                 'taux_couverture' => 85.00,
+                'est_active' => false,
             ],
             [
                 'libelle' => 'tests de diagnostic',
@@ -122,6 +131,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 100000,
                 'prix_standard' => 28000,
                 'taux_couverture' => 80.00,
+                'est_active' => true,
             ],
 
             // Garanties Optique
@@ -132,6 +142,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 20000,
                 'prix_standard' => 6000,
                 'taux_couverture' => 75.00,
+                'est_active' => true,
             ],
             [
                 'libelle' => 'lunettes de vue',
@@ -140,6 +151,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 80000,
                 'prix_standard' => 25000,
                 'taux_couverture' => 70.00,
+                'est_active' => false,
             ],
             [
                 'libelle' => 'lentilles de contact',
@@ -148,6 +160,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 40000,
                 'prix_standard' => 12000,
                 'taux_couverture' => 65.00,
+                'est_active' => true,
             ],
 
             // Garanties Dentaire
@@ -158,6 +171,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 25000,
                 'prix_standard' => 8000,
                 'taux_couverture' => 75.00,
+                'est_active' => false,
             ],
             [
                 'libelle' => 'detartrage',
@@ -166,6 +180,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 15000,
                 'prix_standard' => 5000,
                 'taux_couverture' => 80.00,
+                'est_active' => true,
             ],
             [
                 'libelle' => 'soins conservateurs',
@@ -174,6 +189,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 60000,
                 'prix_standard' => 18000,
                 'taux_couverture' => 70.00,
+                'est_active' => false,
             ],
             [
                 'libelle' => 'prothese dentaire',
@@ -182,6 +198,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 200000,
                 'prix_standard' => 60000,
                 'taux_couverture' => 60.00,
+                'est_active' => false,
             ],
 
             // Garanties Maternité
@@ -192,6 +209,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 150000,
                 'prix_standard' => 45000,
                 'taux_couverture' => 85.00,
+                'est_active' => true,
             ],
             [
                 'libelle' => 'accouchement',
@@ -200,6 +218,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 300000,
                 'prix_standard' => 90000,
                 'taux_couverture' => 90.00,
+                'est_active' => true,
             ],
             [
                 'libelle' => 'soins post-natals',
@@ -208,6 +227,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 100000,
                 'prix_standard' => 30000,
                 'taux_couverture' => 80.00,
+                'est_active' => true,
             ],
 
             // Garanties Urgence
@@ -218,6 +238,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 50000,
                 'prix_standard' => 15000,
                 'taux_couverture' => 100.00,
+                'est_active' => false,
             ],
             [
                 'libelle' => 'soins d\'urgence',
@@ -226,6 +247,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 200000,
                 'prix_standard' => 60000,
                 'taux_couverture' => 95.00,
+                'est_active' => true,
             ],
             [
                 'libelle' => 'reanimation',
@@ -234,6 +256,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 500000,
                 'prix_standard' => 150000,
                 'taux_couverture' => 100.00,
+                'est_active' => false
             ],
 
             // Garanties Prévention
@@ -244,6 +267,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 100000,
                 'prix_standard' => 30000,
                 'taux_couverture' => 80.00,
+                'est_active' => false,
             ],
             [
                 'libelle' => 'vaccinations',
@@ -252,6 +276,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 50000,
                 'prix_standard' => 15000,
                 'taux_couverture' => 90.00,
+                'est_active' => true,
             ],
             [
                 'libelle' => 'depistage',
@@ -260,6 +285,7 @@ class GarantieSeeder extends Seeder
                 'plafond' => 75000,
                 'prix_standard' => 22000,
                 'taux_couverture' => 85.00,
+                'est_active' => false,
             ],
         ];
 
