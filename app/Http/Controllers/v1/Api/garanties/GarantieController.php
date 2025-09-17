@@ -4,6 +4,7 @@ namespace App\Http\Controllers\v1\Api\garanties;
 
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\garanties\BulkDeleteGarantieRequest;
 use App\Http\Requests\garanties\StoreGarantieFormRequest;
 use App\Http\Requests\garanties\UpdateGarantieFormRequest;
 use App\Http\Resources\GarantieResource;
@@ -24,7 +25,6 @@ class GarantieController extends Controller
     public function indexGaranties(Request $request)
     {
         $query = Garantie::with(['categorieGarantie', 'medecinControleur']);
-
 
         $query->orderBy('created_at', 'desc');
 
@@ -96,7 +96,7 @@ class GarantieController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function updateGarantie(UpdateGarantieFormRequest $request, int $id)
+    public function updateGarantie(UpdateGarantieFormRequest $request, $id)
     {
         try {
 
@@ -113,6 +113,10 @@ class GarantieController extends Controller
             DB::beginTransaction();
             // vérifier que la categorie de garantie existe
             $catGarantie = CategorieGarantie::find($catGarantieId);
+
+            if (!$catGarantie) {
+                return ApiResponse::error('La catégorie choisie n\'est pas enregistrée', 500, null);
+            }
 
             // Mise à jour normale
             $garantie->update([
@@ -131,7 +135,7 @@ class GarantieController extends Controller
             return ApiResponse::success(new GarantieResource($garantie),  'Garantie mise à jour avec succès');
         } catch (\Exception $e) {
             DB::rollBack();
-            return ApiResponse::error($e->getMessage(), 500);
+            return ApiResponse::error('Une erreur est survenue', 500, $e->getMessage());
         }
     }
 
@@ -148,7 +152,7 @@ class GarantieController extends Controller
         }
 
         $garantie->delete();
-        return ApiResponse::success(null, 'Garantie supprimée avec succès', 204);
+        return ApiResponse::success(null, 'Garantie supprimée avec succès', 200);
     }
 
     public function toggleGarantieStatus($id)
@@ -163,7 +167,17 @@ class GarantieController extends Controller
             'est_active' => !$garantie->est_active
         ]);
         $status = $garantie->est_active ? 'activée' : 'désactivé';
-        return ApiResponse::success(new GarantieResource($garantie), 'Garantie '. $status . ' avec succès');
+        return ApiResponse::success(new GarantieResource($garantie), 'Garantie ' . $status . ' avec succès');
+    }
 
+    public function bulkDelete(BulkDeleteGarantieRequest $request)
+    {
+        // Validation des IDs reçus
+        $validated = $request->validated();
+
+        // Suppression
+        Garantie::whereIn('id', $validated['ids'])->delete();
+
+        return ApiResponse::success(null, 'Garanties supprimées avec succès');
     }
 }

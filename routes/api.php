@@ -98,6 +98,8 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::put('/{id}', [GarantieController::class, 'updateGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]); //👌
         Route::delete('/{id}', [GarantieController::class, 'destroyGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]);  //👌
         Route::patch('/{id}', [GarantieController::class, 'toggleGarantieStatus'])->middleware(["checkRole:medecin_controleur,technicien"]);  //👌
+        Route::delete('/', [GarantieController::class, 'bulkDelete']);
+
     });
 
 
