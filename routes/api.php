@@ -102,6 +102,17 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
     });
 
+      // --------------- Gestion des catégories de garanties ------------------
+    // ############# Accès lecture : médecin + technicien ##############
+    Route::middleware(['auth:api'])->prefix('categories-garanties')->group(function () {
+        Route::get('/', [CategorieGarantieController::class, 'indexCategorieGarantie']); //👌
+        Route::get('/{id}', [CategorieGarantieController::class, 'showCategorieGarantie']); //👌
+        Route::post('/', [CategorieGarantieController::class, 'storeCategorieGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]); //👌
+        Route::put('/{id}', [CategorieGarantieController::class, 'updateCategorieGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]); //👌
+        Route::delete('/{id}', [CategorieGarantieController::class, 'destroyCategorieGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]); //👌
+    });
+
+
 
     // --------------------- Routes pour les demandes d'adhésion ---------------------
 
@@ -193,20 +204,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
 
-    // --------------- Gestion des catégories de garanties ------------------
-    // ############# Accès lecture : médecin + technicien ##############
-    Route::middleware(['auth:api', 'checkRole:medecin_controleur,technicien'])->prefix('categories-garanties')->group(function () {
-        Route::get('/', [CategorieGarantieController::class, 'indexCategorieGarantie']);
-        Route::get('/{id}', [CategorieGarantieController::class, 'showCategorieGarantie']);
-    });
-
-    // ############## Accès écriture : réservé au médecin contrôleur ##########
-    Route::middleware(['auth:api', 'checkRole:medecin_controleur'])->prefix('categories-garanties')->group(function () {
-        Route::post('/', [CategorieGarantieController::class, 'storeCategorieGarantie']);
-        Route::put('/{id}', [CategorieGarantieController::class, 'updateCategorieGarantie']);
-        Route::delete('/{id}', [CategorieGarantieController::class, 'destroyCategorieGarantie']);
-    });
-
+  
     Route::middleware(['auth:api'])->prefix('contrats')->group(function () {
         Route::get('/', [ContratController::class, 'index']);
         Route::get('/categories-garanties', [ContratController::class, 'getCategoriesGaranties']);

@@ -30,8 +30,6 @@ class StoreCategorieGarantieFormRequest extends FormRequest
             'libelle' => [
                 'required',
                 'string',
-                Rule::unique('categories_garanties', 'libelle')
-                    ->whereNull('deleted_at') // Ignorer les supprimés
             ],
             'description' => ['nullable', 'string'],
         ];
