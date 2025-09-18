@@ -28,15 +28,11 @@ class UpdateCategorieGarantieFormRequest extends FormRequest
     // Dans UpdateCategorieGarantieFormRequest
     public function rules()
     {
-        $categorieId = $this->route('id');
 
         return [
             'libelle' => [
                 'sometimes',
                 'string',
-                Rule::unique('categories_garanties', 'libelle')
-                    ->ignore($categorieId)
-                    ->whereNull('deleted_at') // Ignorer les supprimés
             ],
             'description' => ['nullable', 'string'],
         ];

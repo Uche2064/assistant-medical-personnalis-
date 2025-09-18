@@ -8,6 +8,7 @@ use App\Http\Requests\categorie_garantie\StoreCategorieGarantieFormRequest;
 use App\Http\Requests\categorie_garantie\UpdateCategorieGarantieFormRequest;
 use App\Http\Resources\CategorieGarantieResource;
 use App\Models\CategorieGarantie;
+use App\Models\Garantie;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
@@ -42,10 +43,10 @@ class CategorieGarantieController extends Controller
             $libelle = strtolower(trim($data['libelle']));
 
             // vérifier que le libellé est unique pour la catégorie choisie
-            $existingGarantie = CategorieGarantie::whereRaw('LOWER(libelle) = ?', [$libelle])
+            $existingCatGarantie = CategorieGarantie::whereRaw('LOWER(libelle) = ?', [$libelle])
                 ->exists();
 
-            if ($existingGarantie) {
+            if ($existingCatGarantie) {
                 return ApiResponse::error("Une catégorie garantie avec le même libellé existe déjà");
             }
 
@@ -134,4 +135,35 @@ class CategorieGarantieController extends Controller
         $categorieGarantie->delete();
         return ApiResponse::success(null, 'Catégorie de garantie supprimée avec succès', 200);
     }
+
+
+    public function toggleCategorieGarantieStatus($categorieGarantieId, $garantieId)
+    {
+        $categorieGarantie = CategorieGarantie::find($categorieGarantieId);
+    
+        if (!$categorieGarantie) {
+            return ApiResponse::error('Catégorie de garantie non trouvée', 404);
+        }
+    
+        $garantie = Garantie::find($garantieId);
+    
+        if (!$garantie) {
+            return ApiResponse::error('Garantie non trouvée', 404);
+        }
+    
+        // Vérifier que la garantie appartient bien à cette catégorie
+        if ($garantie->categorie_garantie_id !== $categorieGarantie->id) {
+            return ApiResponse::error('Cette garantie n\'appartient pas à la catégorie spécifiée', 400);
+        }
+    
+        // Inverser le statut
+        $garantie->est_active = !$garantie->est_active;
+        $garantie->save();
+    
+        return ApiResponse::success(
+            new CategorieGarantieResource($categorieGarantie->load('medecinControleur', 'garanties')),
+            'Statut de la garantie '. $garantie->libelle . ' mis à jour avec succès',
+        );
+    }
+    
 }

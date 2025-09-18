@@ -29,8 +29,7 @@ class CategorieGarantieResource extends JsonResource
                         'plafond' => $garantie->plafond,
                         'prix_standard' => $garantie->prix_standard,
                         'taux_couverture' => $garantie->taux_couverture,
-                        'created_at' => $garantie->created_at?->format('Y-m-d H:i:s'),
-                        'updated_at' => $garantie->created_at?->format('Y-m-d H:i:s')
+                        'est_active' => $garantie->est_active
                     ];
                 });
             }),
