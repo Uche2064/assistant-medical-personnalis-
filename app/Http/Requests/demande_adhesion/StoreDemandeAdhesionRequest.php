@@ -3,6 +3,7 @@
 namespace App\Http\Requests\demande_adhesion;
 
 use App\Enums\LienParenteEnum;
+use App\Enums\RoleEnum;
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
 use App\Helpers\ApiResponse;
@@ -18,12 +19,11 @@ class StoreDemandeAdhesionRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return Auth::user()->hasRole(RoleEnum::CLIENT->value) && Auth::check();
     }
 
     public function rules(): array
     {
-        Log::info('Demande d\'adhésion soumise', ['data' => $this->all()]);
         $typeDemandeur = $this->input('type_demandeur');
         if (!$typeDemandeur) {
             return ['type_demandeur' => 'required|in:' . implode(',', TypeDemandeurEnum::values())];
@@ -41,16 +41,16 @@ class StoreDemandeAdhesionRequest extends FormRequest
             'reponses.*.question_id' => ['required', Rule::in($questionIds)],
             'beneficiaires' => ['nullable', 'array'],
             'beneficiaires.*.nom' => ['required', 'string'],
-            'beneficiaires.*.prenoms' => ['required', 'string'],
+            'beneficiaires.*.prenoms' => ['nullable', 'string'],
             'beneficiaires.*.date_naissance' => ['required', 'date'],
             'beneficiaires.*.sexe' => ['required', 'in:M,F'],
             'beneficiaires.*.profession' => ['nullable', 'string'],
             'beneficiaires.*.email' => ['nullable', 'email'],
             'beneficiaires.*.contact' => ['nullable', 'string'],
             'beneficiaires.*.profession' => ['nullable', 'string'],
-            'beneficiaires.*.lien_parente' => ['nullable', 'in:' . implode(',', LienParenteEnum::values())],
+            'beneficiaires.*.photo_url' => ['required', 'file', 'mimes:jpeg,png,jpg', 'max:5120'],
+            'beneficiaires.*.lien_parente' => ['required', 'in:' . implode(',', LienParenteEnum::values())],
             'beneficiaires.*.reponses' => ['required', 'array'],
-            // 'beneficiaires.*.photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:5120'],
         ];
 
         foreach ($this->input('reponses', []) as $index => $reponse) {
@@ -59,22 +59,22 @@ class StoreDemandeAdhesionRequest extends FormRequest
             $question = $questions->get($questionId);
             $ruleKey = 'reponses.' . $index;
             $required = $question->isRequired() ? 'required' : 'nullable';
-            switch ($question->type_donnee) {
+            switch ($question->type_de_donnee) {
                 case TypeDonneeEnum::TEXT:
                 case TypeDonneeEnum::RADIO:
-                    $rules[$ruleKey . '.reponse_text'] = [$required, 'string'];
+                    $rules[$ruleKey . '.reponse'] = [$required, 'string'];
                     break;
                 case TypeDonneeEnum::NUMBER:
-                    $rules[$ruleKey . '.reponse_number'] = [$required, 'numeric'];
+                    $rules[$ruleKey . '.reponse'] = [$required, 'numeric'];
                     break;
                 case TypeDonneeEnum::BOOLEAN:
-                    $rules[$ruleKey . '.reponse_bool'] = [$required, 'boolean'];
+                    $rules[$ruleKey . '.reponse'] = [$required, 'boolean'];
                     break;
                 case TypeDonneeEnum::DATE:
-                    $rules[$ruleKey . '.reponse_date'] = [$required, 'date'];
+                    $rules[$ruleKey . '.reponse'] = [$required, 'date'];
                     break;
                 case TypeDonneeEnum::FILE:
-                    $rules[$ruleKey . '.reponse_fichier'] = [$required, 'file', 'mimes:jpeg,png,pdf,jpg', 'max:2048'];
+                    $rules[$ruleKey . '.reponse'] = [$required, 'file', 'mimes:jpeg,png,pdf,jpg', 'max:2048'];
                     break;
             }
         }
@@ -97,8 +97,6 @@ class StoreDemandeAdhesionRequest extends FormRequest
             'reponses.*.question_id.required' => 'L\'ID de la question est requis.',
             'reponses.*.question_id.integer' => 'L\'ID de la question doit être un entier.',
             'reponses.*.question_id.in' => 'L\'ID de la question doit être un ID valide.',
-            'reponses.*.reponse_text.string' => 'La réponse doit être une chaîne de caractères.',
-            'reponses.*.reponse_number.numeric' => 'La réponse doit être un nombre.',
         ];
     }
 }

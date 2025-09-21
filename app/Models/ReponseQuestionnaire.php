@@ -16,6 +16,7 @@ class ReponseQuestionnaire extends Model
     protected $fillable = [
         'question_id',
         'demande_adhesion_id',
+        'user_id',
         'reponse',
         'date_reponse',
     ];

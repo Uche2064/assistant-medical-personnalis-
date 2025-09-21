@@ -16,6 +16,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade'); // NULL pour les bénéficiaires
             $table->foreignId('client_id')->constrained('clients')->onDelete('cascade'); // Pour employés d'entreprise
+            $table->foreignId('assure_principal_id')->nullable()->constrained('assures')->onDelete('cascade'); // Pour employés d'entreprise
             $table->enum('lien_parente', LienParenteEnum::values())->nullable();
             $table->boolean('est_principal')->default(false);
             $table->timestamps();

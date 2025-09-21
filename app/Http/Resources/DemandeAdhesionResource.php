@@ -17,8 +17,8 @@ class DemandeAdhesionResource extends JsonResource
         $demandeur = $this;
 
         // Construire le nom complet si disponible
-        $nom = $demandeur->user->assure->nom ?? null;
-        $prenoms = $demandeur->user->assure->prenoms ?? null;
+        $nom = $demandeur->user->personne->nom ?? null;
+        $prenoms = $demandeur->user->personne->prenoms ?? null;
         $fullName = trim(($nom ?? '') . ' ' . ($prenoms ?? ''));
 
         if ($fullName === '') {
@@ -33,42 +33,61 @@ class DemandeAdhesionResource extends JsonResource
         return [
             'id' => $demandeur->id,
             'type_demandeur' => $this->type_demandeur,
+            'demandeur' => $demandeurLabel,
+            'date_naissance' => $demandeur->user->personne->date_naissance ?? null,
+            'sexe' => $demandeur->user->personne->sexe ?? null,
+            'profession' => $demandeur->user->personne->profession ?? null,
+            'email' => $demandeur->user->email,
+            'contact' => $demandeur->user->contact,
             'statut' => $this->statut,
             'motif_rejet' => $this->motif_rejet,
             'valider_a' => $this->valider_a,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
-            'deleted_at' => $this->when($this->deleted_at, $this->deleted_at),
 
-            // 👇 Ici c'est corrigé
-            'demandeur' => $demandeurLabel,
-
-            'date_naissance' => $demandeur->user->assure->date_naissance ?? null,
-            'sexe' => $demandeur->user->assure->sexe ?? null,
-            'profession' => $demandeur->user->assure->profession ?? null,
-            'email' => $demandeur->user->email,
-            'contact' => $demandeur->user->contact,
-
-            'reponses_questionnaire' => $this->whenLoaded('reponsesQuestionnaire', function () {
-                return $this->reponsesQuestionnaire->map(function ($reponse) {
+            'reponses_questions' => $this->whenLoaded('reponsesQuestions', function () {
+                return $this->reponsesQuestions->map(function ($reponse) {
                     return [
                         'id' => $reponse->id,
-                        'reponse_text' => $reponse->reponse_text,
-                        'reponse_bool' => $reponse->reponse_bool,
-                        'reponse_date' => $reponse->reponse_date,
-                        'reponse_fichier' => $reponse->reponse_fichier,
-                        'question_id' => $reponse->question_id,
-                        'created_at' => $reponse->created_at,
-                        'updated_at' => $reponse->updated_at,
-                        'deleted_at' => $reponse->deleted_at,
-                        'question' => $reponse->whenLoaded('question', function () use ($reponse) {
-                            return [
-                                'id' => $reponse->question->id,
-                                'libelle' => $reponse->question->libelle,
-                                'type_donnees' => $reponse->question->type_donnees,
-                                'obligatoire' => $reponse->question->obligatoire
-                            ];
-                        })
+                        'reponse' => $reponse->reponse,
+                        'question' => $reponse->relationLoaded('question') ? [
+                                        'id' => $reponse->question->id,
+                                        'libelle' => $reponse->question->libelle,
+                                        'type_de_donnee' => $reponse->question->type_de_donnee,
+                                        'est_obligatoire' => $reponse->question->est_obligatoire
+                                    ] : null
+                    ];
+                });
+            }),
+
+            // Liste des bénéficiaires s'il y en a
+            'beneficiaires' => $this->whenLoaded('beneficiaires', function () {
+                return $this->beneficiaires->map(function ($beneficiaire) {
+                    return [
+                        'id' => $beneficiaire->id,
+                        'nom' => $beneficiaire->nom,
+                        'prenoms' => $beneficiaire->prenoms,
+                        'date_naissance' => $beneficiaire->date_naissance,
+                        'sexe' => $beneficiaire->sexe,
+                        'profession' => $beneficiaire->profession,
+                        'lien_parente' => $beneficiaire->lien_parente,
+                        'email' => $beneficiaire->user->email ?? null,
+                        'contact' => $beneficiaire->user->contact ?? null,
+                        'photo' => $beneficiaire->photo,
+                        'reponses_questions' => $this->whenLoaded('reponsesQuestions', function () {
+                            return $this->reponsesQuestions->map(function ($reponse) {
+                                return [
+                                    'id' => $reponse->id,
+                                    'reponse' => $reponse->reponse,
+                                    'question' => $reponse->relationLoaded('question') ? [
+                                        'id' => $reponse->question->id,
+                                        'libelle' => $reponse->question->libelle,
+                                        'type_de_donnee' => $reponse->question->type_de_donnee,
+                                        'est_obligatoire' => $reponse->question->est_obligatoire
+                                    ] : null
+                                ];
+                            });
+                        }),
                     ];
                 });
             }),

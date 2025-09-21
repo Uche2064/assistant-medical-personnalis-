@@ -223,7 +223,7 @@ class DownloadFileController extends Controller
             }
         }
         // Physique : peut télécharger ses propres factures et celles de ses bénéficiaires
-        elseif ($user->hasRole('physique') && $user->assure) {
+        elseif ($user->hasRole('client') && $user->assure) {
             $assureIds = [$user->assure->id];
             $beneficiairesIds = $user->assure->beneficiaires()->pluck('id')->toArray();
             $assureIds = array_merge($assureIds, $beneficiairesIds);

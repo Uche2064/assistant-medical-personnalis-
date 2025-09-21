@@ -219,7 +219,7 @@
     <div class="section">
         <div class="section-title">Informations du demandeur</div>
         <div class="user-info">
-            @if ($demande->type_demandeur == \App\Enums\TypeDemandeurEnum::PHYSIQUE)
+            @if ($demande->type_demandeur == \App\Enums\TypeDemandeurEnum::CLIENT)
                  <div class="info-row">
                      <span class="info-label">Nom complet :</span>
                      <span class="info-value">{{ $demande->user->assure->nom ?? 'N/A' }} {{ $demande->user->assure->prenoms ?? '' }}</span>
@@ -270,7 +270,7 @@
         <div class="section-title">
             @if($demande->type_demandeur->value === 'entreprise')
                 Statistiques de l'entreprise
-            @elseif($demande->type_demandeur->value === 'physique')
+            @elseif($demande->type_demandeur->value === 'client')
                 Statistiques des bénéficiaires
             @else
                 Statistiques de la demande

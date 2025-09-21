@@ -77,7 +77,7 @@ class DemandeAdhesionController extends Controller
     protected DemandeAdhesionService $demandeAdhesionService;
 
     public function __construct(
-        NotificationService $notificationService, 
+        NotificationService $notificationService,
         DemandeValidatorService $demandeValidatorService,
         DemandeAdhesionStatsService $statsService,
         DemandeAdhesionService $demandeAdhesionService
@@ -93,121 +93,32 @@ class DemandeAdhesionController extends Controller
     {
         $user = Auth::user();
         $query = DemandeAdhesion::with([
-            'user', // Charger l'utilisateur
-            'user.entreprise', // Charger les données entreprise si existantes
-            'user.prestataire', // Charger les données prestataire si existantes
-            'user.assure',
-            'reponsesQuestionnaire.question' // Charger les réponses avec leurs questions
+            'assurePrincipal.user.personne',
+            'beneficiaires.user.personne',
+            'propositionsContrat.contrat',
+            'reponsesQuestions.question',
         ]);
 
         // Appliquer les filtres via le service
-        // $this->demandeAdhesionService->applyRoleFilters($query, $user);
-        // $this->demandeAdhesionService->applyStatusFilters($query, $request);
-        // $this->demandeAdhesionService->applySearchFilter($query, $request);
-        
-        // Pagination
-        // $perPage = $request->query('per_page', 10);
+        $this->demandeAdhesionService->applyRoleFilters($query, $user);
+
         $demandes = $query->orderByDesc('created_at')->get();
 
-       
+
         return ApiResponse::success(DemandeAdhesionResource::collection($demandes), 'Liste des demandes d\'adhésion récupérée avec succès', 200);
     }
 
-    public function hasDemande()
+    
+    public function show($demandeId, $assureId)
     {
+        Log::info('show demande', ['id' => $demandeId]);
         $user = Auth::user();
-        
-        // Récupérer la demande via la relation client
-        $demande = DemandeAdhesion::whereHas('client', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
-        })
-        ->orderBy('created_at', 'desc')
-        ->first();
-
-        if (!$demande) {
-            return ApiResponse::success([
-                'existing' => false,
-                'demande' => null,
-                'can_submit' => true,
-                'status' => 'none'
-            ], 'Aucune demande d\'adhésion trouvée');
-        }
-
-        $status = $demande->statut?->value ?? $demande->statut;
-        $canSubmit = in_array($status, ['rejetee']); // Can resubmit if rejected
-
-        return ApiResponse::success([
-            'existing' => true,
-            'demande' => $demande,
-            'can_submit' => $canSubmit,
-            'status' => $status,
-            'motif_rejet' => $demande->motif_rejet ?? null,
-            'valide_par' => $demande->validePar ?? null,
-            'valider_a' => $demande->valider_a ?? null
-        ], 'Demande d\'adhésion récupérée avec succès');
-    }
-
-
-     /**
-     * Soumission d'une demande d'adhésion pour une personne physique
-     */
-    public function store(StoreDemandeAdhesionRequest $request)
-    {
-        $user = Auth::user();
-        $data = $request->validated();
-        $typeDemandeur = $data['type_demandeur'];
-
-
-        Log::info('Demande d\'adhésion soumise', ['data' => $data]);
-
-        // Vérifier si l'utilisateur a déjà une demande en cours ou validée (optionnel)
-        if ($this->demandeValidatorService->hasPendingDemande($data)) {
-            return ApiResponse::error('Vous avez déjà une demande d\'adhésion en cours de traitement. Veuillez attendre la réponse.', 400);
-        }
-        if ($this->demandeValidatorService->hasValidatedDemande($data)) {
-            return ApiResponse::error('Vous avez déjà une demande d\'adhésion validée. Vous ne pouvez plus soumettre une nouvelle demande.', 400);
-        }
-
-        DB::beginTransaction();
-        try {
-           if($typeDemandeur === TypeDemandeurEnum::PHYSIQUE->value || $typeDemandeur === TypeDemandeurEnum::ENTREPRISE->value){
-            $demande = $this->demandeValidatorService->createDemandeAdhesionPhysique($data, $user);
-           }else{
-            $demande = $this->demandeValidatorService->createDemandeAdhesionPrestataire($data, $user);
-           }
-
-            // Notifier selon le type de demandeur via le service
-            $this->demandeAdhesionService->notifyByDemandeurType($demande, $typeDemandeur);
-
-            DB::commit();
-            return ApiResponse::success(null, 'Demande d\'adhésion soumise avec succès.', 201);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return ApiResponse::error('Erreur lors de la soumission de la demande d\'adhésion : ' . $e->getMessage(), 500);
-        }
-    }
-  
-
-    public function show($id)
-    {
-        Log::info('show demande', ['id' => $id]);
-        $user = Auth::user();
-        
-
         $demande = DemandeAdhesion::with([
-            'user',
-            'user.assure',
+            'assurePrincipal.user.personne',
+            'beneficiaires.user.personne',
             'propositionsContrat.contrat',
-            'user.assure.beneficiaires',
-            'user.assure.beneficiaires.reponsesQuestionnaire.question',
-            'user.entreprise',
-            'user.prestataire',
-            'reponsesQuestionnaire'=>function($query) use ($id){
-                $query->where('demande_adhesion_id', $id);
-            },
-            'assures.beneficiaires',
-            'assures.reponsesQuestionnaire.question',
-        ])->find($id);
+            'reponsesQuestions.question',
+        ])->find($demandeId);
 
         if (!$demande) {
             return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
@@ -215,10 +126,7 @@ class DemandeAdhesionController extends Controller
         // Vérification des permissions selon le rôle
         if ($user->hasRole('technicien')) {
             // Techniciens : seulement physique et entreprise
-            if (!in_array($demande->type_demandeur->value, [
-                TypeDemandeurEnum::PHYSIQUE->value,
-                TypeDemandeurEnum::ENTREPRISE->value
-            ])) {
+            if (!in_array($demande->type_demandeur->value, [TypeDemandeurEnum::CLIENT->value])) {
                 return ApiResponse::error('Vous n\'avez pas les permissions pour consulter cette demande d\'adhésion.', 403);
             }
         } else if ($user->hasRole('medecin_controleur')) {
@@ -245,10 +153,8 @@ class DemandeAdhesionController extends Controller
         ];
 
         // Selon le type de demandeur
-        if ($demande->type_demandeur->value === TypeDemandeurEnum::PHYSIQUE->value) {
+        if ($demande->type_demandeur->value === TypeDemandeurEnum::CLIENT->value) {
             $response = array_merge($response, $this->statsService->getPhysiqueData($demande));
-        } elseif ($demande->type_demandeur->value === TypeDemandeurEnum::ENTREPRISE->value) {
-            $response = array_merge($response, $this->statsService->getEntrepriseData($demande));
         } else {
             // Tous les autres types sont des prestataires
             $response = array_merge($response, $this->statsService->getPrestataireData($demande));
@@ -257,6 +163,73 @@ class DemandeAdhesionController extends Controller
         return ApiResponse::success($response, 'Détails de la demande d\'adhésion');
     }
 
+      /**
+     * Soumission d'une demande d'adhésion pour une personne physique
+     */
+    public function storeClientPhysiqueDemande(StoreDemandeAdhesionRequest $request)
+    {
+        $user = Auth::user();
+        $data = $request->validated();
+        $typeDemandeur = $data['type_demandeur'];
+
+        // Log::info('Demande d\'adhésion soumise', ['data' => $data]);
+
+        // Vérifier si l'utilisateur a déjà une demande en cours ou validée (optionnel)
+        if ($this->demandeValidatorService->hasPendingDemande()) {
+            return ApiResponse::error('Vous avez déjà une demande d\'adhésion en cours de traitement. Veuillez attendre la réponse.', 400);
+        }
+        if ($this->demandeValidatorService->hasValidatedDemande()) {
+            return ApiResponse::error('Vous avez déjà une demande d\'adhésion validée. Vous ne pouvez plus soumettre une nouvelle demande.', 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            $demande = $this->demandeValidatorService->createDemandeAdhesionClient($data, $user);
+            // Notifier selon le type de demandeur via le service
+            $this->demandeAdhesionService->notifyByDemandeurType($demande, $typeDemandeur);
+            DB::commit();
+            $this->notificationService->sendEmail($user->email, 'Demande adhésion enregistré', 'emails.demande_adhesion_enregistre', []);
+
+            return ApiResponse::success(null, 'Demande d\'adhésion soumise avec succès.', 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ApiResponse::error('Erreur lors de la soumission de la demande d\'adhésion : ' . $e->getMessage(), 500);
+        }
+    }
+
+    public function hasDemande()
+    {
+        $user = Auth::user();
+
+        // Récupérer la demande via la relation client
+        $demande = DemandeAdhesion::whereHas('client', function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if (!$demande) {
+            return ApiResponse::success([
+                'existing' => false,
+                'demande' => null,
+                'can_submit' => true,
+                'status' => 'none'
+            ], 'Aucune demande d\'adhésion trouvée');
+        }
+
+        $status = $demande->statut?->value ?? $demande->statut;
+        $canSubmit = in_array($status, ['rejetee']); // Can resubmit if rejected
+
+        return ApiResponse::success([
+            'existing' => true,
+            'demande' => $demande,
+            'can_submit' => $canSubmit,
+            'status' => $status,
+            'motif_rejet' => $demande->motif_rejet ?? null,
+            'valide_par' => $demande->validePar ?? null,
+            'valider_a' => $demande->valider_a ?? null
+        ], 'Demande d\'adhésion récupérée avec succès');
+    }
 
     /**
      * Rejeter une demande d'adhésion (réservé au personnel)
@@ -290,12 +263,12 @@ class DemandeAdhesionController extends Controller
                 "Votre demande d'adhésion a été rejetée. Consultez votre email pour plus de détails.",
                 'demande_rejetee',
             );
-            
+
             // Envoyer l'email
             $this->notificationService->sendEmail($demande->user->email, 'Demande d\'adhésion rejetée', EmailType::REJETEE->value, [
                 'demande' => $demande,
             ]);
-            
+
             return ApiResponse::success([
                 'demande_id' => $demande->id,
                 'statut' => $demande->statut?->value ?? $demande->statut,
@@ -333,7 +306,7 @@ class DemandeAdhesionController extends Controller
             'validePar'
         ])
             ->where('id', $id)
-            ->where('type_demandeur', TypeDemandeurEnum::PHYSIQUE->value)
+            ->where('type_demandeur', TypeDemandeurEnum::CLIENT->value)
             ->whereHas('assures', function ($query) use ($entreprise) {
                 $query->where('entreprise_id', $entreprise->id);
             })
@@ -422,7 +395,7 @@ class DemandeAdhesionController extends Controller
         return ApiResponse::success($demandeTransformee, 'Détails de la demande d\'adhésion de l\'employé récupérés avec succès.');
     }
 
-  
+
 
     /**
      * Statistiques des demandes d'adhésion
@@ -440,7 +413,7 @@ class DemandeAdhesionController extends Controller
 
         try {
             $user = Auth::user();
-            
+
             // Récupérer la proposition
             $proposition = PropositionContrat::with([
                 'demandeAdhesion.user',
@@ -494,7 +467,7 @@ class DemandeAdhesionController extends Controller
                     $proposition->technicien->user_id,
                     'TypeContrat accepté par le client',
                     "Le client {$nom} a accepté votre proposition de contrat.",
-                    'contrat_accepte_technicien', 
+                    'contrat_accepte_technicien',
                     [
                         'client_nom' => $proposition->demandeAdhesion->user->email,
                         'contrat_nom' => $proposition->contrat->libelle,
@@ -521,12 +494,10 @@ class DemandeAdhesionController extends Controller
                     'contrat_id' => $clientContrat->id,
                     'message' => 'TypeContrat accepté avec succès'
                 ], 'TypeContrat accepté avec succès');
-
             } catch (\Exception $e) {
                 DB::rollBack();
                 throw $e;
             }
-
         } catch (\Exception $e) {
             Log::error('Erreur lors de l\'acceptation du contrat', [
                 'error' => $e->getMessage(),
@@ -552,7 +523,7 @@ class DemandeAdhesionController extends Controller
             }
 
             $query = DemandeAdhesion::with(['user', 'user.assure', 'user.entreprise'])
-                ->whereIn('type_demandeur', [TypeDemandeurEnum::PHYSIQUE->value, TypeDemandeurEnum::ENTREPRISE->value])
+                ->whereIn('type_demandeur', [TypeDemandeurEnum::CLIENT->value])
                 ->whereIn('statut', [
                     StatutDemandeAdhesionEnum::EN_ATTENTE->value,
                     StatutDemandeAdhesionEnum::PROPOSEE->value,
@@ -564,7 +535,7 @@ class DemandeAdhesionController extends Controller
                 $search = $request->search;
                 $query->whereHas('user', function ($q) use ($search) {
                     $q->where('nom', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
+                        ->orWhere('email', 'like', "%{$search}%");
                 });
             }
 
@@ -582,7 +553,6 @@ class DemandeAdhesionController extends Controller
             });
 
             return ApiResponse::success($demandes, 'Liste des clients récupérée avec succès');
-
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des clients', [
                 'error' => $e->getMessage(),
@@ -599,7 +569,7 @@ class DemandeAdhesionController extends Controller
     public function getPropositionsContrat(int $id)
     {
         $demande = DemandeAdhesion::find($id);
-        
+
         if (!$demande) {
             return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
         }
@@ -621,7 +591,7 @@ class DemandeAdhesionController extends Controller
     public function getPropositionContrat(int $demandeId, int $propositionId)
     {
         $demande = DemandeAdhesion::find($demandeId);
-        
+
         if (!$demande) {
             return ApiResponse::error('Demande d\'adhésion non trouvée', 404);
         }

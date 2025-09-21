@@ -2,90 +2,83 @@
 
 namespace App\Services;
 
+use App\Enums\RoleEnum;
 use App\Enums\StatutDemandeAdhesionEnum;
 use App\Enums\TypeDemandeurEnum;
 use App\Models\Assure;
+use App\Models\Client;
 use App\Models\DemandeAdhesion;
+use App\Models\Personne;
 use App\Models\ReponseQuestionnaire;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
 class DemandeValidatorService
 {
-    public function hasPendingDemande(array $data): bool
+    protected NotificationService $notificationService;
+
+    public function __construct(
+        NotificationService $notificationService,
+    ) {
+        $this->notificationService = $notificationService;
+    }
+    public function hasPendingDemande(): bool
     {
-        return $this->hasDemandeWithStatut($data, StatutDemandeAdhesionEnum::EN_ATTENTE->value);
+        return $this->hasDemandeWithStatut(StatutDemandeAdhesionEnum::EN_ATTENTE->value);
     }
 
-    public function hasValidatedDemande(array $data): bool
+    public function hasValidatedDemande(): bool
     {
-        return $this->hasDemandeWithStatut($data, StatutDemandeAdhesionEnum::VALIDEE->value);
+        return $this->hasDemandeWithStatut(StatutDemandeAdhesionEnum::VALIDEE->value);
     }
 
-    private function hasDemandeWithStatut(array $data, string $statut): bool
+    private function hasDemandeWithStatut(string $statut): bool
     {
-        return User::where(function ($query) use ($data) {
-            // On vérifie email et contact obligatoirement
-            $query->where('email', $data['email'] ?? Auth::user()->email)
-                  ->orWhere('contact', $data['contact'] ?? Auth::user()->contact);
-        })
-        ->whereHas('demandes', function ($query) use ($statut) {
-            $query->where('statut', $statut);
-            $query->where('user_id', Auth::user()->id);    
-        })
-        ->exists();
+        $user = Auth::user()->load(['client']);
+        if (!$user || !$user->client) {
+            return false;
+        }
+
+        return DemandeAdhesion::where('client_id', $user->client->id)
+            ->where('statut', $statut)
+            ->exists();
+
     }
 
     /**
      * Créer une demande d'adhésion pour une personne physique ou entreprise
      */
-    public function createDemandeAdhesionPhysique(array $data, User $user): DemandeAdhesion
+    public function createDemandeAdhesionClient(array $data, User $user): DemandeAdhesion
     {
+        $client = $user->client;
+        
+        if (!$client) {
+            throw new \Exception('Aucun client trouvé pour cet utilisateur');
+        }
+        
         $typeDemandeur = $data['type_demandeur'];
 
         // Créer la demande d'adhésion
         $demande = DemandeAdhesion::create([
             'type_demandeur' => $typeDemandeur,
             'statut' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
-            'user_id' => $user->id,
+            'client_id' => $client->id,
         ]);
 
-        // Pour les personnes physiques, mettre à jour l'assuré principal
-        if ($typeDemandeur === TypeDemandeurEnum::PHYSIQUE->value) {
-            $assurePrincipal = Assure::where('user_id', $user->id)->first();
-            if ($assurePrincipal) {
-                $assurePrincipal->update([
-                    'demande_adhesion_id' => $demande->id,
-                ]);
-            }
-        }
-
-        // Enregistrer les réponses au questionnaire principal
-        if ($typeDemandeur === TypeDemandeurEnum::PHYSIQUE->value) {
-            // Pour les personnes physiques, les réponses sont liées à l'assuré
-            $assurePrincipal = Assure::where('user_id', $user->id)->first();
-            if ($assurePrincipal) {
-                foreach ($data['reponses'] as $reponse) {
-                    $this->enregistrerReponsePersonne('App\Models\Assure', $assurePrincipal->id, $reponse, $demande->id);
-                }
-            }
-        } else {
-            // Pour les autres types, les réponses sont liées à l'utilisateur
+        // Enregistrer les réponses au questionnaire
+        if (isset($data['reponses'])) {
             foreach ($data['reponses'] as $reponse) {
-                $this->enregistrerReponsePersonne('App\Models\User', $user->id, $reponse, $demande->id);
+                $this->enregistrerReponse($reponse, $demande->id, $user);
             }
         }
 
         // Enregistrer les bénéficiaires si fournis (uniquement pour les personnes physiques)
-        if (!empty($data['beneficiaires']) && $typeDemandeur === TypeDemandeurEnum::PHYSIQUE->value) {
-            $assurePrincipal = Assure::where('user_id', $user->id)->first();
-            Log::info('Beneficiaires', ['beneficiaires' => $data['beneficiaires']]);
-            if ($assurePrincipal) {
-                foreach ($data['beneficiaires'] as $beneficiaire) {
-                    $this->enregistrerBeneficiaire($demande, $beneficiaire, $assurePrincipal);
-                }
+        if (isset($data['beneficiaires'])) {
+            foreach ($data['beneficiaires'] as $beneficiaire) {
+                $this->enregistrerBeneficiaire($demande, $beneficiaire);
             }
         }
 
@@ -108,7 +101,7 @@ class DemandeValidatorService
 
         // Enregistrer les réponses au questionnaire principal
         foreach ($data['reponses'] as $reponse) {
-            $this->enregistrerReponsePersonne('App\Models\User', $user->id, $reponse, $demande->id);
+            $this->enregistrerReponse($reponse, $demande->id, $user);
         }
 
         return $demande;
@@ -125,70 +118,69 @@ class DemandeValidatorService
     /**
      * Enregistrer une réponse de personne (assuré principal ou bénéficiaire)
      */
-    private function enregistrerReponsePersonne($personneType, $personneId, array $reponseData, $demandeId): void
+    private function enregistrerReponse(array $reponseData, $demandeId, User $user): void
     {
-        
+
         $reponse = [
             'question_id' => $reponseData['question_id'],
-            'personne_id' => $personneId,
-            'personne_type' => $personneType,
             'demande_adhesion_id' => $demandeId,
+            'date_reponse' => now(),
+            'user_id' => $user->id
         ];
 
         // Ajouter la valeur selon le type de question
-        if (isset($reponseData['reponse_text'])) {
-            $reponse['reponse_text'] = $reponseData['reponse_text'];
+        if (isset($reponseData['reponse'])) {
+            $reponse['reponse'] = $reponseData['reponse'];
         }
-        if (isset($reponseData['reponse_number'])) {
-            $reponse['reponse_number'] = $reponseData['reponse_number'];
-        }
-        if (isset($reponseData['reponse_bool'])) {
-            $reponse['reponse_bool'] = $reponseData['reponse_bool'];
-        }
-        if (isset($reponseData['reponse_date'])) {
-            $reponse['reponse_date'] = $reponseData['reponse_date'];
-        }
-        if (isset($reponseData['reponse_fichier'])) {
-            // Traiter l'upload de fichier
-            if ($this->isUploadedFile($reponseData['reponse_fichier'])) {
-                $reponse['reponse_fichier'] = \App\Helpers\ImageUploadHelper::uploadImage(
-                    $reponseData['reponse_fichier'], 
-                    'uploads/demandes_adhesion/' . $demandeId
-                );
-            }
-        }
-
         ReponseQuestionnaire::create($reponse);
     }
 
     /**
      * Enregistrer un bénéficiaire
      */
-    private function enregistrerBeneficiaire($demande, array $beneficiaire, Assure $assurePrincipal): void
+    private function enregistrerBeneficiaire($demande, array $beneficiaireData): void
     {
-        // Créer le bénéficiaire
-        $beneficiaireAssure = Assure::create([
-            'nom' => $beneficiaire['nom'],
-            'prenoms' => $beneficiaire['prenoms'],
-            'date_naissance' => $beneficiaire['date_naissance'],
-            'sexe' => $beneficiaire['sexe'],
-            'lien_parente' => $beneficiaire['lien_parente'],
-            'profession' => $beneficiaire['profession'] ?? null,
-            'contact' => $beneficiaire['contact'] ?? null,
-            'photo' => $beneficiaire['photo_url'] ?? null,
-            'est_principal' => false, // Le bénéficiaire n'est jamais principal
-            'assure_principal_id' => $assurePrincipal->id, // Référence vers l'assuré principal
-            'demande_adhesion_id' => $demande->id,
-            'user_id' => null, // Les bénéficiaires n'ont pas de compte utilisateur
+        // Créer la personne bénéficiaire
+        $beneficiairePersonne = Personne::create([
+            'nom' => $beneficiaireData['nom'],
+            'prenoms' => $beneficiaireData['prenoms'],
+            'date_naissance' => $beneficiaireData['date_naissance'],
+            'sexe' => $beneficiaireData['sexe'],
+            'profession' => $beneficiaireData['profession'] ?? null,
+        ]);
+        
+        $plainPassword = User::genererMotDePasse();
+        $beneficiaireUser = User::create([
+            'email' => $beneficiaireData['email'] ?? null,
+            'contact' => $beneficiaireData['contact'] ?? null,
+            'adresse' => $beneficiaireData['adresse'] ?? null,
+            'photo_url' => $beneficiaireData['photo_url'] ?? null,
+            'personne_id' => $beneficiairePersonne->id,
+            'password' => Hash::make($plainPassword),
+            'est_actif' => false,
+            'mot_de_passe_a_changer' => true,
         ]);
 
+        $beneficiaireUser->assignRole(RoleEnum::CLIENT->value);
+
+        $beneficiaireAssure = Assure::create([
+            'client_id' => $demande->client_id,
+            'est_principal' => false,
+            'lien_parente' => $beneficiaireData['lien_parente'],
+            'user_id' => $beneficiaireUser->id,
+            'assure_principal_id' => $demande->user->assure->id
+        ]);
+
+        // Envoyer les identifiants si email fourni
+        if (!empty($beneficiaireData['email'])) {
+            $this->notificationService->sendCredentials($beneficiaireUser, $plainPassword);
+        }
+
         // Enregistrer les réponses au questionnaire du bénéficiaire
-        if (!empty($beneficiaire['reponses'])) {
-            foreach ($beneficiaire['reponses'] as $reponse) {
-                $this->enregistrerReponsePersonne('App\Models\Assure', $beneficiaireAssure->id, $reponse, $demande->id);
+        if (!empty($beneficiaireData['reponses'])) {
+            foreach ($beneficiaireData['reponses'] as $reponse) {
+                $this->enregistrerReponse($reponse, $demande->id, $beneficiaireUser);
             }
         }
     }
-
-
 }

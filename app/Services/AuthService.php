@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\ClientTypeEnum;
+use App\Enums\LienParenteEnum;
 use App\Enums\StatutClientEnum;
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypePrestataireEnum;
@@ -50,41 +51,19 @@ class AuthService
         // Créer d'abord le client
         $client = Client::create([
             'user_id' => $user->id,
-            'type_client' => ClientTypeEnum::PHYSIQUE->value,
+            'type_client' => $validated['type_client'],
         ]);
 
         // Puis créer l'assuré lié au client
         Assure::create([
             'user_id' => $user->id,
             'client_id' => $client->id,
-            'nom' => $validated['nom'],
-            'prenoms' => $validated['prenoms'] ?? null,
-            'date_naissance' => $validated['date_naissance'],
-            'sexe' => $validated['sexe'],
-            'profession' => $validated['profession'] ?? null,
-            'commercial_id' => $validated['commercial_id'] ?? null,
             'est_principal' => true,
-            'photo' => $validated['photo'] ?? null,
+            'lien_parente' => LienParenteEnum::PRINCIPAL,
+            'assure_principal_id'=> null
         ]);
     }
 
-    
-    /**
-     * Créer une entreprise
-     */
-    public function createEntreprise(User $user, array $validated): void
-    {
-        Client::create([
-            'user_id' => $user->id,
-            'raison_sociale' => $validated['raison_sociale'],
-        ]);
-
-        $invitation = LienInvitation::create([
-            'client_id' => $user->client->id,
-            'token' => LienInvitation::generateToken(),
-            'expire_at' => now()->addDays(7),
-        ]);
-    }
 
         /**
      * Créer un prestataire de soins

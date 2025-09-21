@@ -14,6 +14,7 @@ class ReponseQuestion extends Model
     protected $fillable = [
         'question_id',
         'demande_adhesion_id',
+        'assure_id',
         'reponse',
         'date_reponse',
     ];
@@ -30,6 +31,11 @@ class ReponseQuestion extends Model
     public function demandeAdhesion()
     {
         return $this->belongsTo(DemandeAdhesion::class);
+    }
+
+    public function assure()
+    {
+        return $this->belongsTo(Assure::class);
     }
 }
 

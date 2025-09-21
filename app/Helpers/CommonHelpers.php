@@ -9,7 +9,7 @@ class CommonHelpers
     public static function getTemplateByDemandeurType($typeDemandeur)
     {
         return match($typeDemandeur) {
-            TypeDemandeurEnum::PHYSIQUE->value => 'pdf.demande-adhesion-physique',
+            TypeDemandeurEnum::CLIENT->value => 'pdf.demande-adhesion-physique',
             TypeDemandeurEnum::ENTREPRISE->value => 'pdf.demande-adhesion-entreprise',
             default => 'pdf.demande-adhesion-prestataire', // Pour tous les types de prestataires
         };

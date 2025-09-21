@@ -15,7 +15,7 @@
                 <p>Votre demande d'adhésion a été approuvée avec succès</p>
             </div>
             
-            <p>Cher(e) <strong>{{ $demande->type_demandeur !== 'physique' ? $demande->raison_sociale : $demande->personne->nom . ' ' . $demande->personne->prenoms }}</strong>,</p>
+            <p>Cher(e) <strong>{{ $demande->type_demandeur !== 'client' ? $demande->raison_sociale : $demande->personne->nom . ' ' . $demande->personne->prenoms }}</strong>,</p>
             <p>Nous avons le plaisir de vous informer que votre demande d'adhésion à SUNU Santé a été <strong style="color: #28a745;">APPROUVÉE</strong> ! 🎉</p>
             
             <div class="demande-details">

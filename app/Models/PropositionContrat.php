@@ -11,6 +11,8 @@ class PropositionContrat extends Model
 {
     use HasFactory;
 
+    protected $table = 'propositions_contrats';
+
     protected $fillable = [
         'demande_adhesion_id',
         'contrat_id',

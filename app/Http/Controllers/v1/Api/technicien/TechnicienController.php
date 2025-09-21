@@ -517,7 +517,7 @@ class TechnicienController extends Controller
             }
 
             $query = DemandeAdhesion::with(['user', 'user.assure', 'user.entreprise'])
-                ->whereIn('type_demandeur', [TypeDemandeurEnum::PHYSIQUE->value, TypeDemandeurEnum::ENTREPRISE->value])
+                ->whereIn('type_demandeur', [TypeDemandeurEnum::CLIENT->value])
                 ->whereIn('statut', [
                     StatutDemandeAdhesionEnum::EN_ATTENTE->value,
                     StatutDemandeAdhesionEnum::PROPOSEE->value,
@@ -569,28 +569,24 @@ class TechnicienController extends Controller
             }
 
             $totalClients = DemandeAdhesion::whereIn('type_demandeur', [
-                TypeDemandeurEnum::PHYSIQUE->value,
-                TypeDemandeurEnum::ENTREPRISE->value
+                TypeDemandeurEnum::CLIENT->value
             ])->count();
 
             $clientsEnAttente = DemandeAdhesion::whereIn('type_demandeur', [
-                TypeDemandeurEnum::PHYSIQUE->value,
-                TypeDemandeurEnum::ENTREPRISE->value
+                TypeDemandeurEnum::CLIENT->value
             ])->where('statut', StatutDemandeAdhesionEnum::EN_ATTENTE->value)->count();
 
             $clientsEnProposition = DemandeAdhesion::whereIn('type_demandeur', [
-                TypeDemandeurEnum::PHYSIQUE->value,
-                TypeDemandeurEnum::ENTREPRISE->value
+                TypeDemandeurEnum::CLIENT->value
             ])->where('statut', StatutDemandeAdhesionEnum::PROPOSEE->value)->count();
 
             $clientsAcceptes = DemandeAdhesion::whereIn('type_demandeur', [
-                TypeDemandeurEnum::PHYSIQUE->value,
-                TypeDemandeurEnum::ENTREPRISE->value
+                TypeDemandeurEnum::CLIENT->value
             ])->where('statut', StatutDemandeAdhesionEnum::ACCEPTEE->value)->count();
 
             $repartitionParType = [
-                'physique' => DemandeAdhesion::where('type_demandeur', TypeDemandeurEnum::PHYSIQUE->value)->count(),
-                'entreprise' => DemandeAdhesion::where('type_demandeur', TypeDemandeurEnum::ENTREPRISE->value)->count(),
+                'client' => DemandeAdhesion::where('type_demandeur', TypeDemandeurEnum::CLIENT->value)->count(),
+                'entreprise' => DemandeAdhesion::where('type_demandeur')->count(),
             ];
 
             $statistiques = [
@@ -637,8 +633,7 @@ class TechnicienController extends Controller
 
             // Vérifier que c'est bien un client (physique ou entreprise)
             if (!in_array($demande->type_demandeur, [
-                TypeDemandeurEnum::PHYSIQUE->value,
-                TypeDemandeurEnum::ENTREPRISE->value
+                TypeDemandeurEnum::CLIENT->value
             ])) {
                 return ApiResponse::error('Ce n\'est pas un client valide', 400);
             }
@@ -669,7 +664,7 @@ class TechnicienController extends Controller
             ];
 
             // Ajouter les données spécifiques selon le type
-            if ($demande->type_demandeur === TypeDemandeurEnum::PHYSIQUE->value) {
+            if ($demande->type_demandeur === TypeDemandeurEnum::CLIENT->value) {
                 $clientData['assure'] = $demande->user->assure ? [
                     'id' => $demande->user->assure->id,
                     'nom' => $demande->user->assure->nom,
@@ -678,13 +673,6 @@ class TechnicienController extends Controller
                     'sexe' => $demande->user->assure->sexe,
                     'profession' => $demande->user->assure->profession,
                     'photo_url' => $demande->user->assure->photo_url,
-                ] : null;
-            } elseif ($demande->type_demandeur === TypeDemandeurEnum::ENTREPRISE->value) {
-                $clientData['entreprise'] = $demande->user->entreprise ? [
-                    'id' => $demande->user->entreprise->id,
-                    'raison_sociale' => $demande->user->entreprise->raison_sociale,
-                    'nombre_employe' => $demande->user->entreprise->nombre_employe,
-                    'secteur_activite' => $demande->user->entreprise->secteur_activite,
                 ] : null;
             }
 
@@ -720,8 +708,7 @@ class TechnicienController extends Controller
                 ->where('statut', StatutPropositionContratEnum::ACCEPTEE->value)
                 ->whereHas('demandeAdhesion', function ($q) {
                     $q->whereIn('type_demandeur', [
-                        TypeDemandeurEnum::PHYSIQUE->value,
-                        TypeDemandeurEnum::ENTREPRISE->value
+                        TypeDemandeurEnum::CLIENT->value,
                     ]);
                 });
 
@@ -907,18 +894,18 @@ class TechnicienController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
             // Vérifier les permissions selon le rôle
             $allowedRoles = ['technicien', 'medecin_controleur', 'comptable', 'admin_global', 'gestionnaire'];
             $hasPermission = false;
-            
+
             foreach ($allowedRoles as $role) {
                 if ($user->hasRole($role)) {
                     $hasPermission = true;
                     break;
                 }
             }
-            
+
             if (!$hasPermission) {
                 return ApiResponse::error('Accès non autorisé', 403);
             }
@@ -973,7 +960,6 @@ class TechnicienController extends Controller
             );
 
             return ApiResponse::success($paginatedData, "Liste des assurés récupérée avec succès");
-
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des assurés', [
                 'error' => $e->getMessage(),

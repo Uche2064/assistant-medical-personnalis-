@@ -168,20 +168,20 @@ class QuestionController extends Controller
      * Suppression en masse de questions
      * @param Request $request (attend un tableau d'ids)
      */
-    // public function bulkDestroyQuestions(Request $request)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'ids' => 'required|array|min:1',
-    //         'ids.*' => 'integer|exists:questions,id',
-    //     ]);
-    //     if ($validator->fails()) {
-    //         return ApiResponse::error('Erreur de validation', 422, $validator->errors());
-    //     }
-    //     $ids = $request->input('ids');
-    //     $deleted = Question::whereIn('id', $ids)->delete();
-    //     Log::info("Suppression en masse de questions - IDs: [" . implode(',', $ids) . "]");
-    //     return ApiResponse::success(null, "$deleted questions supprimées avec succès");
-    // }
+    public function bulkDestroyQuestions(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:questions,id',
+        ]);
+        if ($validator->fails()) {
+            return ApiResponse::error('Erreur de validation', 422, $validator->errors());
+        }
+        $ids = $request->input('ids');
+        $deleted = Question::whereIn('id', $ids)->delete();
+        Log::info("Suppression en masse de questions - IDs: [" . implode(',', $ids) . "]");
+        return ApiResponse::success(null, "$deleted questions supprimées avec succès");
+    }
 
     /**
      * Statistiques des questions

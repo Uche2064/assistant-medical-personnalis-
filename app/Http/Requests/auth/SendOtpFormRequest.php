@@ -2,10 +2,12 @@
 
 namespace App\Http\Requests\auth;
 
+use App\Enums\OtpTypeEnum;
 use App\Helpers\ApiResponse;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\Rule;
 
 class SendOtpFormRequest extends FormRequest
 {
@@ -19,13 +21,10 @@ class SendOtpFormRequest extends FormRequest
     {
         return [
             'email' => ['string', 'required', 'email'],
-            'type' => ['string', 'required']
+            'type' => ['string', 'required', Rule::in(OtpTypeEnum::values())]
         ];
     }
 
-    public function failedValidation(Validator $validator){
-        return new HttpResponseException(ApiResponse::error('Erreur de validation', 422, $validator->errors()));
-    }
 
     public function messages(): array {
         return [
@@ -33,5 +32,14 @@ class SendOtpFormRequest extends FormRequest
             'email.email' => 'L\'email n\'est pas valide',
             'type' => 'Le type est requis'
         ];
+    }
+    
+    public function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(ApiResponse::error(
+            'Erreur de validation',
+            422,
+            $validator->errors(),
+        ));
     }
 }

@@ -14,6 +14,7 @@ use App\Models\Assure;
 use App\Models\TypeContrat;
 use App\Models\DemandeAdhesion;
 use App\Models\InvitationEmploye;
+use App\Models\LienInvitation;
 use App\Models\Question;
 use App\Models\ReponseQuestionnaire;
 use App\Models\User;
@@ -47,9 +48,11 @@ class DemandeAdhesionService
     public function applyRoleFilters($query, User $user)
     {
         if ($user->hasRole('technicien')) {
-            $query->whereIn('type_demandeur', [TypeDemandeurEnum::PHYSIQUE->value, TypeDemandeurEnum::ENTREPRISE->value]);
+            $query->whereIn('type_demandeur', [TypeDemandeurEnum::CLIENT->value]);
         } elseif ($user->hasRole('medecin_controleur')) {
             $query->whereIn('type_demandeur', TypePrestataireEnum::values());
+        } else {
+            $query;
         }
 
         return $query;
@@ -232,7 +235,7 @@ class DemandeAdhesionService
 
         $entreprise = $user->entreprise;
 
-        $invitations = InvitationEmploye::with(['assure'])
+        $invitations = LienInvitation::with(['assure'])
             ->where('entreprise_id', $entreprise->id)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -323,7 +326,7 @@ class DemandeAdhesionService
      */
     public function notifyByDemandeurType($demande, $typeDemandeur)
     {
-        if ($typeDemandeur === TypeDemandeurEnum::PHYSIQUE->value || $typeDemandeur === TypeDemandeurEnum::ENTREPRISE->value) {
+        if ($typeDemandeur === TypeDemandeurEnum::CLIENT->value) {
             // Notifier les techniciens pour les demandes physiques et entreprises
             $this->notificationService->notifyTechniciensNouvelleDemande($demande);
         } else {
@@ -411,7 +414,7 @@ class DemandeAdhesionService
         // Vérifier les permissions selon le rôle
         if ($user->hasRole('technicien')) {
             $typeDemandeur = $demande->type_demandeur?->value ?? $demande->type_demandeur;
-            if (!in_array($typeDemandeur, [TypeDemandeurEnum::PHYSIQUE->value, TypeDemandeurEnum::ENTREPRISE->value])) {
+            if (!in_array($typeDemandeur, [TypeDemandeurEnum::CLIENT->value])) {
                 return ApiResponse::error('Accès non autorisé', 403);
             }
         } elseif ($user->hasRole('medecin_controleur')) {

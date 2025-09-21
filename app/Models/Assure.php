@@ -16,6 +16,7 @@ class Assure extends Model
         'client_id',
         'lien_parente',
         'est_principal',
+        'assure_principal_id'
     ];
 
     protected $casts = [
@@ -39,6 +40,46 @@ class Assure extends Model
         return $this->belongsTo(Client::class);
     }
 
+    public function reponsesQuestions()
+    {
+        return $this->hasMany(ReponseQuestion::class, 'assure_id');
+    }
+
+    /**
+     * Get the beneficiaries for this principal assure.
+     */
+    public function beneficiaires()
+    {
+        return $this->hasMany(Assure::class, 'assure_principal_id');
+    }
+
+    /**
+     * Get the principal assure for this beneficiary.
+     */
+    public function assurePrincipal()
+    {
+        return $this->belongsTo(Assure::class, 'assure_principal_id');
+    }
+
+    /**
+     * Get the demande adhesion for this assure via client.
+     */
+    /**
+     * Get the demande adhesion for this principal assure
+     */
+    public function demandeAdhesion()
+    {
+        return $this->hasOneThrough(DemandeAdhesion::class, Client::class, 'id', 'id', 'client_id', 'client_id')
+            ->where('est_principal', true);
+    }
+
+    /**
+     * Get the demande adhesion for this beneficiary (via principal assure)
+     */
+    public function demandeAdhesionViaPrincipal()
+    {
+        return $this->assurePrincipal->demandeAdhesion();
+    }
     /**
      * Get the principal assure for this beneficiary.
      */
@@ -78,7 +119,23 @@ class Assure extends Model
      */
     public function isBeneficiaire()
     {
-        return !$this->est_principal;
+        return !$this->est_principal && $this->assure_principal_id !== null;
+    }
+
+    /**
+     * Check if this assure has beneficiaries.
+     */
+    public function hasBeneficiaires()
+    {
+        return $this->beneficiaires()->exists();
+    }
+
+    /**
+     * Get the count of beneficiaries.
+     */
+    public function getBeneficiairesCountAttribute()
+    {
+        return $this->beneficiaires()->count();
     }
 
     /**

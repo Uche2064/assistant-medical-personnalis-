@@ -47,7 +47,7 @@ class DemandeAdhesionObserver
                     ];
                     
                     // Ajouter les champs spécifiques selon le type de demandeur
-                    if ($demandeAdhesion->type_demandeur === TypeDemandeurEnum::PHYSIQUE) {
+                    if ($demandeAdhesion->type_demandeur === TypeDemandeurEnum::CLIENT) {
                         // Pour un client individuel (humain)
                         $userData['nom'] = $demandeAdhesion->prospect->nom_demandeur;
                         $userData['prenoms'] = $demandeAdhesion->prospect->prenoms_demandeur;
@@ -62,7 +62,7 @@ class DemandeAdhesionObserver
                 }
                 
                 // Créer l'entité appropriée selon le type de demandeur
-                if ($demandeAdhesion->type_demandeur === TypeDemandeurEnum::PHYSIQUE) {
+                if ($demandeAdhesion->type_demandeur === TypeDemandeurEnum::CLIENT) {
                     // Pour un client physique (individu)
                     $existingClient = Client::where('user_id', $user->id)->first();
                     
@@ -70,7 +70,7 @@ class DemandeAdhesionObserver
                         Client::create([
                             'user_id' => $user->id,
                             'profession' => $demandeAdhesion->prospect->profession,
-                            'type_client' => TypeClientEnum::PHYSIQUE,
+                            'type_client' => TypeClientEnum::CLIENT,
                         ]);
                     }
                 } elseif ($demandeAdhesion->type_demandeur === TypeDemandeurEnum::MORAL) {

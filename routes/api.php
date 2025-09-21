@@ -3,7 +3,6 @@
 use App\Http\Controllers\v1\Api\admin\AdminController;
 use App\Http\Controllers\v1\Api\Assure\BeneficiaireController;
 use App\Http\Controllers\v1\Api\auth\AuthController;
-use App\Http\Controllers\v1\Api\auth\ForgotPasswordController;
 use App\Http\Controllers\v1\Api\categorie_garantie\CategorieGarantieController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\v1\Api\gestionnaire\GestionnaireController;
@@ -32,30 +31,25 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
     // ----------------------- Authentification et gestion des mots de passe ---------------------
     Route::prefix('auth')->group(function () {
-        Route::post('/register', [AuthController::class, 'register']);
+        Route::post('/register', [AuthController::class, 'register']); // 👌
         Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
         Route::post('/login', [AuthController::class, 'login']);
         Route::get('/me', [AuthController::class, 'getCurrentUser']);
         Route::post('/send-otp', [AuthController::class, 'sendOtp']);
+        Route::post('/forgot-password', [AuthController::class, 'sendOtp']);
 
         // ----------------------- Gestion des mots de passe ---------------------
-        Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink']);
-        Route::post('/verify-reset-otp', [ForgotPasswordController::class, 'verifyOtp']);
-        Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword']);
+        Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
         // ----------------------- Gestion des OTP ---------------------
         // Route::post('/send-otp', [AuthController::class, 'sendOtp']);
         // Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
-        Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:api');
-        Route::post('/change-password', [AuthController::class, 'changePassword']);
-        Route::get('/check-unique', [AuthController::class, 'checkUnique']);
-
-        Route::get('/test-roles', [AuthController::class, 'testRoles'])->middleware('auth:api');
+        Route::get('/logout', [AuthController::class, 'logout'])->middleware('auth:api');
+        Route::post('/check-unique', [AuthController::class, 'checkUnique']);
     });
 
 
     // ---------------------- gestion des gestionnaires par l'admin global -------------------
-
     Route::middleware(['auth:api', 'checkRole:admin_global'])->prefix('admin/gestionnaires')->group(function () {
         Route::get('/', [AdminController::class, 'indexGestionnaires']);
         Route::post('/', [AdminController::class, 'storeGestionnaire']);
@@ -64,7 +58,6 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::patch('/{id}/change-status', [AdminController::class, 'toggleGestionnaireStatus']);
         Route::delete('/{id}', [AdminController::class, 'destroyGestionnaire']);
     });
-
 
     // ---------------------- gestion des personnels par le gestionnaire --------------------
     // Lecture : admin + gestionnaire
@@ -76,6 +69,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::patch('/{id}/change-status', [GestionnaireController::class, 'togglePersonnelStatus'])->middleware('checkRole:gestionnaire');
         Route::delete('/{id}', [GestionnaireController::class, 'destroyPersonnel'])->middleware('checkRole:gestionnaire');
     });
+
     // --------------------- gestion des questions pour les prospects et prestataire par le médecin contrôleur --------------------
     Route::prefix('questions')->group(function () {
         Route::get('/', [QuestionController::class, 'indexQuestions']); // 👌
@@ -84,9 +78,9 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::post('/', [QuestionController::class, 'bulkInsertQuestions'])->middleware(['auth:api', 'checkRole:medecin_controleur']);; // 👌
         Route::put('/{id}', [QuestionController::class, 'updateQuestion'])->middleware(['auth:api', 'checkRole:medecin_controleur']);; // 👌
         Route::delete('/{id}', [QuestionController::class, 'destroyQuestion'])->middleware(['auth:api', 'checkRole:medecin_controleur']);; // 👌
+        Route::delete('/', [QuestionController::class, 'bulkDestroyQuestions']); // suppression en masse
 
         // Route::patch('/{id}/toggle', [QuestionController::class, 'toggleQuestionStatus'])->middleware(['auth:api', 'checkRole:medecin_controleur']);; 
-        // Route::post('/bulk-delete', [QuestionController::class, 'bulkDestroyQuestions']); // suppression en masse
     });
 
     // --------------- Gestion des garanties par le médecin contrôleur ------------------
@@ -102,7 +96,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
     });
 
-      // --------------- Gestion des catégories de garanties ------------------
+    // --------------- Gestion des catégories de garanties ------------------
     // ############# Accès lecture : médecin + technicien ##############
     Route::middleware(['auth:api'])->prefix('categories-garanties')->group(function () {
         Route::get('/', [CategorieGarantieController::class, 'indexCategorieGarantie']); //👌
@@ -114,22 +108,23 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
 
-
     // --------------------- Routes pour les demandes d'adhésion ---------------------
 
-    Route::get('/has-demande', [DemandeAdhesionController::class, 'hasDemande'])->middleware('auth:api');
 
     Route::middleware(['auth:api'])->prefix('demandes-adhesions')->group(function () {
+
         Route::get('/', [DemandeAdhesionController::class, 'index'])->middleware('checkRole:medecin_controleur,technicien,admin_global,gestionnaire,commercial');
-        // Demande d'adhésion personne physique (assuré principal)
-        Route::post('/', [DemandeAdhesionController::class, 'store'])->middleware('checkRole:physique');
+        Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware('checkRole:medecin_controleur,technicien');
+        Route::post('/client', [DemandeAdhesionController::class, 'storeClientPhysiqueDemande'])->middleware('checkRole:client');
+        Route::get('/has-demande', [DemandeAdhesionController::class, 'hasDemande'])->middleware('auth:api');
+
         Route::post('/prestataire', [DemandeAdhesionController::class, 'store'])->middleware('checkRole:prestataire');
+
         // Demande d'adhésion entreprise (soumission groupée)
         Route::post('/entreprise', [EntrepriseController::class, 'soumettreDemandeAdhesionEntreprise'])->middleware('checkRole:entreprise');
-        Route::post('/{id}/valider-physique', [TechnicienController::class, 'validerDemande']);
+        Route::post('/{id}/valider-client', [TechnicienController::class, 'validerDemande']);
 
         Route::get('/stats', [DemandeAdhesionController::class, 'stats'])->middleware('checkRole:admin_global,medecin_controleur,technicien,gestionnaire,commercial');
-        Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware('checkRole:medecin_controleur,technicien');
 
         // Actions sur les demandes (proposer contrat, valider, rejeter)
         Route::put('/{demande_id}/valider-prestataire', [PrestataireController::class, 'validerPrestataire'])->middleware('checkRole:medecin_controleur');
@@ -148,8 +143,8 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
             ->name('factures.preview');
     });
 
-    // Routes pour les clients (physique/entreprise)
-    Route::middleware(['auth:api', 'checkRole:physique,entreprise'])->prefix('client')->group(function () {
+    // Routes pour les clients (client/entreprise)
+    Route::middleware(['auth:api', 'checkRole:client,entreprise'])->prefix('client')->group(function () {
         Route::get('/mes-contrats', [ClientController::class, 'mesContrats']);
         Route::get('/contrats-proposes', [ClientController::class, 'getContratsProposes']);
         Route::get('/stats', [ClientController::class, 'stats']);
@@ -244,7 +239,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
 
-    // --- Demande d'adhésion personne physique ---
+    // --- Demande d'adhésion personne client ---
 
     // Route pour servir les fichiers uploadés (publique)
     Route::get('/files/{filename}', function ($filename) {
@@ -303,8 +298,8 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
 
-    // --------------------- Routes pour l'Assuré Principal (PHYSIQUE) ---------------------
-    Route::middleware(['auth:api', 'checkRole:physique,entreprise'])->prefix('assures')->group(function () {
+    // --------------------- Routes pour l'Assuré Principal (CLIENT) ---------------------
+    Route::middleware(['auth:api', 'checkRole:client,entreprise'])->prefix('assures')->group(function () {
         Route::prefix('beneficiaires')->group(function () {
             Route::get('/', [AssureController::class, 'beneficiaires']);
             Route::get('/{id}', [AssureController::class, 'beneficiaire']);
@@ -380,7 +375,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         // Route::delete('/clients/{id}/assignations/{id}', [TechnicienController::class, 'desassignerPrestataire']);
     });
 
-    Route::middleware(['auth:api', 'checkRole:physique'])->prefix('beneficiaires')->group(function () {
+    Route::middleware(['auth:api', 'checkRole:client'])->prefix('beneficiaires')->group(function () {
         Route::get('/', [BeneficiaireController::class, 'index']);
         Route::get('/{id}', [BeneficiaireController::class, 'show']);
         Route::post('/', [BeneficiaireController::class, 'store']);
@@ -413,7 +408,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
     // --------------------- Routes pour les factures ---------------------
-    Route::middleware(['auth:api', 'checkRole:prestataire,technicien,comptable,medecin_controleur,entreprise,physique,admin_global,gestionnaire'])->prefix('factures')->group(function () {
+    Route::middleware(['auth:api', 'checkRole:prestataire,technicien,comptable,medecin_controleur,entreprise,client,admin_global,gestionnaire'])->prefix('factures')->group(function () {
         // Routes de consultation
         Route::get('/', [FactureController::class, 'factures']);
         Route::get('/stats', [FactureController::class, 'stats']);

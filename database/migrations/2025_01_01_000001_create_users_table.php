@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('adresse')->nullable();
             $table->string('photo_url')->nullable();
             $table->boolean('est_actif')->default(true);
+            $table->decimal('solde')->default(0);
             $table->timestamp('email_verifier_a')->nullable();
             $table->boolean('mot_de_passe_a_changer')->default(true);
             $table->foreignId('personne_id')->constrained('personnes')->onDelete('cascade');

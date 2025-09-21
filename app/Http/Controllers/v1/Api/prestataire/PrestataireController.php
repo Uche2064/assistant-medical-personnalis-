@@ -65,8 +65,8 @@ class PrestataireController extends Controller
 
         DB::beginTransaction();
         try {
-            if ($typeDemandeur === TypeDemandeurEnum::PHYSIQUE->value || $typeDemandeur === TypeDemandeurEnum::ENTREPRISE->value) {
-                $demande = $this->demandeValidatorService->createDemandeAdhesionPhysique($data, $user);
+            if ($typeDemandeur === TypeDemandeurEnum::CLIENT->value || $typeDemandeur === TypeDemandeurEnum::ENTREPRISE->value) {
+                $demande = $this->demandeValidatorService->createDemandeAdhesionClient($data, $user);
             } else {
                 $demande = $this->demandeValidatorService->createDemandeAdhesionPrestataire($data, $user);
             }

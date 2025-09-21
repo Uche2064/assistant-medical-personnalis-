@@ -47,7 +47,7 @@ class SoumissionEmployeFormRequest extends FormRequest
             'beneficiaires.*.reponses.*.question_id' => 'required_with:beneficiaires.*.reponses|integer|exists:questions,id',
         ];
 
-        $questions = Question::forDestinataire('physique')->get()->keyBy('id');
+        $questions = Question::forDestinataire('client')->get()->keyBy('id');
         $questionIds = $questions->pluck('id')->toArray();
         foreach ($this->input('reponses', []) as $index => $reponse) {
             $questionId = $reponse['question_id'] ?? null;

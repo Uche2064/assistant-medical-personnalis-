@@ -39,7 +39,7 @@ class FactureController extends Controller
             $query->whereHas('sinistre', function ($q) use ($assureIds) {
                 $q->whereIn('assure_id', $assureIds);
             });
-        } elseif ($user->hasRole('physique') && $user->assure) {
+        } elseif ($user->hasRole('client') && $user->assure) {
             // Pour les assurés physiques : afficher leurs propres factures + celles de leurs bénéficiaires
             $assureIds = [$user->assure->id]; // L'assuré principal
             
@@ -101,7 +101,7 @@ class FactureController extends Controller
             $query->whereHas('sinistre', function ($q) use ($assureIds) {
                 $q->whereIn('assure_id', $assureIds);
             });
-        } elseif ($user->hasRole('physique') && $user->assure) {
+        } elseif ($user->hasRole('client') && $user->assure) {
             // Pour les assurés physiques : vérifier que c'est leur facture ou celle de leurs bénéficiaires
             $assureIds = [$user->assure->id]; // L'assuré principal
             

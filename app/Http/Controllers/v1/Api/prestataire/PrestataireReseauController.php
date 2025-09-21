@@ -68,7 +68,7 @@ class PrestataireReseauController extends Controller
                     'prenoms' => $user->prenoms ?? null,
                     'email' => $user->email,
                     'contact' => $user->contact,
-                    'type_client' => $isEntreprise ? 'entreprise' : 'physique',
+                    'type_client' => $isEntreprise ? 'entreprise' : 'client',
                     'raison_sociale' => $isEntreprise ? $user->entreprise->raison_sociale : null,
                     'contrat' => [
                         'id' => $clientContrat->contrat->id,

@@ -8,6 +8,7 @@ enum LienParenteEnum: string
     case ENFANT = 'enfant';
     case PARENT = 'parent';
     case AUTRE = 'autre';
+    case PRINCIPAL = 'principal';
 
     public static function values(): array
     {

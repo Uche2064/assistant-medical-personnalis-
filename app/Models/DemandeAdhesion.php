@@ -31,11 +31,19 @@ class DemandeAdhesion extends Model
     ];
 
     /**
-     * Get the user that owns the demande adhesion.
+     * Get the client that owns the demande adhesion.
      */
     public function client()
     {
         return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * Get the user that owns the demande adhesion via client.
+     */
+    public function user()
+    {
+        return $this->hasOneThrough(User::class, Client::class, 'id', 'id', 'client_id', 'user_id');
     }
 
 
@@ -55,21 +63,61 @@ class DemandeAdhesion extends Model
         return $this->hasMany(ReponseQuestion::class, 'demande_adhesion_id');
     }
 
+    // /**
+    //  * Get all reponses for this demande grouped by assure
+    //  */
+    // public function reponsesParAssure()
+    // {
+    //     return $this->reponsesQuestions()
+    //                 ->with(['assure.user.personne', 'question'])
+    //                 ->get()
+    //                 ->groupBy('assure_id');
+    // }
 
     /**
-     * Get the assures (employees) associated with this demande
+     * Get reponses for the principal assure only
      */
-    public function assures()
+    public function reponsesAssurePrincipal()
     {
-        return $this->hasMany(Assure::class, 'client_id', 'client_id');
+        return $this->reponsesQuestions()
+                    ->whereHas('assure', function ($query) {
+                        $query->where('est_principal', true);
+                    })
+                    ->with(['assure.user.personne', 'question'])
+                    ->get();
     }
 
     /**
-     * Get the employes (assures principaux) associated with this demande
+     * Get reponses for beneficiaries only
      */
-    public function employes()
+    public function reponsesBeneficiaires()
     {
-        return $this->hasMany(Assure::class, 'client_id', 'client_id')->where('est_principal', true);
+        return $this->reponsesQuestions()
+                    ->whereHas('assure', function ($query) {
+                        $query->where('est_principal', false);
+                    })
+                    ->with(['assure.user.personne', 'question'])
+                    ->get();
+    }
+
+
+    /**
+     * Get the principal assure for this demande
+     */
+    public function assurePrincipal()
+    {
+        return $this->hasOneThrough(Assure::class, Client::class, 'id', 'client_id', 'client_id', 'id')
+            ->where('est_principal', true);
+    }
+
+    /**
+     * Get all beneficiaries for this demande (via the principal assure)
+     */
+    public function beneficiaires()
+    {
+        return $this->hasManyThrough(Assure::class, Client::class, 'id', 'client_id', 'client_id', 'id')
+            ->where('est_principal', false)
+            ->whereNotNull('assure_principal_id');
     }
 
     /**
@@ -132,7 +180,7 @@ class DemandeAdhesion extends Model
         $this->statut = StatutDemandeAdhesionEnum::REJETEE;
         $this->motif_rejet = $motifRejet;
         $this->valide_par_id = $valideParId;
-        $this->valider_a = now();   
+        $this->valider_a = now();
         $this->save();
     }
 
@@ -143,4 +191,4 @@ class DemandeAdhesion extends Model
     {
         return $this->type_demandeur->getLabel();
     }
-} 
+}

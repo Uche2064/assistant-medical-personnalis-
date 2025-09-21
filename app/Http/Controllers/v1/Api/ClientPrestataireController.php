@@ -149,7 +149,7 @@ class ClientPrestataireController extends Controller
                     'email' => $user->email,
                     'contact' => $user->contact,
                     'adresse' => $user->adresse,
-                    'type_client' => $user->entreprise ? 'entreprise' : 'physique',
+                    'type_client' => $user->entreprise ? 'entreprise' : 'client',
                     'raison_sociale' => $user->entreprise ? $user->entreprise->raison_sociale : null,
                     'assure' => $user->assure ? [
                         'id' => $user->assure->id,

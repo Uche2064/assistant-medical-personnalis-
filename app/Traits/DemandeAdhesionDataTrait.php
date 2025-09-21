@@ -12,7 +12,7 @@ trait DemandeAdhesionDataTrait
      * Note importante sur les types de demandeurs :
      * - ENTREPRISE : Le demandeur (entreprise) ne répond pas à de questionnaire.
      *   Il soumet juste la liste de ses employés avec leurs questionnaires respectifs.
-     * - PHYSIQUE : Le demandeur (personne physique) répond à un questionnaire + peut avoir des bénéficiaires.
+     * - CLIENT : Le demandeur (personne physique) répond à un questionnaire + peut avoir des bénéficiaires.
      * - PRESTATAIRE : Le demandeur (prestataire) répond à un questionnaire spécifique.
      */
     protected function prepareDemandeData(DemandeAdhesion $demande)

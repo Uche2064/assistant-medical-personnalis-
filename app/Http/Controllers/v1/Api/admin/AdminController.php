@@ -248,4 +248,5 @@ class AdminController extends Controller
 
         return ApiResponse::success($stats, 'Statistiques des gestionnaires récupérées avec succès');
     }
+
 }

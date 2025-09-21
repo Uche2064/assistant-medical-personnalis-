@@ -52,7 +52,7 @@ class StatsController extends Controller
             $stats = array_merge($stats, [
                 'clients' => $this->getClientStats(),
                 'assures' => $this->getAssureStats(),
-                'demandes_adhesion' => $this->getDemandeAdhesionStats(['physique', 'autre']), // Seulement physique et moral
+                'demandes_adhesion' => $this->getDemandeAdhesionStats(['client', 'autre']), // Seulement physique et moral
                 'garanties' => $this->getGarantieStats(),
                 'categories_garanties' => $this->getCategorieGarantieStats(),
             ]);

@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('question_id')->constrained('questions')->onDelete('cascade');
             $table->foreignId('demande_adhesion_id')->nullable()->constrained('demandes_adhesions')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->string('reponse');
             $table->date('date_reponse')->nullable();
             $table->timestamps();

@@ -26,7 +26,7 @@ class NouvelleDemandeAdhesion implements ShouldBroadcast
 
     public function broadcastOn()
     {
-        $channelName = $this->demande->type_demandeur === 'entreprise' || $this->demande->type_demandeur === 'physique' 
+        $channelName = $this->demande->type_demandeur === 'entreprise' || $this->demande->type_demandeur === 'client' 
             ? 'techniciens' 
             : 'medecins_controleurs';
             

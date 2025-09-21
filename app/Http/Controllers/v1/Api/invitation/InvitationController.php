@@ -111,7 +111,7 @@ class InvitationController extends Controller
             return ApiResponse::error('Lien d\'invitation invalide ou expiré.', 404);
         }
         
-        $questions = Question::active()->byDestinataire(TypeDemandeurEnum::PHYSIQUE->value)->get();
+        $questions = Question::active()->byDestinataire(TypeDemandeurEnum::CLIENT->value)->get();
         
         return ApiResponse::success([
             'entreprise' => $invitation->entreprise,

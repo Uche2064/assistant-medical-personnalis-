@@ -174,7 +174,7 @@ class EntrepriseController extends Controller
             ->whereHas('assures', function ($query) use ($entreprise) {
                 $query->where('entreprise_id', $entreprise->id);
             })
-            ->where('type_demandeur', TypeDemandeurEnum::PHYSIQUE->value);
+            ->where('type_demandeur', TypeDemandeurEnum::CLIENT->value);
 
         // Filtrage par statut si fourni
         $status = $request->input('statut');
@@ -387,8 +387,8 @@ class EntrepriseController extends Controller
         if (!$invitation) {
             return ApiResponse::error('Lien d\'invitation invalide ou expiré.', 404);
         }
-        // Récupérer les questions actives pour le type PHYSIQUE
-        $questions = Question::active()->byDestinataire(TypeDemandeurEnum::PHYSIQUE->value)->get();
+        // Récupérer les questions actives pour le type CLIENT
+        $questions = Question::active()->byDestinataire(TypeDemandeurEnum::CLIENT->value)->get();
         return ApiResponse::success([
             'entreprise' => $invitation->entreprise,
             'token' => $token,
