@@ -32,5 +32,7 @@ return [
     |
     */    
     'ttl' => env('JWT_TTL', 720),
+    'refresh_ttl' => 20160, // durée pendant laquelle on peut refresh (en minutes : 2 semaines ici)
+
 
 ];

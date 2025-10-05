@@ -1,0 +1,109 @@
+{
+	"info": {
+		"_postman_id": "gestionnaire-module",
+		"name": "👥 Gestionnaire",
+		"description": "Gestion du personnel et des employés",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Lister personnels",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/gestionnaire/personnels",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "gestionnaire", "personnels"]
+				}
+			}
+		},
+		{
+			"name": "Statistiques personnels",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/gestionnaire/personnels/stats",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "gestionnaire", "personnels", "stats"]
+				}
+			}
+		},
+		{
+			"name": "Détails personnel",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/gestionnaire/personnels/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "gestionnaire", "personnels", "1"]
+				}
+			}
+		},
+		{
+			"name": "Créer personnel",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"nom\": \"Personnel\",\n  \"prenoms\": \"Test\",\n  \"email\": \"personnel@example.com\",\n  \"contact\": \"+225123456789\",\n  \"adresse\": \"Abidjan\",\n  \"fonction\": \"Technicien\",\n  \"role\": \"technicien\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/gestionnaire/personnels",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "gestionnaire", "personnels"]
+				}
+			}
+		},
+		{
+			"name": "Changer statut personnel",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/gestionnaire/personnels/1/change-status",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "gestionnaire", "personnels", "1", "change-status"]
+				}
+			}
+		},
+		{
+			"name": "Supprimer personnel",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/gestionnaire/personnels/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "gestionnaire", "personnels", "1"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"},
+		{"key": "access_token", "value": "", "type": "string"}
+	]
+}

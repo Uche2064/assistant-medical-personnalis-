@@ -23,7 +23,7 @@ class CheckRole
 
         $user = Auth::user();
         $userRoles = $user->roles->pluck('name')->toArray();
-        
+        // dd($userRoles);
         // Vérifier si l'utilisateur a au moins un des rôles requis
         $hasRequiredRole = false;
         foreach ($roles as $role) {
@@ -32,7 +32,6 @@ class CheckRole
                 break;
             }
         }
-
         if (!$hasRequiredRole) {
             return ApiResponse::error('L\'utilisateur n\'est pas autorisé à accéder à cette ressource.', 403);
         }

@@ -15,16 +15,11 @@ class Prestataire extends Model
     protected $fillable = [
         'user_id',
         'type_prestataire',
-        'raison_sociale',
-        'documents_requis',
-        'code_parrainage',
-        'medecin_controleur_id',
         'statut',
     ];
 
     protected $casts = [
         'type_prestataire' => TypePrestataireEnum::class,
-        'documents_requis' => 'array',
         'statut' => StatutPrestataireEnum::class
     ];
 
@@ -68,64 +63,6 @@ class Prestataire extends Model
         return $this->user->demandesAdhesions();
     }
 
-    /**
-     * Check if prestataire is pending.
-     */
-    public function isPending()
-    {
-        return $this->statut === \App\Enums\StatutPrestataireEnum::EN_ATTENTE;
-    }
-
-    /**
-     * Check if prestataire is validated.
-     */
-    public function isValidated()
-    {
-        return $this->statut === \App\Enums\StatutPrestataireEnum::VALIDE;
-    }
-
-    /**
-     * Check if prestataire is rejected.
-     */
-    public function isRejected()
-    {
-        return $this->statut === \App\Enums\StatutPrestataireEnum::REJETE;
-    }
-
-    /**
-     * Check if prestataire is suspended.
-     */
-    public function isSuspended()
-    {
-        return $this->statut === \App\Enums\StatutPrestataireEnum::SUSPENDU;
-    }
-
-    /**
-     * Validate the prestataire.
-     */
-    public function validate()
-    {
-        $this->statut = \App\Enums\StatutPrestataireEnum::VALIDE;
-        $this->save();
-    }
-
-    /**
-     * Reject the prestataire.
-     */
-    public function reject()
-    {
-        $this->statut = \App\Enums\StatutPrestataireEnum::REJETE;
-        $this->save();
-    }
-
-    /**
-     * Suspend the prestataire.
-     */
-    public function suspend()
-    {
-        $this->statut = \App\Enums\StatutPrestataireEnum::SUSPENDU;
-        $this->save();
-    }
 
     /**
      * Get the prestataire's name.

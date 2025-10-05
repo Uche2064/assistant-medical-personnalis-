@@ -1,0 +1,169 @@
+{
+	"info": {
+		"_postman_id": "client-prestataires-module",
+		"name": "🔗 Client-Prestataires",
+		"description": "Gestion des assignations clients-prestataires",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Lister assignations",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/client-prestataires",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "client-prestataires"]
+				}
+			}
+		},
+		{
+			"name": "Statistiques assignations",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/client-prestataires/statistiques",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "client-prestataires", "statistiques"]
+				}
+			}
+		},
+		{
+			"name": "Détails assignation",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/client-prestataires/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "client-prestataires", "1"]
+				}
+			}
+		},
+		{
+			"name": "Modifier assignation",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"statut\": \"actif\",\n  \"date_debut\": \"2024-01-01\",\n  \"date_fin\": \"2024-12-31\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/client-prestataires/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "client-prestataires", "1"]
+				}
+			}
+		},
+		{
+			"name": "Supprimer assignation",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/client-prestataires/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "client-prestataires", "1"]
+				}
+			}
+		},
+		{
+			"name": "Mes prestataires (client)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/client/reseau/mes-prestataires",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "client", "reseau", "mes-prestataires"]
+				}
+			}
+		},
+		{
+			"name": "Statistiques réseau (client)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/client/reseau/statistiques",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "client", "reseau", "statistiques"]
+				}
+			}
+		},
+		{
+			"name": "Détails prestataire (client)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/client/reseau/prestataires/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "client", "reseau", "prestataires", "1"]
+				}
+			}
+		},
+		{
+			"name": "Mes clients (prestataire)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/reseau/mes-clients",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "reseau", "mes-clients"]
+				}
+			}
+		},
+		{
+			"name": "Statistiques clients (prestataire)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/reseau/statistiques",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "reseau", "statistiques"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"},
+		{"key": "access_token", "value": "", "type": "string"}
+	]
+}

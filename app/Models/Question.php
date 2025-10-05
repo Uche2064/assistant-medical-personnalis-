@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\TypeDonneeEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -24,8 +25,7 @@ class Question extends Model
         'options' => 'array',
         'est_obligatoire' => 'boolean',
         'est_active' => 'boolean',
-        'type_de_donnee' => \App\Enums\TypeDonneeEnum::class,
-        'destinataire' => \App\Enums\TypeDemandeurEnum::class,
+        'type_de_donnee' => TypeDonneeEnum::class,
     ];
 
     /**

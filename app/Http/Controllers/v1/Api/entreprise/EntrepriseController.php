@@ -11,7 +11,6 @@ use App\Http\Resources\DemandeAdhesionEntrepriseResource;
 use App\Http\Resources\QuestionResource;
 use App\Models\Assure;
 use App\Models\DemandeAdhesion;
-use App\Models\InvitationEmploye;
 use App\Models\Question;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -20,6 +19,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Services\DemandeAdhesionService;
 use App\Helpers\ImageUploadHelper;
+use App\Models\LienInvitation;
 use App\Services\NotificationService;
 use Carbon\Carbon;
 
@@ -37,7 +37,99 @@ class EntrepriseController extends Controller
         $this->notificationService = $notificationService;
     }
 
+    public function getInvitationLink(Request $request)
+    {
+        $user = Auth::user();
+        // Vérifier que l'utilisateur est une entreprise
+        if (!$user->client->isMoral()) {
+            return ApiResponse::error('Seules les entreprises peuvent générer un lien d\'invitation.', 403);
+        }
+        $invitation = LienInvitation::where('client_id', $user->entreprise->id)
+            ->where('expire_a', '>', now())
+            ->first();
 
+        if (!$invitation) {
+            return ApiResponse::error('Aucun lien pour ce client', 404);
+        }
+        return ApiResponse::success([
+            'invitation_id' => $invitation->id,
+            'jeton' => $invitation->jeton,
+            'url' => config('app.frontend_url') . "/employes/formulaire/{$invitation->jeton}",
+            'expire_a' => $invitation->expire_a,
+        ], 'Lien d\'invitation récupéré avec succès.');
+    }
+
+    /**
+     * Générer un lien d'invitation unique pour qu'un employé remplisse sa fiche d'adhésion (un seul lien actif par entreprise)
+     */
+    public function genererLienInvitationEmploye(Request $request)
+    {
+        $user = Auth::user();
+        // Vérifier que l'utilisateur est une entreprise
+        if (!$user->client->isMoral()) {
+            return ApiResponse::error('Seules les entreprises peuvent générer un lien d\'invitation.', 403);
+        }
+        $entrepriseId = $user->entreprise->id;
+        // Chercher un lien actif existant
+        $invitationExistante = LienInvitation::where('client_id', $entrepriseId)
+            ->where('expire_a', '>', now())
+            ->first();
+        if ($invitationExistante) {
+            $url = config('app.frontend_url') . "/employes/formulaire/{$invitationExistante->jeton}";
+            return ApiResponse::success([
+                'invitation_id' => $invitationExistante->id,
+                'url' => $url,
+                'jeton' => $invitationExistante->jeton,
+                'expire_a' => $invitationExistante->expire_a,
+            ], 'Lien d\'invitation déjà existant.');
+        }
+        // Sinon, générer un nouveau lien
+        $invitation = LienInvitation::create([
+            'client_id' => $entrepriseId,
+            'jeton' => LienInvitation::genererToken(),
+            'expire_a' => now()->addDays((int) env('TOKEN_LINK_EXPIRE_TIME_DAYS')),
+        ]);
+        $url = config('app.frontend_url') . "/employes/formulaire/{$invitation->jeton}";
+        return ApiResponse::success([
+            'invitation_id' => $invitation->id,
+            'jeton' => $invitation->jeton,
+            'url' => $url,
+            'expire_a' => $invitation->expire_a,
+        ], 'Nouveau lien d\'invitation généré avec succès.');
+    }
+
+    /**
+     * Soumission groupée de la demande d'adhésion entreprise
+     */
+    public function soumettreDemandeAdhesionEntreprise(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->hasRole('client') || !$user->client->isMoral()) {
+            return ApiResponse::error('Seules les entreprises peuvent soumettre une demande groupée.', 403);
+        }
+        $entreprise = $user->entreprise;
+        $employes = Assure::where('client_id', $entreprise->id)->get();
+        if ($employes->isEmpty()) {
+            return ApiResponse::error('Aucun employé n\'a encore soumis sa fiche.', 422);
+        }
+        DB::beginTransaction();
+        try {
+            // Créer la demande d'adhésion entreprise
+            $demande = DemandeAdhesion::create([
+                'type_demandeur' => TypeDemandeurEnum::CLIENT->value,
+                'statut' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
+                'user_id' => $user->id,
+            ]);
+            // Notifier SUNU (technicien)
+            $this->demandeAdhesionService->notifyByDemandeurType($demande, TypeDemandeurEnum::CLIENT->value);
+
+            DB::commit();
+            return ApiResponse::success(new DemandeAdhesionEntrepriseResource($demande), 'Demande d\'adhésion entreprise soumise avec succès.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ApiResponse::error('Erreur lors de la soumission de la demande d\'adhésion entreprise : ' . $e->getMessage(), 500);
+        }
+    }
 
     /**
      * Consulter les demandes d'adhésion d'une entreprise
@@ -47,39 +139,22 @@ class EntrepriseController extends Controller
         $user = Auth::user();
 
         // Vérifier que l'utilisateur est une entreprise
-        if (!$user->hasRole('entreprise')) {
-            return ApiResponse::error('Seules les entreprises peuvent consulter leurs demandes d\'adhésion.', 403);
+        if (!$user->hasRole('client') || !$user->client->isMoral()) {
+            return ApiResponse::error('Seules les entreprises peuvent soumettre une demande groupée.', 403);
         }
 
         $entreprise = $user->entreprise;
 
         $query = DemandeAdhesion::with([
             'user.entreprise',
-            'assures' => function ($query) use ($entreprise) {
-                $query->where('entreprise_id', $entreprise->id);
-            },
-            'assures.reponsesQuestionnaire.question',
-            'assures.beneficiaires'
+            'validePar'
         ])
             ->where('user_id', $user->id)
-            ->where('type_demandeur', TypeDemandeurEnum::ENTREPRISE->value);
+            ->where('type_demandeur', TypeDemandeurEnum::CLIENT->value);
 
-        // Filtrage par statut si fourni
-        $status = $request->input('statut');
-        if ($status) {
-            $query->where('statut', match ($status) {
-                'en_attente' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
-                'validee'    => StatutDemandeAdhesionEnum::VALIDEE->value,
-                'rejetee'    => StatutDemandeAdhesionEnum::REJETEE->value,
-                'en_proposition'   => StatutDemandeAdhesionEnum::PROPOSEE->value,
-                'acceptee'   => StatutDemandeAdhesionEnum::ACCEPTEE->value,
-                default      => null
-            });
-        }
 
         // Pagination
-        $perPage = $request->query('per_page', 10);
-        $demandes = $query->orderByDesc('created_at')->paginate($perPage);
+        $demandes = $query->orderByDesc('created_at')->get();
 
         // Transformer les données pour l'entreprise
         $demandesTransformees = $demandes->map(function ($demande) {
@@ -96,8 +171,6 @@ class EntrepriseController extends Controller
                 ] : null,
                 'valider_a' => $demande->valider_a,
                 'motif_rejet' => $demande->motif_rejet,
-                'commentaires_technicien' => $demande->commentaires_technicien,
-
                 // Informations sur les employés
                 'employes' => $demande->assures->map(function ($assure) {
                     return [
@@ -112,17 +185,6 @@ class EntrepriseController extends Controller
                         'statut' => $assure->statut,
                         'lien_parente' => $assure->lien_parente,
                         'photo_url' => $assure->photo_url,
-                        'reponses_questionnaire' => $assure->reponsesQuestionnaire->map(function ($reponse) {
-                            return [
-                                'question_id' => $reponse->question_id,
-                                'question_libelle' => $reponse->question->libelle,
-                                'reponse_text' => $reponse->reponse_text,
-                                'reponse_number' => $reponse->reponse_number,
-                                'reponse_bool' => $reponse->reponse_bool,
-                                'reponse_date' => $reponse->reponse_date,
-                                'reponse_fichier' => $reponse->reponse_fichier,
-                            ];
-                        })
                     ];
                 }),
                 // Statistiques
@@ -135,27 +197,18 @@ class EntrepriseController extends Controller
             ];
         });
 
-        $paginatedData = new LengthAwarePaginator(
-            $demandesTransformees,
-            $demandes->total(),
-            $demandes->perPage(),
-            $demandes->currentPage(),
-            ['path' => Paginator::resolveCurrentPath()]
-        );
-
         return ApiResponse::success([
-            'demandes' => $paginatedData,
-            'statistiques_globales' => [
-                'total_demandes' => $demandes->total(),
-                'demandes_en_attente' => $demandes->where('statut', StatutDemandeAdhesionEnum::EN_ATTENTE->value)->count(),
-                'demandes_validees' => $demandes->where('statut', StatutDemandeAdhesionEnum::VALIDEE->value)->count(),
-                'demandes_rejetees' => $demandes->where('statut', StatutDemandeAdhesionEnum::REJETEE->value)->count(),
-                'demandes_en_proposition' => $demandes->where('statut', StatutDemandeAdhesionEnum::PROPOSEE->value)->count(),
-                'demandes_acceptees' => $demandes->where('statut', StatutDemandeAdhesionEnum::ACCEPTEE->value)->count(),
-            ]
+            'demandes' => $demandesTransformees,
+            // 'statistiques_globales' => [
+            //     'total_demandes' => $demandes->total(),
+            //     'demandes_en_attente' => $demandes->where('statut', StatutDemandeAdhesionEnum::EN_ATTENTE->value)->count(),
+            //     'demandes_validees' => $demandes->where('statut', StatutDemandeAdhesionEnum::VALIDEE->value)->count(),
+            //     'demandes_rejetees' => $demandes->where('statut', StatutDemandeAdhesionEnum::REJETEE->value)->count(),
+            //     'demandes_en_proposition' => $demandes->where('statut', StatutDemandeAdhesionEnum::PROPOSEE->value)->count(),
+            //     'demandes_acceptees' => $demandes->where('statut', StatutDemandeAdhesionEnum::ACCEPTEE->value)->count(),
+            // ]
         ], 'Demandes d\'adhésion de l\'entreprise récupérées avec succès.');
     }
-
 
     /**
      * Consulter les demandes d'adhésion soumises par les employés de l'entreprise
@@ -168,43 +221,19 @@ class EntrepriseController extends Controller
 
         $query = DemandeAdhesion::with([
             'user',
-            'reponsesQuestionnaire.question',
             'validePar'
-        ])
-            ->whereHas('assures', function ($query) use ($entreprise) {
-                $query->where('entreprise_id', $entreprise->id);
-            })
-            ->where('type_demandeur', TypeDemandeurEnum::CLIENT->value);
-
-        // Filtrage par statut si fourni
-        $status = $request->input('statut');
-        if ($status) {
-            $query->where('statut', match ($status) {
-                'en_attente' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
-                'validee'    => StatutDemandeAdhesionEnum::VALIDEE->value,
-                'rejetee'    => StatutDemandeAdhesionEnum::REJETEE->value,
-                'en_proposition'   => StatutDemandeAdhesionEnum::PROPOSEE->value,
-                'acceptee'   => StatutDemandeAdhesionEnum::ACCEPTEE->value,
-                default      => null
-            });
-        }
-
-        // Filtrage par employé si fourni
-        $employeId = $request->input('employe_id');
-        if ($employeId) {
-            $query->whereHas('assures', function ($query) use ($employeId) {
-                $query->where('id', $employeId);
-            });
-        }
+        ])->where('user_id', $user->id)->where('type_demandeur', TypeDemandeurEnum::CLIENT->value);
 
         // Pagination
-        $perPage = $request->query('per_page', 10);
-        $demandes = $query->orderByDesc('created_at')->paginate($perPage);
+        $demandes = $query->orderByDesc('created_at')->get();
 
+        // if($demandes->isEmpty()) {
+        //     return ApiResponse::success([], "Aucune demande des employés trouvées");
+        // }
         // Transformer les données
         $demandesTransformees = $demandes->map(function ($demande) use ($entreprise) {
             // Récupérer les employés de cette demande qui appartiennent à l'entreprise
-            $employes = $demande->assures->where('entreprise_id', $entreprise->id);
+            $employes = $demande->assures->where('client_id', $entreprise->id);
 
             return [
                 'id' => $demande->id,
@@ -236,20 +265,6 @@ class EntrepriseController extends Controller
                     'photo_url' => $employes->first()->photo_url,
                 ] : null,
 
-                // Réponses du questionnaire
-                'reponses_questionnaire' => $demande->reponsesQuestionnaire->map(function ($reponse) {
-                    return [
-                        'question_id' => $reponse->question_id,
-                        'question_libelle' => $reponse->question->libelle,
-                        'type_donnee' => $reponse->question->type_donnee,
-                        'reponse_text' => $reponse->reponse_text,
-                        'reponse_number' => $reponse->reponse_number,
-                        'reponse_bool' => $reponse->reponse_bool,
-                        'reponse_date' => $reponse->reponse_date,
-                        'reponse_fichier' => $reponse->reponse_fichier,
-                    ];
-                }),
-
                 // Informations sur l'utilisateur qui a soumis la demande
                 'demandeur' => [
                     'id' => $demande->user->id,
@@ -260,256 +275,18 @@ class EntrepriseController extends Controller
             ];
         });
 
-        $paginatedData = new LengthAwarePaginator(
-            $demandesTransformees,
-            $demandes->total(),
-            $demandes->perPage(),
-            $demandes->currentPage(),
-            ['path' => Paginator::resolveCurrentPath()]
-        );
 
         return ApiResponse::success([
-            'entreprise' => [
-                'id' => $entreprise->id,
-                'raison_sociale' => $entreprise->raison_sociale,
-                'nombre_employe' => $entreprise->nombre_employe,
-                'secteur_activite' => $entreprise->secteur_activite
-            ],
-            'demandes' => $paginatedData,
-            'statistiques_globales' => [
-                'total_demandes' => $demandes->total(),
-                'demandes_en_attente' => $demandes->where('statut', StatutDemandeAdhesionEnum::EN_ATTENTE->value)->count(),
-                'demandes_validees' => $demandes->where('statut', StatutDemandeAdhesionEnum::VALIDEE->value)->count(),
-                'demandes_rejetees' => $demandes->where('statut', StatutDemandeAdhesionEnum::REJETEE->value)->count(),
-            ]
+            'demandes' => $demandesTransformees,
+            // 'statistiques_globales' => [
+            //     'total_demandes' => $demandes->total(),
+            //     'demandes_en_attente' => $demandes->where('statut', StatutDemandeAdhesionEnum::EN_ATTENTE->value)->count(),
+            //     'demandes_validees' => $demandes->where('statut', StatutDemandeAdhesionEnum::VALIDEE->value)->count(),
+            //     'demandes_rejetees' => $demandes->where('statut', StatutDemandeAdhesionEnum::REJETEE->value)->count(),
+            // ]
         ], 'Demandes d\'adhésion des employés récupérées avec succès.');
     }
 
-    public function getInvitationLink(Request $request)
-    {
-        $user = Auth::user();
-        if (!$user->hasRole('entreprise')) {
-            return ApiResponse::error('Seules les entreprises peuvent générer un lien d\'invitation.', 403);
-        }
-        $invitation = InvitationEmploye::where('entreprise_id', $user->entreprise->id)
-            ->where('expire_at', '>', now())
-            ->first();
-        return ApiResponse::success([
-            'invitation_id' => $invitation->id,
-            'token' => $invitation->token,
-            'url' => config('app.frontend_url') . "/employes/formulaire/{$invitation->token}",
-            'expire_at' => $invitation->expire_at,
-        ], 'Lien d\'invitation récupéré avec succès.');
-    }
-
-    /**
-     * Soumission groupée de la demande d'adhésion entreprise
-     */
-    public function soumettreDemandeAdhesionEntreprise(Request $request)
-    {
-        $user = Auth::user();
-        if (!$user->hasRole('entreprise') || !$user->entreprise) {
-            return ApiResponse::error('Seules les entreprises peuvent soumettre une demande groupée.', 403);
-        }
-        $entreprise = $user->entreprise;
-        $employes = Assure::where('entreprise_id', $entreprise->id)->get();
-        if ($employes->isEmpty()) {
-            return ApiResponse::error('Aucun employé n\'a encore soumis sa fiche.', 422);
-        }
-        DB::beginTransaction();
-        try {
-            // Créer la demande d'adhésion entreprise
-            $demande = DemandeAdhesion::create([
-                'type_demandeur' => TypeDemandeurEnum::ENTREPRISE->value,
-                'statut' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
-                'user_id' => $user->id,
-                'entreprise_id' => $entreprise->id,
-            ]);
-            // Notifier SUNU (technicien)
-            $this->demandeAdhesionService->notifyByDemandeurType($demande, TypeDemandeurEnum::ENTREPRISE->value);
-
-            DB::commit();
-            return ApiResponse::success(new DemandeAdhesionEntrepriseResource($demande), 'Demande d\'adhésion entreprise soumise avec succès.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return ApiResponse::error('Erreur lors de la soumission de la demande d\'adhésion entreprise : ' . $e->getMessage(), 500);
-        }
-    }
-
-
-    /**
-     * Générer un lien d'invitation unique pour qu'un employé remplisse sa fiche d'adhésion (un seul lien actif par entreprise)
-     */
-    public function genererLienInvitationEmploye(Request $request)
-    {
-        $user = Auth::user();
-        // Vérifier que l'utilisateur est une entreprise
-        if (!$user->hasRole('entreprise')) {
-            return ApiResponse::error('Seules les entreprises peuvent générer un lien d\'invitation.', 403);
-        }
-        $entrepriseId = $user->entreprise->id;
-        // Chercher un lien actif existant
-        $invitation = InvitationEmploye::where('entreprise_id', $entrepriseId)
-            ->where('expire_at', '>', now())
-            ->first();
-        if ($invitation) {
-            $url = config('app.frontend_url') . "/employes/formulaire/{$invitation->token}";
-            return ApiResponse::success([
-                'invitation_id' => $invitation->id,
-                'url' => $url,
-                'token' => $invitation->token,
-                'expire_at' => $invitation->expire_at,
-            ], 'Lien d\'invitation déjà existant.');
-        }
-        // Sinon, générer un nouveau lien
-        $invitation = InvitationEmploye::create([
-            'entreprise_id' => $entrepriseId,
-            'token' => InvitationEmploye::generateToken(),
-            'expire_at' => now()->addDays(7),
-        ]);
-        $url = config('app.frontend_url') . "/employes/formulaire/{$invitation->token}";
-        return ApiResponse::success([
-            'invitation_id' => $invitation->id,
-            'token' => $invitation->token,
-            'url' => $url,
-            'expire_at' => $invitation->expire_at,
-        ], 'Nouveau lien d\'invitation généré avec succès.');
-    }
-
-    /**
-     * Afficher le formulaire d'adhésion emloyé via le token d'invitation
-     */
-    public function showFormulaireEmploye($token)
-    {
-        $invitation = InvitationEmploye::where('token', $token)
-            ->where('expire_at', '>', now())
-            ->first();
-        if (!$invitation) {
-            return ApiResponse::error('Lien d\'invitation invalide ou expiré.', 404);
-        }
-        // Récupérer les questions actives pour le type CLIENT
-        $questions = Question::active()->byDestinataire(TypeDemandeurEnum::CLIENT->value)->get();
-        return ApiResponse::success([
-            'entreprise' => $invitation->entreprise,
-            'token' => $token,
-            'beneficiaires',
-            'nom',
-            'prenoms',
-            'email',
-            'date_naissance',
-            'sexe',
-            'contact',
-            'adresse',
-            'photo',
-            'questions' => QuestionResource::collection($questions),
-
-        ], 'Formulaire employé prêt à être rempli.');
-    }
-
-
-
-    /**
-     * Soumettre la fiche employé via le lien d'invitation
-     */
-    public function soumettreFicheEmploye(SoumissionEmployeFormRequest $request, $token)
-    {
-        $invitation = InvitationEmploye::where('token', $token)->first();
-
-        if (!$invitation) {
-            return ApiResponse::error('Lien d\'invitation invalide.', 404);
-        }
-
-        if ($invitation->isExpired()) {
-            return ApiResponse::error('Lien d\'invitation expiré.', 404);
-        }
-        $data = $request->validated();
-        DB::beginTransaction();
-        try {
-
-            // Créer l'assuré principal (employé)
-            $assure = Assure::create([
-                'user_id' => null,
-                'entreprise_id' => $invitation->entreprise_id,
-                'nom' => $data['nom'],
-                'prenoms' => $data['prenoms'],
-                'email' => $data['email'] ?? null,
-                'date_naissance' => $data['date_naissance'],
-                'sexe' => $data['sexe'],
-                'contact' => $data['contact'] ?? null,
-                'est_principal' => true,
-                'profession' => $data['profession'] ?? null,
-                'photo' => isset($data['photo']) ? ImageUploadHelper::uploadImage($data['photo'], 'uploads/employes') : null,
-            ]);
-            // Enregistrer les réponses au questionnaire
-            foreach ($data['reponses'] as $reponse) {
-                $this->demandeAdhesionService->enregistrerReponsePersonne('employe', $assure->id, $reponse, null);
-            }
-            // Enregistrer les bénéficiaires (optionnels)
-            if (isset($data['beneficiaires']) && is_array($data['beneficiaires'])) {
-                foreach ($data['beneficiaires'] as $beneficiaire) {
-                    // Créer le bénéficiaire directement pour les employés
-                    $benefAssure = Assure::create([
-                        'user_id' => null,
-                        'assure_principal_id' => $assure->id,
-                        'nom' => $beneficiaire['nom'],
-                        'prenoms' => $beneficiaire['prenoms'],
-                        'date_naissance' => $beneficiaire['date_naissance'],
-                        'sexe' => $beneficiaire['sexe'],
-                        'lien_parente' => $beneficiaire['lien_parente'],
-                        'est_principal' => false,
-                        'photo' => $beneficiaire['photo'] ?? null,
-                    ]);
-
-                    // Enregistrer les réponses du bénéficiaire
-                    foreach ($beneficiaire['reponses'] as $reponse) {
-                        $this->demandeAdhesionService->enregistrerReponsePersonne('beneficiaire', $benefAssure->id, $reponse, null);
-                    }
-                }
-            }
-            // Créer une notification in-app pour l'entreprise
-            $this->notificationService->createNotification(
-                $invitation->entreprise->user->id,
-                'Nouvelle fiche employé soumise',
-                "L'employé {$assure->nom} {$assure->prenoms} a soumis sa fiche d'adhésion.",
-                'info',
-                [
-                    'employe_id' => $assure->id,
-                    'employe_nom' => $assure->nom,
-                    'employe_prenoms' => $assure->prenoms,
-                    'employe_email' => $assure->email,
-                    'date_soumission' => now()->format('d/m/Y à H:i'),
-                    'type' => 'nouvelle_fiche_employe'
-                ]
-            );
-
-
-            DB::commit();
-            return ApiResponse::success(null, 'Fiche employé soumise avec succès.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return ApiResponse::error('Erreur lors de la soumission de la fiche employé : ' . $e->getMessage(), 500);
-        }
-    }
-
-     /**
-     * Récupérer la liste des employés qui ont soumis leur demande d'adhésion
-     * Pour le dashboard de l'entreprise
-     */
-    public function employesAvecDemandes(Request $request)
-    {
-        $user = Auth::user();
-
-
-        $entreprise = $user->entreprise;
-
-        // Récupérer tous les employés de l'entreprise avec leurs demandes d'adhésion
-        $employes = Assure::where('entreprise_id', $entreprise->id)
-            ->get();
-
-        return ApiResponse::success($employes, 'Employés avec demandes d\'adhésion récupérés avec succès');
-    }
-
-    
     /**
      * Statistiques des employés et demandes d'adhésion pour le dashboard de l'entreprise
      */
@@ -517,11 +294,10 @@ class EntrepriseController extends Controller
     {
         $user = Auth::user();
 
-
         $entreprise = $user->entreprise;
 
         // Récupérer tous les employés principaux de l'entreprise qui ont répondu au questionnaire
-        $employesPrincipaux = Assure::where('entreprise_id', $entreprise->id)
+        $employesPrincipaux = Assure::where('client_id', $entreprise->id)
             ->whereNull('assure_principal_id') // Assurés principaux uniquement
             ->get();
 
@@ -646,5 +422,106 @@ class EntrepriseController extends Controller
         ];
 
         return ApiResponse::success($statistiques, 'Statistiques des employés récupérées avec succès.');
+    }
+
+    // /**
+    //  * Récupérer la liste des employés qui ont soumis leur demande d'adhésion
+    //  * Pour le dashboard de l'entreprise
+    //  */
+    // public function employesAvecDemandes(Request $request)
+    // {
+    //     $user = Auth::user();
+
+
+    //     $entreprise = $user->entreprise;
+
+    //     // Récupérer tous les employés de l'entreprise avec leurs demandes d'adhésion
+    //     $employes = Assure::where('client_id', $entreprise->id)
+    //         ->get();
+
+    //     return ApiResponse::success($employes, 'Employés avec demandes d\'adhésion récupérés avec succès');
+    // }
+
+
+
+    /**
+     * Afficher le formulaire d'adhésion emloyé via le jeton d'invitation
+     */
+    public function showFormulaireEmploye($jeton)
+    {
+        $invitation = LienInvitation::where('jeton', $jeton)
+            ->where('expire_a', '>', now())
+            ->first();
+        if (!$invitation) {
+            return ApiResponse::error('Lien d\'invitation invalide ou expiré.', 404);
+        }
+        // Récupérer les questions actives pour le type CLIENT
+        $questions = Question::active()->byDestinataire(TypeDemandeurEnum::CLIENT->value)->get();
+        return ApiResponse::success([
+            'entreprise' => $invitation->client,
+            'jeton' => $jeton,
+            'beneficiaires',
+            'nom',
+            'prenoms',
+            'email',
+            'date_naissance',
+            'sexe',
+            'contact',
+            'adresse',
+            'photo',
+            'questions' => QuestionResource::collection($questions),
+
+        ], 'Formulaire employé prêt à être rempli.');
+    }
+
+    /**
+     * Soumettre la fiche employé via le lien d'invitation
+     */
+    public function soumettreFicheEmploye(SoumissionEmployeFormRequest $request, $jeton)
+    {
+        $invitation = LienInvitation::where('jeton', $jeton)->first();
+        if (!$invitation) {
+            return ApiResponse::error('Lien d\'invitation invalide.', 404);
+        }
+        if ($invitation->isExpired()) {
+            return ApiResponse::error('Lien d\'invitation expiré.', 404);
+        }
+        $data = $request->validated();
+        DB::beginTransaction();
+        try {  
+            // Créer l'assuré principal (employé)
+            
+
+            // Enregistrer les réponses aux questions
+           
+
+            // Enregistrer les bénéficiaires (optionnels)
+            
+
+            // Créer une notification in-app pour l'entreprise
+
+
+            // $this->notificationService->createNotification(
+            //     $invitation->entreprise->user->id,
+            //     'Nouvelle fiche employé soumise',
+            //     "L'employé {$assure->nom} {$assure->prenoms} a soumis sa fiche d'adhésion.",
+            //     'info',
+            //     [
+            //         'employe_id' => $assure->id,
+            //         'employe_nom' => $assure->nom,
+            //         'employe_prenoms' => $assure->prenoms,
+            //         'employe_email' => $assure->email,
+            //         'date_soumission' => now()->format('d/m/Y à H:i'),
+            //         'type' => 'nouvelle_fiche_employe'
+            //     ]
+            // );
+
+
+            DB::commit();
+            return ApiResponse::success(null, 'Fiche employé soumise avec succès.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ApiResponse::error('Erreur lors de la soumission de la fiche employé : ' . $e->getMessage(), 500);
+        }
     }
 }

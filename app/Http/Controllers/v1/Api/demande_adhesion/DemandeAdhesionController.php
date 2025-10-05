@@ -27,7 +27,6 @@ use App\Http\Requests\DemandeAdhesionRejectFormRequest;
 use App\Http\Requests\demande_adhesion\StoreDemandeAdhesionRequest;
 use App\Http\Requests\ValiderProspectDemande;
 use App\Http\Requests\demande_adhesion\SoumissionEmployeFormRequest;
-use App\Http\Requests\demande_adhesion\StoreDemandeAdhesionPhysiqueRequest;
 use App\Http\Requests\demande_adhesion\StoreDemandeAdhesionPrestataireRequest;
 use App\Http\Requests\demande_adhesion\ValiderProspectRequest;
 use App\Http\Requests\demande_adhesion\ValiderPrestataireRequest;
@@ -88,6 +87,39 @@ class DemandeAdhesionController extends Controller
         $this->demandeAdhesionService = $demandeAdhesionService;
     }
 
+    
+    public function hasDemande()
+    {
+        $user = Auth::user();
+
+        // Récupérer la demande via la relation client
+        $demande = DemandeAdhesion::whereHas('client', function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if (!$demande) {
+            return ApiResponse::success([
+                'existing' => false,
+                'demande' => null,
+                'can_submit' => true,
+                'status' => 'none'
+            ], 'Aucune demande d\'adhésion trouvée');
+        }
+
+        $status = $demande->statut?->value ?? $demande->statut;
+        $canSubmit = in_array($status, ['rejetee']); // Can resubmit if rejected
+
+        return ApiResponse::success([
+            'existing' => true,
+            'demande' => $demande,
+            'can_submit' => $canSubmit,
+            'status' => $status,
+            'motif_rejet' => $demande->motif_rejet ?? null,
+            'valider_a' => $demande->valider_a ?? null
+        ], 'Demande d\'adhésion récupérée avec succès');
+    }
 
     public function index(Request $request)
     {
@@ -197,38 +229,32 @@ class DemandeAdhesionController extends Controller
         }
     }
 
-    public function hasDemande()
-    {
+    public function storePrestataireDemande(StoreDemandeAdhesionRequest $request) {
         $user = Auth::user();
+        $data = $request->validated();
+        $typeDemandeur = $data['type_demandeur'];
 
-        // Récupérer la demande via la relation client
-        $demande = DemandeAdhesion::whereHas('client', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
-        })
-            ->orderBy('created_at', 'desc')
-            ->first();
-
-        if (!$demande) {
-            return ApiResponse::success([
-                'existing' => false,
-                'demande' => null,
-                'can_submit' => true,
-                'status' => 'none'
-            ], 'Aucune demande d\'adhésion trouvée');
+        if ($this->demandeValidatorService->hasPendingDemande()) {
+            return ApiResponse::error('Vous avez déjà une demande d\'adhésion en cours de traitement. Veuillez attendre la réponse.', 400);
+        }
+        if ($this->demandeValidatorService->hasValidatedDemande()) {
+            return ApiResponse::error('Vous avez déjà une demande d\'adhésion validée. Vous ne pouvez plus soumettre une nouvelle demande.', 400);
         }
 
-        $status = $demande->statut?->value ?? $demande->statut;
-        $canSubmit = in_array($status, ['rejetee']); // Can resubmit if rejected
+        DB::beginTransaction();
+        try {
+            $demande = $this->demandeValidatorService->createDemandeAdhesionPrestataire($data, $user);
+            // Notifier selon le type de demandeur via le service
+            $this->demandeAdhesionService->notifyByDemandeurType($demande, $typeDemandeur);
+            DB::commit();
+            $this->notificationService->sendEmail($user->email, 'Demande adhésion enregistré', 'emails.demande_adhesion_enregistre', []);
 
-        return ApiResponse::success([
-            'existing' => true,
-            'demande' => $demande,
-            'can_submit' => $canSubmit,
-            'status' => $status,
-            'motif_rejet' => $demande->motif_rejet ?? null,
-            'valide_par' => $demande->validePar ?? null,
-            'valider_a' => $demande->valider_a ?? null
-        ], 'Demande d\'adhésion récupérée avec succès');
+            return ApiResponse::success(null, 'Demande d\'adhésion soumise avec succès.', 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::info("Erreur lors de la soumission de la demande d\'adhésion du prestataire " . $e);
+            return ApiResponse::error('Erreur lors de la soumission de la demande d\'adhésion du prestataire : ' . $e->getMessage(), 500);
+        }
     }
 
     /**

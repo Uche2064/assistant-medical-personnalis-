@@ -1,0 +1,209 @@
+{
+    "info": {
+        "_postman_id": "commercial-module",
+        "name": "💼 Commercial",
+        "description": "Fonctions commerciales et prospection avec système de parrainage",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Générer Code Parrainage",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "X-API-Key",
+                        "value": "{{api_key}}",
+                        "description": "Clé API obligatoire"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{access_token}}",
+                        "description": "Token JWT du commercial"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/v1/commercial/generer-code-parrainage",
+                    "host": ["{{base_url}}"],
+                    "path": ["v1", "commercial", "generer-code-parrainage"]
+                },
+                "description": "Génère un code parrainage unique pour le commercial connecté. Ce code sera utilisé pour lier les clients au commercial."
+            }
+        },
+        {
+            "name": "Créer Compte Client Physique",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "X-API-Key",
+                        "value": "{{api_key}}",
+                        "description": "Clé API obligatoire"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{access_token}}",
+                        "description": "Token JWT du commercial"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/v1/commercial/creer-compte-client",
+                    "host": ["{{base_url}}"],
+                    "path": ["v1", "commercial", "creer-compte-client"]
+                },
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"type_demandeur\": \"client\",\n    \"type_client\": \"physique\",\n    \"email\": \"client@example.com\",\n    \"contact\": \"+225123456789\",\n    \"adresse\": \"Abidjan, Côte d'Ivoire\",\n    \"nom\": \"Kouassi\",\n    \"prenoms\": \"Marie\",\n    \"date_naissance\": \"1990-05-15\",\n    \"sexe\": \"F\",\n    \"profession\": \"Infirmière\"\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "description": "Crée un compte client physique avec mot de passe généré automatiquement. Pas de photo requise pour la création par commercial."
+            }
+        },
+        {
+            "name": "Créer Compte Client Moral",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "X-API-Key",
+                        "value": "{{api_key}}",
+                        "description": "Clé API obligatoire"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{access_token}}",
+                        "description": "Token JWT du commercial"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/v1/commercial/creer-compte-client",
+                    "host": ["{{base_url}}"],
+                    "path": ["v1", "commercial", "creer-compte-client"]
+                },
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"type_demandeur\": \"client\",\n    \"type_client\": \"moral\",\n    \"email\": \"entreprise@example.com\",\n    \"contact\": \"+225123456789\",\n    \"adresse\": \"Abidjan, Côte d'Ivoire\",\n    \"nom\": \"SUNU Entreprise\"\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "description": "Crée un compte client moral (entreprise) avec mot de passe généré automatiquement. Pas de données personnelles requises."
+            }
+        },
+        {
+            "name": "Mes Clients Parrainés",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "X-API-Key",
+                        "value": "{{api_key}}",
+                        "description": "Clé API obligatoire"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{access_token}}",
+                        "description": "Token JWT du commercial"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/v1/commercial/mes-clients-parraines",
+                    "host": ["{{base_url}}"],
+                    "path": ["v1", "commercial", "mes-clients-parraines"]
+                },
+                "description": "Récupère la liste complète des clients parrainés par le commercial connecté."
+            }
+        },
+        {
+            "name": "Mes Statistiques",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "X-API-Key",
+                        "value": "{{api_key}}",
+                        "description": "Clé API obligatoire"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{access_token}}",
+                        "description": "Token JWT du commercial"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/v1/commercial/mes-statistiques",
+                    "host": ["{{base_url}}"],
+                    "path": ["v1", "commercial", "mes-statistiques"]
+                },
+                "description": "Récupère les statistiques du commercial : nombre total de clients, clients actifs, répartition par type, taux d'activation."
+            }
+        },
+        {
+            "name": "Inscription Client avec Code Parrainage",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "X-API-Key",
+                        "value": "{{api_key}}",
+                        "description": "Clé API obligatoire"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/v1/auth/register",
+                    "host": ["{{base_url}}"],
+                    "path": ["v1", "auth", "register"]
+                },
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"type_demandeur\": \"client\",\n    \"type_client\": \"physique\",\n    \"email\": \"nouveau.client@example.com\",\n    \"password\": \"MotDePasse123!\",\n    \"contact\": \"+225987654321\",\n    \"adresse\": \"Yamoussoukro, Côte d'Ivoire\",\n    \"nom\": \"Traoré\",\n    \"prenoms\": \"Fatou\",\n    \"date_naissance\": \"1985-12-10\",\n    \"sexe\": \"F\",\n    \"profession\": \"Enseignante\",\n    \"photo\": \"[FILE_UPLOAD]\",\n    \"code_parrainage\": \"COMABC123\"\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "description": "Inscription d'un client avec code parrainage (optionnel). Si le code est valide, le client sera lié au commercial correspondant. Photo requise pour l'inscription normale."
+            }
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:8000/api",
+            "description": "URL de base de l'API"
+        },
+        {
+            "key": "api_key",
+            "value": "your_api_key_here",
+            "description": "Clé API obligatoire pour toutes les requêtes"
+        },
+        {
+            "key": "access_token",
+            "value": "your_jwt_token_here",
+            "description": "Token JWT du commercial connecté"
+        }
+    ]
+}

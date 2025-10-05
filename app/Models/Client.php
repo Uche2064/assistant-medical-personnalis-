@@ -19,11 +19,6 @@ class Client extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function demandesAdhesions()
-    {
-        return $this->hasMany(DemandeAdhesion::class);
-    }
-
     public function assures()
     {
         return $this->hasMany(Assure::class);
@@ -32,6 +27,18 @@ class Client extends Model
     public function clientsContrats()
     {
         return $this->hasMany(ClientContrat::class);
+    }
+
+    public function isMoral() {
+        return $this->type_client === 'moral';
+    }
+
+    public function isPhysique() {
+        return $this->type_client === 'physique';
+    }
+
+    public function lienInvitations() {
+        return $this->hasMany(LienInvitation::class);
     }
 }
 

@@ -35,7 +35,11 @@ class User extends Authenticatable implements JWTSubject
         'lock_until',
         'permanently_blocked',
         'failed_attempts',
-        'phase'
+        'phase',
+        'code_parrainage',
+        'commercial_id',
+        'compte_cree_par_commercial',
+        'code_parrainage_commercial'
     ];
 
     /**
@@ -100,8 +104,10 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasOne(Personnel::class);
     }
 
-    // Entreprise removed in new schema; use Client instead
-
+    public function demandesAdhesions()
+    {
+        return $this->hasMany(DemandeAdhesion::class);
+    }
     /**
      * Get the assure record associated with the user.
      */
@@ -117,6 +123,8 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasOne(Prestataire::class);
     }
+
+    
 
     /**
      * Get the demandes d'adhésion associated with the user.
@@ -188,6 +196,22 @@ class User extends Authenticatable implements JWTSubject
         }
         
         return $this->email;
+    }
+
+    /**
+     * Get the commercial who created this user account
+     */
+    public function commercial()
+    {
+        return $this->belongsTo(User::class, 'commercial_id');
+    }
+
+    /**
+     * Get all clients created by this commercial
+     */
+    public function clientsParraines()
+    {
+        return $this->hasMany(User::class, 'commercial_id');
     }
 
     /**

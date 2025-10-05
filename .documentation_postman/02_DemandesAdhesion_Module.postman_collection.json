@@ -1,0 +1,189 @@
+{
+	"info": {
+		"_postman_id": "demandes-module",
+		"name": "📋 Demandes d'adhésion",
+		"description": "Gestion des demandes d'adhésion des clients et prestataires",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Vérifier demande existante",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/demandes-adhesions/has-demande",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "demandes-adhesions", "has-demande"]
+				}
+			}
+		},
+		{
+			"name": "Lister demandes",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/demandes-adhesions",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "demandes-adhesions"]
+				}
+			}
+		},
+		{
+			"name": "Détails demande",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/demandes-adhesions/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "demandes-adhesions", "1"]
+				}
+			}
+		},
+		{
+			"name": "Soumettre demande client",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"type_demandeur\": \"client\",\n  \"reponses\": [\n    {\n      \"question_id\": 1,\n      \"reponse\": \"Réponse à la question\"\n    }\n  ],\n  \"beneficiaires\": [\n    {\n      \"nom\": \"Bénéficiaire\",\n      \"prenoms\": \"Test\",\n      \"date_naissance\": \"1995-01-01\",\n      \"sexe\": \"F\",\n      \"email\": \"beneficiaire@example.com\",\n      \"contact\": \"+225123456789\",\n      \"profession\": \"Étudiant\",\n      \"photo_url\": \"[FILE_UPLOAD]\",\n      \"lien_parente\": \"enfant\",\n      \"reponses\": [\n        {\n          \"question_id\": 1,\n          \"reponse\": \"Réponse bénéficiaire\"\n        }\n      ]\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/demandes-adhesions/client",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "demandes-adhesions", "client"]
+				}
+			}
+		},
+		{
+			"name": "Soumettre demande prestataire",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"type_demandeur\": \"prestataire\",\n  \"type_prestataire\": \"hopital\",\n  \"reponses\": [\n    {\n      \"question_id\": 1,\n      \"reponse\": \"Réponse à la question\"\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/demandes-adhesions/prestataire",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "demandes-adhesions", "prestataire"]
+				}
+			}
+		},
+		{
+			"name": "Valider demande client",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"motif_validation\": \"Demande conforme aux critères\",\n  \"notes_techniques\": \"Notes techniques\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/demandes-adhesions/1/valider-client",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "demandes-adhesions", "1", "valider-client"]
+				}
+			}
+		},
+		{
+			"name": "Valider demande prestataire",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/demandes-adhesions/1/valider-prestataire",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "demandes-adhesions", "1", "valider-prestataire"]
+				}
+			}
+		},
+		{
+			"name": "Rejeter demande",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"motif_rejet\": \"Documents incomplets\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/demandes-adhesions/1/rejeter",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "demandes-adhesions", "1", "rejeter"]
+				}
+			}
+		},
+		{
+			"name": "Proposer contrat",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"contrat_id\": 1,\n  \"commentaires_technicien\": \"Contrat adapté au profil\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/demandes-adhesions/1/proposer-contrat",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "demandes-adhesions", "1", "proposer-contrat"]
+				}
+			}
+		},
+		{
+			"name": "Accepter contrat",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/client/contrats-proposes/1/accepter",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "client", "contrats-proposes", "1", "accepter"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"},
+		{"key": "access_token", "value": "", "type": "string"}
+	]
+}

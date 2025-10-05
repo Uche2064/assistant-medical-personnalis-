@@ -1,0 +1,133 @@
+{
+	"info": {
+		"_postman_id": "questions-module",
+		"name": "❓ Questions",
+		"description": "Gestion des questionnaires et questions",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Lister questions",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/questions",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "questions"]
+				}
+			}
+		},
+		{
+			"name": "Statistiques questions",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/questions/stats",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "questions", "stats"]
+				}
+			}
+		},
+		{
+			"name": "Détails question",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/questions/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "questions", "1"]
+				}
+			}
+		},
+		{
+			"name": "Créer questions en masse",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"questions\": [\n    {\n      \"libelle\": \"Avez-vous des antécédents médicaux ?\",\n      \"type_de_donnee\": \"boolean\",\n      \"est_obligatoire\": true,\n      \"destinataire\": \"client\",\n      \"ordre\": 1\n    },\n    {\n      \"libelle\": \"Quel est votre âge ?\",\n      \"type_de_donnee\": \"number\",\n      \"est_obligatoire\": true,\n      \"destinataire\": \"client\",\n      \"ordre\": 2\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/questions",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "questions"]
+				}
+			}
+		},
+		{
+			"name": "Modifier question",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"libelle\": \"Avez-vous des antécédents médicaux ? (modifié)\",\n  \"type_de_donnee\": \"boolean\",\n  \"est_obligatoire\": true,\n  \"destinataire\": \"client\",\n  \"ordre\": 1\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/questions/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "questions", "1"]
+				}
+			}
+		},
+		{
+			"name": "Supprimer question",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/questions/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "questions", "1"]
+				}
+			}
+		},
+		{
+			"name": "Supprimer questions en masse",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"question_ids\": [1, 2, 3]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/questions",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "questions"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"},
+		{"key": "access_token", "value": "", "type": "string"}
+	]
+}

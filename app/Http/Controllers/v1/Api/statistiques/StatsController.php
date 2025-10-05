@@ -66,10 +66,7 @@ class StatsController extends Controller
                 'garanties' => $this->getGarantieStats(),
                 'categories_garanties' => $this->getCategorieGarantieStats(),
                 'demandes_adhesion' => $this->getDemandeAdhesionStats([
-                    TypeDemandeurEnum::CENTRE_DE_SOINS->value,
-                    TypeDemandeurEnum::LABORATOIRE_CENTRE_DIAGNOSTIC->value,
-                    TypeDemandeurEnum::PHARMACIE->value,
-                    TypeDemandeurEnum::OPTIQUE->value,
+                    TypeDemandeurEnum::PRESTATAIRE
                 ]), // Seulement prestataires
             ]);
         }

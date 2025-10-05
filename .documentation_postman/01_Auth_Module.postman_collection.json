@@ -1,0 +1,289 @@
+{
+	"info": {
+		"_postman_id": "auth-module",
+		"name": "🔐 Authentification",
+		"description": "Module d'authentification et gestion des comptes utilisateurs avec système de parrainage",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Inscription Client avec Code Parrainage",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "X-API-Key", "value": "{{api_key}}", "description": "Clé API obligatoire"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"type_demandeur\": \"client\",\n  \"type_client\": \"physique\",\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\",\n  \"contact\": \"+225123456789\",\n  \"adresse\": \"Abidjan, Côte d'Ivoire\",\n  \"nom\": \"Dupont\",\n  \"prenoms\": \"Jean\",\n  \"date_naissance\": \"1990-01-01\",\n  \"sexe\": \"M\",\n  \"profession\": \"Ingénieur\",\n  \"photo\": \"[FILE_UPLOAD]\",\n  \"code_parrainage\": \"COMABC123\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/auth/register",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "auth", "register"]
+				},
+				"description": "Inscription d'un client avec code parrainage optionnel. Si le code est valide, le client sera lié au commercial correspondant."
+			}
+		},
+		{
+			"name": "Inscription Client Moral",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "X-API-Key", "value": "{{api_key}}", "description": "Clé API obligatoire"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"type_demandeur\": \"client\",\n  \"type_client\": \"moral\",\n  \"email\": \"entreprise@example.com\",\n  \"password\": \"password123\",\n  \"contact\": \"+225123456789\",\n  \"adresse\": \"Abidjan, Côte d'Ivoire\",\n  \"nom\": \"SUNU Entreprise\",\n  \"code_parrainage\": \"COMABC123\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/auth/register",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "auth", "register"]
+				},
+				"description": "Inscription d'un client moral (entreprise) avec code parrainage optionnel."
+			}
+		},
+		{
+			"name": "Inscription Prestataire",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "X-API-Key", "value": "{{api_key}}", "description": "Clé API obligatoire"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"type_demandeur\": \"prestataire\",\n  \"type_prestataire\": \"hopital\",\n  \"email\": \"hopital@example.com\",\n  \"password\": \"password123\",\n  \"contact\": \"+225123456789\",\n  \"adresse\": \"Abidjan, Côte d'Ivoire\",\n  \"nom\": \"Hôpital Central\",\n  \"prenoms\": \"\",\n  \"date_naissance\": \"1980-01-01\",\n  \"sexe\": \"M\",\n  \"profession\": \"Directeur\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/auth/register",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "auth", "register"]
+				},
+				"description": "Inscription d'un prestataire de soins (hôpital, clinique, pharmacie)."
+			}
+		},
+		{
+			"name": "Vérification OTP",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "X-API-Key", "value": "{{api_key}}", "description": "Clé API obligatoire"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"test@example.com\",\n  \"otp\": \"123456\",\n  \"type\": \"register\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/auth/verify-otp",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "auth", "verify-otp"]
+				},
+				"description": "Vérification du code OTP reçu par email pour activer le compte."
+			}
+		},
+		{
+			"name": "Connexion",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "X-API-Key", "value": "{{api_key}}", "description": "Clé API obligatoire"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/auth/login",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "auth", "login"]
+				},
+				"description": "Connexion avec email et mot de passe. Retourne le token JWT."
+			}
+		},
+		{
+			"name": "Profil Utilisateur",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "X-API-Key", "value": "{{api_key}}", "description": "Clé API obligatoire"},
+					{"key": "Authorization", "value": "Bearer {{access_token}}", "description": "Token JWT"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/auth/me",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "auth", "me"]
+				},
+				"description": "Récupère les informations du profil de l'utilisateur connecté."
+			}
+		},
+		{
+			"name": "Envoi OTP",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "X-API-Key", "value": "{{api_key}}", "description": "Clé API obligatoire"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"test@example.com\",\n  \"type\": \"register\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/auth/send-otp",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "auth", "send-otp"]
+				},
+				"description": "Envoie un nouveau code OTP par email."
+			}
+		},
+		{
+			"name": "Mot de Passe Oublié",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "X-API-Key", "value": "{{api_key}}", "description": "Clé API obligatoire"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"test@example.com\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/auth/forgot-password",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "auth", "forgot-password"]
+				},
+				"description": "Envoie un OTP pour réinitialiser le mot de passe."
+			}
+		},
+		{
+			"name": "Réinitialisation Mot de Passe",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "X-API-Key", "value": "{{api_key}}", "description": "Clé API obligatoire"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"test@example.com\",\n  \"otp\": \"123456\",\n  \"password\": \"nouveau_password123\",\n  \"password_confirmation\": \"nouveau_password123\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/auth/reset-password",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "auth", "reset-password"]
+				},
+				"description": "Réinitialise le mot de passe avec l'OTP reçu par email."
+			}
+		},
+		{
+			"name": "Changer Mot de Passe",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "X-API-Key", "value": "{{api_key}}", "description": "Clé API obligatoire"},
+					{"key": "Authorization", "value": "Bearer {{access_token}}", "description": "Token JWT"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"current_password\": \"ancien_password123\",\n  \"password\": \"nouveau_password123\",\n  \"password_confirmation\": \"nouveau_password123\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/auth/change-password",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "auth", "change-password"]
+				},
+				"description": "Change le mot de passe de l'utilisateur connecté."
+			}
+		},
+		{
+			"name": "Déconnexion",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "X-API-Key", "value": "{{api_key}}", "description": "Clé API obligatoire"},
+					{"key": "Authorization", "value": "Bearer {{access_token}}", "description": "Token JWT"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/auth/logout",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "auth", "logout"]
+				},
+				"description": "Déconnecte l'utilisateur et invalide le token JWT."
+			}
+		},
+		{
+			"name": "Refresh Token",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "X-API-Key", "value": "{{api_key}}", "description": "Clé API obligatoire"},
+					{"key": "Authorization", "value": "Bearer {{access_token}}", "description": "Token JWT"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/auth/refresh",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "auth", "refresh"]
+				},
+				"description": "Renouvelle le token JWT avant expiration."
+			}
+		},
+		{
+			"name": "Vérifier Unicité",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "X-API-Key", "value": "{{api_key}}", "description": "Clé API obligatoire"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"champ\": \"email\",\n  \"valeur\": \"test@example.com\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/auth/check-unique",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "auth", "check-unique"]
+				},
+				"description": "Vérifie l'unicité d'un champ (email, contact) avant inscription."
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000/api",
+			"description": "URL de base de l'API"
+		},
+		{
+			"key": "api_key",
+			"value": "your_api_key_here",
+			"description": "Clé API obligatoire pour toutes les requêtes"
+		},
+		{
+			"key": "access_token",
+			"value": "your_jwt_token_here",
+			"description": "Token JWT généré après connexion"
+		}
+	]
+}

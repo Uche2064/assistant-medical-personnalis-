@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Events\NouveauCompteCree;
+use App\Events\NouvelleDemandeAdhesion;
 use App\Mail\GenericMail;
 use App\Models\DemandeAdhesion;
 use App\Models\Notification;
@@ -233,7 +234,7 @@ class NotificationService
         }
 
         // Dispatcher l'événement pour le temps réel
-        event(new \App\Events\NouvelleDemandeAdhesion($demande, $notificationData));
+        event(new NouvelleDemandeAdhesion($demande, $notificationData));
     }
 
     /**
@@ -249,18 +250,18 @@ class NotificationService
             $query->where('name', 'medecin_controleur');
         })->get();
 
-        $prestataireEmail = $demande->user->email;
+        $userEmail = $demande->user->email;
 
         foreach ($medecinsControleurs as $medecin) {
             $this->createNotification(
                 $medecin->id,
                 'Nouvelle demande prestataire',
-                "Une nouvelle demande d'adhésion prestataire a été soumise : {$prestataireEmail}",
+                "Une nouvelle demande d'adhésion prestataire a été soumise : {$userEmail}",
                 'info',
                 [
                     'demande_id' => $demande->id,
                     'user_id' => $demande->user->id,
-                    'user_email' => $prestataireEmail,
+                    'user_email' => $userEmail,
                     'prestataire_id' => $demande->user->prestataire->id ?? null,
                     'date_soumission' => $demande->created_at->format('d/m/Y à H:i'),
                     'type_notification' => 'nouvelle_demande_prestataire'

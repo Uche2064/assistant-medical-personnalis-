@@ -16,7 +16,7 @@ class DemandeAdhesion extends Model
     protected $table = 'demandes_adhesions';
 
     protected $fillable = [
-        'client_id',
+        'user_id',
         'type_demandeur',
         'statut',
         'motif_rejet',
@@ -43,9 +43,8 @@ class DemandeAdhesion extends Model
      */
     public function user()
     {
-        return $this->hasOneThrough(User::class, Client::class, 'id', 'id', 'client_id', 'user_id');
+        return $this->belongsTo(User::class);
     }
-
 
     /**
      * Get the personnel that validated this demande.
@@ -62,6 +61,7 @@ class DemandeAdhesion extends Model
     {
         return $this->hasMany(ReponseQuestion::class, 'demande_adhesion_id');
     }
+
 
     // /**
     //  * Get all reponses for this demande grouped by assure

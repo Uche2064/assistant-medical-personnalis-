@@ -1,0 +1,109 @@
+{
+	"info": {
+		"_postman_id": "admin-module",
+		"name": "👑 Administration",
+		"description": "Fonctions d'administration globale",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Lister gestionnaires",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/admin/gestionnaires",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "admin", "gestionnaires"]
+				}
+			}
+		},
+		{
+			"name": "Créer gestionnaire",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"nom\": \"Gestionnaire\",\n  \"prenoms\": \"Test\",\n  \"email\": \"gestionnaire@example.com\",\n  \"contact\": \"+225123456789\",\n  \"adresse\": \"Abidjan\",\n  \"fonction\": \"Gestionnaire RH\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/admin/gestionnaires",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "admin", "gestionnaires"]
+				}
+			}
+		},
+		{
+			"name": "Statistiques gestionnaires",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/admin/gestionnaires/stats",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "admin", "gestionnaires", "stats"]
+				}
+			}
+		},
+		{
+			"name": "Détails gestionnaire",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/admin/gestionnaires/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "admin", "gestionnaires", "1"]
+				}
+			}
+		},
+		{
+			"name": "Changer statut gestionnaire",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/admin/gestionnaires/1/change-status",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "admin", "gestionnaires", "1", "change-status"]
+				}
+			}
+		},
+		{
+			"name": "Supprimer gestionnaire",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/admin/gestionnaires/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "admin", "gestionnaires", "1"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"},
+		{"key": "access_token", "value": "", "type": "string"}
+	]
+}

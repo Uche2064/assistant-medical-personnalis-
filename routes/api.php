@@ -40,10 +40,11 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
         // ----------------------- Gestion des mots de passe ---------------------
         Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+        Route::post('/change-password', [AuthController::class, 'changePassword']);
 
         // ----------------------- Gestion des OTP ---------------------
         // Route::post('/send-otp', [AuthController::class, 'sendOtp']);
-        // Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
+        Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
         Route::get('/logout', [AuthController::class, 'logout'])->middleware('auth:api');
         Route::post('/check-unique', [AuthController::class, 'checkUnique']);
     });
@@ -93,7 +94,6 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::delete('/{id}', [GarantieController::class, 'destroyGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]);  //👌
         Route::patch('/{id}', [GarantieController::class, 'toggleGarantieStatus'])->middleware(["checkRole:medecin_controleur,technicien"]);  //👌
         Route::delete('/', [GarantieController::class, 'bulkDelete']);
-
     });
 
     // --------------- Gestion des catégories de garanties ------------------
@@ -104,32 +104,46 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::post('/', [CategorieGarantieController::class, 'storeCategorieGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]); //👌
         Route::put('/{id}', [CategorieGarantieController::class, 'updateCategorieGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]); //👌
         Route::delete('/{id}', [CategorieGarantieController::class, 'destroyCategorieGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]); //👌
-        Route::patch('/{categorieGarantie}/garanties/{garantie}/toggle', [CategorieGarantieController::class, 'toggleCategorieGarantieStatus']);
+        Route::patch('/{categorieGarantie}/garanties/{garantie}/toggle', [CategorieGarantieController::class, 'toggleCategorieGarantieStatus'])->middleware(["checkRole:medecin_controleur,technicien"]);
     });
-
-
     // --------------------- Routes pour les demandes d'adhésion ---------------------
-
-
     Route::middleware(['auth:api'])->prefix('demandes-adhesions')->group(function () {
-
-        Route::get('/', [DemandeAdhesionController::class, 'index'])->middleware('checkRole:medecin_controleur,technicien,admin_global,gestionnaire,commercial');
-        Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware('checkRole:medecin_controleur,technicien');
-        Route::post('/client', [DemandeAdhesionController::class, 'storeClientPhysiqueDemande'])->middleware('checkRole:client');
-        Route::get('/has-demande', [DemandeAdhesionController::class, 'hasDemande'])->middleware('auth:api');
-
-        Route::post('/prestataire', [DemandeAdhesionController::class, 'store'])->middleware('checkRole:prestataire');
-
-        // Demande d'adhésion entreprise (soumission groupée)
-        Route::post('/entreprise', [EntrepriseController::class, 'soumettreDemandeAdhesionEntreprise'])->middleware('checkRole:entreprise');
+        Route::get('/has-demande', [DemandeAdhesionController::class, 'hasDemande'])->middleware('checkRole:client'); //👌
+        Route::get('/', [DemandeAdhesionController::class, 'index'])->middleware('checkRole:medecin_controleur,technicien,admin_global,gestionnaire,commercial'); //👌
+        Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware('checkRole:medecin_controleur,technicien'); //👌
+        Route::post('/client', [DemandeAdhesionController::class, 'storeClientPhysiqueDemande'])->middleware('checkRole:client'); //👌
+        Route::post('/prestataire', [DemandeAdhesionController::class, 'storePrestataireDemande'])->middleware('checkRole:prestataire'); //👌
         Route::post('/{id}/valider-client', [TechnicienController::class, 'validerDemande']);
-
-        Route::get('/stats', [DemandeAdhesionController::class, 'stats'])->middleware('checkRole:admin_global,medecin_controleur,technicien,gestionnaire,commercial');
-
         // Actions sur les demandes (proposer contrat, valider, rejeter)
         Route::put('/{demande_id}/valider-prestataire', [PrestataireController::class, 'validerPrestataire'])->middleware('checkRole:medecin_controleur');
         Route::put('/{demande_id}/rejeter', [DemandeAdhesionController::class, 'rejeter'])->middleware('checkRole:technicien,medecin_controleur');
         Route::put('/{id}/proposer-contrat', [TechnicienController::class, 'proposerContrat'])->middleware('checkRole:technicien');
+        // Route::get('/stats', [DemandeAdhesionController::class, 'stats'])->middleware('checkRole:admin_global,medecin_controleur,technicien,gestionnaire,commercial');
+
+    });
+
+    // --- Gestion des invitations employé pour les entreprises ---
+    Route::middleware(['auth:api', 'checkRole:client'])->prefix('entreprise')->group(function () {
+        Route::get('/lien-invitation', [EntrepriseController::class, 'getInvitationLink']);//👌
+        Route::get('/generer-lien-invitation', [EntrepriseController::class, 'genererLienInvitationEmploye']);//👌
+
+        Route::post('/soumettre-demande-adhesion', [EntrepriseController::class, 'soumettreDemandeAdhesionEntreprise']);
+
+        // Routes pour consulter les demandes d'adhésion
+        Route::get('/mes-demandes', [EntrepriseController::class, 'getDemandesAdhesions']);
+
+        // Routes pour consulter les demandes des employés
+        Route::get('/demandes-employes', [EntrepriseController::class, 'demandesEmployes']);
+
+        // Route pour le dashboard - liste des employés avec leurs demandes
+        // Route::get('/employes-avec-demandes', [EntrepriseController::class, 'employesAvecDemandes']);
+
+        // Route pour les statistiques des employés
+        Route::get('/statistiques-employes', [EntrepriseController::class, 'statistiquesEmployes']);
+    });
+    Route::prefix('employes/formulaire')->group(function () {
+        Route::get('/{token}', [EntrepriseController::class, 'showFormulaireEmploye']);
+        Route::post('/{token}', [EntrepriseController::class, 'soumettreFicheEmploye']);
     });
 
     // --------------------- Routes pour les téléchargements ---------------------
@@ -199,8 +213,6 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/contrats/{id}/garanties', [\App\Http\Controllers\v1\Api\prestataire\SinistreController::class, 'getGarantiesByContrat']);
     });
 
-
-  
     Route::middleware(['auth:api'])->prefix('contrats')->group(function () {
         Route::get('/', [ContratController::class, 'index']);
         Route::get('/categories-garanties', [ContratController::class, 'getCategoriesGaranties']);
@@ -215,28 +227,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
 
-    // --- Gestion des invitations employé pour les entreprises ---
-    Route::middleware(['auth:api', 'checkRole:entreprise'])->prefix('entreprise')->group(function () {
-        Route::get('/generer-lien', [EntrepriseController::class, 'genererLienInvitationEmploye']);
-        Route::get('/get-invitation-link', [EntrepriseController::class, 'getInvitationLink']);
-        Route::post('/soumettre-demande-adhesion', [EntrepriseController::class, 'soumettreDemandeAdhesionEntreprise']);
 
-        // Routes pour consulter les demandes d'adhésion
-        Route::get('/mes-demandes', [EntrepriseController::class, 'getDemandesAdhesions']);
-
-        // Routes pour consulter les demandes des employés
-        Route::get('/demandes-employes', [EntrepriseController::class, 'demandesEmployes']);
-
-        // Route pour le dashboard - liste des employés avec leurs demandes
-        Route::get('/employes-avec-demandes', [EntrepriseController::class, 'employesAvecDemandes']);
-
-        // Route pour les statistiques des employés
-        Route::get('/statistiques-employes', [EntrepriseController::class, 'statistiquesEmployes']);
-    });
-    Route::prefix('employes/formulaire')->group(function () {
-        Route::get('/{token}', [EntrepriseController::class, 'showFormulaireEmploye']);
-        Route::post('/{token}', [EntrepriseController::class, 'soumettreFicheEmploye']);
-    });
 
 
     // --- Demande d'adhésion personne client ---
@@ -329,11 +320,16 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     Route::middleware(['auth:api', 'checkRole:commercial'])->prefix('commercial')->group(function () {
         Route::get('/dashboard', [CommercialController::class, 'dashboard']);
         Route::get('/prospects', [CommercialController::class, 'prospects']);
-        Route::post('/generer-code-parrainage', [CommercialController::class, 'genererCodeParrainage']);
         Route::get('/statistiques', [CommercialController::class, 'statistiques']);
         Route::get('/commissions', [CommercialController::class, 'commissions']);
         Route::get('/prospects/{id}', [CommercialController::class, 'showProspect']);
         Route::put('/prospects/{id}', [CommercialController::class, 'updateProspect']);
+        
+        // Routes pour le système de parrainage
+        Route::post('/generer-code-parrainage', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'genererCodeParrainage']);
+        Route::post('/creer-compte-client', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'creerCompteClient']);
+        Route::get('/mes-clients-parraines', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'mesClientsParraines']);
+        Route::get('/mes-statistiques', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'mesStatistiques']);
     });
 
     // --------------------- Routes pour le Comptable ---------------------

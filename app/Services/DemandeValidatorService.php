@@ -42,7 +42,7 @@ class DemandeValidatorService
             return false;
         }
 
-        return DemandeAdhesion::where('client_id', $user->client->id)
+        return DemandeAdhesion::where('user_id', $user->client->id)
             ->where('statut', $statut)
             ->exists();
 
@@ -53,11 +53,6 @@ class DemandeValidatorService
      */
     public function createDemandeAdhesionClient(array $data, User $user): DemandeAdhesion
     {
-        $client = $user->client;
-        
-        if (!$client) {
-            throw new \Exception('Aucun client trouvé pour cet utilisateur');
-        }
         
         $typeDemandeur = $data['type_demandeur'];
 
@@ -65,7 +60,7 @@ class DemandeValidatorService
         $demande = DemandeAdhesion::create([
             'type_demandeur' => $typeDemandeur,
             'statut' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
-            'client_id' => $client->id,
+            'user_id' => $user->id,
         ]);
 
         // Enregistrer les réponses au questionnaire
@@ -99,6 +94,7 @@ class DemandeValidatorService
             'user_id' => $user->id,
         ]);
 
+
         // Enregistrer les réponses au questionnaire principal
         foreach ($data['reponses'] as $reponse) {
             $this->enregistrerReponse($reponse, $demande->id, $user);
@@ -120,7 +116,6 @@ class DemandeValidatorService
      */
     private function enregistrerReponse(array $reponseData, $demandeId, User $user): void
     {
-
         $reponse = [
             'question_id' => $reponseData['question_id'],
             'demande_adhesion_id' => $demandeId,
@@ -164,7 +159,7 @@ class DemandeValidatorService
         $beneficiaireUser->assignRole(RoleEnum::CLIENT->value);
 
         $beneficiaireAssure = Assure::create([
-            'client_id' => $demande->client_id,
+            'client_id' => $demande->user->client->id,
             'est_principal' => false,
             'lien_parente' => $beneficiaireData['lien_parente'],
             'user_id' => $beneficiaireUser->id,

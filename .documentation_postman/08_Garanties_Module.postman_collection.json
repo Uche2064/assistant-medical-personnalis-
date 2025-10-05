@@ -1,0 +1,234 @@
+{
+	"info": {
+		"_postman_id": "garanties-module",
+		"name": "🛡️ Garanties",
+		"description": "Gestion des garanties et catégories de garanties",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Lister garanties",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/garanties",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "garanties"]
+				}
+			}
+		},
+		{
+			"name": "Détails garantie",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/garanties/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "garanties", "1"]
+				}
+			}
+		},
+		{
+			"name": "Créer garantie",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"libelle\": \"Consultation médicale\",\n  \"description\": \"Remboursement des consultations chez le médecin généraliste\",\n  \"montant_max\": 10000,\n  \"pourcentage_remboursement\": 80,\n  \"categorie_garantie_id\": 1\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/garanties",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "garanties"]
+				}
+			}
+		},
+		{
+			"name": "Modifier garantie",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"libelle\": \"Consultation médicale (modifiée)\",\n  \"description\": \"Remboursement des consultations chez le médecin généraliste\",\n  \"montant_max\": 12000,\n  \"pourcentage_remboursement\": 85,\n  \"categorie_garantie_id\": 1\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/garanties/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "garanties", "1"]
+				}
+			}
+		},
+		{
+			"name": "Supprimer garantie",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/garanties/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "garanties", "1"]
+				}
+			}
+		},
+		{
+			"name": "Activer/Désactiver garantie",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/garanties/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "garanties", "1"]
+				}
+			}
+		},
+		{
+			"name": "Supprimer garanties en masse",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"garantie_ids\": [1, 2, 3]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/garanties",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "garanties"]
+				}
+			}
+		},
+		{
+			"name": "Lister catégories garanties",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/categories-garanties",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "categories-garanties"]
+				}
+			}
+		},
+		{
+			"name": "Détails catégorie garantie",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/categories-garanties/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "categories-garanties", "1"]
+				}
+			}
+		},
+		{
+			"name": "Créer catégorie garantie",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"libelle\": \"Soins ambulatoires\",\n  \"description\": \"Garanties pour les soins ambulatoires\",\n  \"ordre\": 1\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/categories-garanties",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "categories-garanties"]
+				}
+			}
+		},
+		{
+			"name": "Modifier catégorie garantie",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"libelle\": \"Soins ambulatoires (modifiée)\",\n  \"description\": \"Garanties pour les soins ambulatoires\",\n  \"ordre\": 1\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/categories-garanties/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "categories-garanties", "1"]
+				}
+			}
+		},
+		{
+			"name": "Supprimer catégorie garantie",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/categories-garanties/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "categories-garanties", "1"]
+				}
+			}
+		},
+		{
+			"name": "Activer/Désactiver garantie dans catégorie",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/categories-garanties/1/garanties/1/toggle",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "categories-garanties", "1", "garanties", "1", "toggle"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"},
+		{"key": "access_token", "value": "", "type": "string"}
+	]
+}

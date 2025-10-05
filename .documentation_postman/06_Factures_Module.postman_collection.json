@@ -1,0 +1,264 @@
+{
+	"info": {
+		"_postman_id": "factures-module",
+		"name": "💰 Factures",
+		"description": "Gestion des factures et remboursements",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Lister factures",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/factures",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "factures"]
+				}
+			}
+		},
+		{
+			"name": "Statistiques factures",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/factures/stats",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "factures", "stats"]
+				}
+			}
+		},
+		{
+			"name": "Détails facture",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/factures/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "factures", "1"]
+				}
+			}
+		},
+		{
+			"name": "Valider facture (technicien)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"commentaires\": \"Facture conforme\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/factures/1/validate-technicien",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "factures", "1", "validate-technicien"]
+				}
+			}
+		},
+		{
+			"name": "Rejeter facture (technicien)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"motif_rejet\": \"Documents manquants\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/factures/1/reject-technicien",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "factures", "1", "reject-technicien"]
+				}
+			}
+		},
+		{
+			"name": "Valider facture (médecin)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"commentaires\": \"Acte médical justifié\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/factures/1/validate-medecin",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "factures", "1", "validate-medecin"]
+				}
+			}
+		},
+		{
+			"name": "Rejeter facture (médecin)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"motif_rejet\": \"Acte non couvert\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/factures/1/reject-medecin",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "factures", "1", "reject-medecin"]
+				}
+			}
+		},
+		{
+			"name": "Autoriser remboursement (comptable)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"montant_rembourse\": 45000,\n  \"commentaires\": \"Remboursement autorisé\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/factures/1/authorize-comptable",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "factures", "1", "authorize-comptable"]
+				}
+			}
+		},
+		{
+			"name": "Rejeter facture (comptable)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"motif_rejet\": \"Budget insuffisant\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/factures/1/reject-comptable",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "factures", "1", "reject-comptable"]
+				}
+			}
+		},
+		{
+			"name": "Marquer comme remboursé",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"date_remboursement\": \"2024-01-15\",\n  \"reference_virement\": \"VIR123456\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/factures/1/mark-reimbursed",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "factures", "1", "mark-reimbursed"]
+				}
+			}
+		},
+		{
+			"name": "Modifier facture rejetée",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"montant\": 45000,\n  \"description\": \"Facture corrigée\",\n  \"pieces_jointes\": \"[FILE_UPLOAD]\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/factures/1/update-rejected",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "factures", "1", "update-rejected"]
+				}
+			}
+		},
+		{
+			"name": "Historique validation",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/factures/1/validation-history",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "factures", "1", "validation-history"]
+				}
+			}
+		},
+		{
+			"name": "Télécharger facture PDF",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/pdf"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/download/factures/1/download",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "download", "factures", "1", "download"]
+				}
+			}
+		},
+		{
+			"name": "Prévisualiser facture",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "text/html"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/download/factures/1/preview",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "download", "factures", "1", "preview"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"},
+		{"key": "access_token", "value": "", "type": "string"}
+	]
+}

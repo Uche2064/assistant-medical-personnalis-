@@ -1,0 +1,209 @@
+{
+	"info": {
+		"_postman_id": "contrats-module",
+		"name": "📄 Contrats",
+		"description": "Gestion des contrats d'assurance",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Lister contrats",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/contrats",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "contrats"]
+				}
+			}
+		},
+		{
+			"name": "Catégories garanties",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/contrats/categories-garanties",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "contrats", "categories-garanties"]
+				}
+			}
+		},
+		{
+			"name": "Statistiques contrats",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/contrats/stats",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "contrats", "stats"]
+				}
+			}
+		},
+		{
+			"name": "Créer contrat",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"libelle\": \"Contrat Standard\",\n  \"description\": \"Contrat d'assurance santé standard\",\n  \"prime_standard\": 50000,\n  \"frais_gestion\": 10,\n  \"couverture\": \"Couverture complète\",\n  \"garanties\": [1, 2, 3]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/contrats",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "contrats"]
+				}
+			}
+		},
+		{
+			"name": "Détails contrat",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/contrats/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "contrats", "1"]
+				}
+			}
+		},
+		{
+			"name": "Modifier contrat",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"libelle\": \"Contrat Standard Modifié\",\n  \"description\": \"Contrat d'assurance santé standard modifié\",\n  \"prime_standard\": 55000,\n  \"frais_gestion\": 12,\n  \"couverture\": \"Couverture complète étendue\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/contrats/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "contrats", "1"]
+				}
+			}
+		},
+		{
+			"name": "Supprimer contrat",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/contrats/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "contrats", "1"]
+				}
+			}
+		},
+		{
+			"name": "Mes contrats (client)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/client/mes-contrats",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "client", "mes-contrats"]
+				}
+			}
+		},
+		{
+			"name": "Contrats proposés",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/client/contrats-proposes",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "client", "contrats-proposes"]
+				}
+			}
+		},
+		{
+			"name": "Statistiques client",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/client/stats",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "client", "stats"]
+				}
+			}
+		},
+		{
+			"name": "Refuser contrat",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"motif_refus\": \"Contrat non adapté\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/client/contrats-proposes/1/refuser",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "client", "contrats-proposes", "1", "refuser"]
+				}
+			}
+		},
+		{
+			"name": "Accepter contrat (token)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/contrats/accepter/{{token}}",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "contrats", "accepter", "{{token}}"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"},
+		{"key": "access_token", "value": "", "type": "string"},
+		{"key": "token", "value": "", "type": "string"}
+	]
+}

@@ -1,0 +1,267 @@
+{
+	"info": {
+		"_postman_id": "prestataire-module",
+		"name": "🏥 Prestataires",
+		"description": "Gestion des prestataires de soins",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Mes assurés",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/assures?search=&sexe=&per_page=10",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "assures"],
+					"query": [
+						{"key": "search", "value": ""},
+						{"key": "sexe", "value": ""},
+						{"key": "per_page", "value": "10"}
+					]
+				}
+			}
+		},
+		{
+			"name": "Dashboard prestataire",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/dashboard",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "dashboard"]
+				}
+			}
+		},
+		{
+			"name": "Profil prestataire",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/profile",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "profile"]
+				}
+			}
+		},
+		{
+			"name": "Mettre à jour profil",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"raison_sociale\": \"Nouveau nom\",\n  \"adresse\": \"Nouvelle adresse\",\n  \"contact\": \"+225123456789\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/profile",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "profile"]
+				}
+			}
+		},
+		{
+			"name": "Questions prestataire",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/questions",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "questions"]
+				}
+			}
+		},
+		{
+			"name": "Documents requis",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/documents-requis",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "documents-requis"]
+				}
+			}
+		},
+		{
+			"name": "Soumettre demande adhésion",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"type_demandeur\": \"prestataire\",\n  \"type_prestataire\": \"hopital\",\n  \"reponses\": [\n    {\n      \"question_id\": 1,\n      \"reponse\": \"Réponse\"\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/demande-adhesion",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "demande-adhesion"]
+				}
+			}
+		},
+		{
+			"name": "Lister sinistres",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/sinistres",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "sinistres"]
+				}
+			}
+		},
+		{
+			"name": "Créer sinistre",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"assure_id\": 1,\n  \"date_sinistre\": \"2024-01-01\",\n  \"montant\": 50000,\n  \"description\": \"Consultation médicale\",\n  \"type_sinistre\": \"consultation\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/sinistres",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "sinistres"]
+				}
+			}
+		},
+		{
+			"name": "Détails sinistre",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/sinistres/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "sinistres", "1"]
+				}
+			}
+		},
+		{
+			"name": "Créer facture pour sinistre",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"montant\": 50000,\n  \"description\": \"Facture pour consultation\",\n  \"pieces_jointes\": \"[FILE_UPLOAD]\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/sinistres/1/facture",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "sinistres", "1", "facture"]
+				}
+			}
+		},
+		{
+			"name": "Rechercher assurés",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/search-assures?q=nom",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "search-assures"],
+					"query": [
+						{"key": "q", "value": "nom"}
+					]
+				}
+			}
+		},
+		{
+			"name": "Garanties par contrat",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/contrats/1/garanties",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "contrats", "1", "garanties"]
+				}
+			}
+		},
+		{
+			"name": "Mes clients (réseau)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/reseau/mes-clients",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "reseau", "mes-clients"]
+				}
+			}
+		},
+		{
+			"name": "Statistiques clients",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/prestataire/reseau/statistiques",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "prestataire", "reseau", "statistiques"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"},
+		{"key": "access_token", "value": "", "type": "string"}
+	]
+}

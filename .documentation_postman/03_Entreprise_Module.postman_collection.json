@@ -1,0 +1,143 @@
+{
+	"info": {
+		"_postman_id": "entreprise-module",
+		"name": "🏢 Entreprise",
+		"description": "Gestion des entreprises et employés",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Récupérer lien invitation",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/entreprise/lien-invitation",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "entreprise", "lien-invitation"]
+				}
+			}
+		},
+		{
+			"name": "Générer lien invitation",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/entreprise/generer-lien-invitation",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "entreprise", "generer-lien-invitation"]
+				}
+			}
+		},
+		{
+			"name": "Soumettre demande adhésion entreprise",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/entreprise/soumettre-demande-adhesion",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "entreprise", "soumettre-demande-adhesion"]
+				}
+			}
+		},
+		{
+			"name": "Mes demandes",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/entreprise/mes-demandes",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "entreprise", "mes-demandes"]
+				}
+			}
+		},
+		{
+			"name": "Demandes employés",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/entreprise/demandes-employes",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "entreprise", "demandes-employes"]
+				}
+			}
+		},
+		{
+			"name": "Statistiques employés",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/entreprise/statistiques-employes",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "entreprise", "statistiques-employes"]
+				}
+			}
+		},
+		{
+			"name": "Formulaire employé (public)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/employes/formulaire/{{token}}",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "employes", "formulaire", "{{token}}"]
+				}
+			}
+		},
+		{
+			"name": "Soumettre fiche employé",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"nom\": \"Employé\",\n  \"prenoms\": \"Test\",\n  \"email\": \"employe@example.com\",\n  \"date_naissance\": \"1990-01-01\",\n  \"sexe\": \"M\",\n  \"contact\": \"+225123456789\",\n  \"adresse\": \"Abidjan\",\n  \"photo\": \"[FILE_UPLOAD]\",\n  \"reponses\": [\n    {\n      \"question_id\": 1,\n      \"reponse\": \"Réponse\"\n    }\n  ],\n  \"beneficiaires\": [\n    {\n      \"nom\": \"Bénéficiaire\",\n      \"prenoms\": \"Test\",\n      \"date_naissance\": \"1995-01-01\",\n      \"sexe\": \"F\",\n      \"lien_parente\": \"enfant\",\n      \"photo_url\": \"[FILE_UPLOAD]\",\n      \"reponses\": [\n        {\n          \"question_id\": 1,\n          \"reponse\": \"Réponse bénéficiaire\"\n        }\n      ]\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/employes/formulaire/{{token}}",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "employes", "formulaire", "{{token}}"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"},
+		{"key": "access_token", "value": "", "type": "string"},
+		{"key": "token", "value": "", "type": "string"}
+	]
+}

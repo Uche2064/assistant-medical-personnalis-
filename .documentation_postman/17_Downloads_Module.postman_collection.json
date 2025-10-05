@@ -1,0 +1,89 @@
+{
+	"info": {
+		"_postman_id": "downloads-module",
+		"name": "📁 Téléchargements",
+		"description": "Téléchargement de fichiers et documents",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Télécharger demande adhésion",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/pdf"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/download/demande-adhesion/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "download", "demande-adhesion", "1"]
+				}
+			}
+		},
+		{
+			"name": "Télécharger facture PDF",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/pdf"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/download/factures/1/download",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "download", "factures", "1", "download"]
+				}
+			}
+		},
+		{
+			"name": "Prévisualiser facture",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "text/html"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/download/factures/1/preview",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "download", "factures", "1", "preview"]
+				}
+			}
+		},
+		{
+			"name": "Télécharger fichier sécurisé",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/octet-stream"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/download/file/{{filename}}",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "download", "file", "{{filename}}"]
+				}
+			}
+		},
+		{
+			"name": "Accéder fichier public",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Accept", "value": "application/octet-stream"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/files/{{filename}}",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "files", "{{filename}}"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"},
+		{"key": "access_token", "value": "", "type": "string"},
+		{"key": "filename", "value": "", "type": "string"}
+	]
+}

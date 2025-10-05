@@ -1,0 +1,279 @@
+{
+	"info": {
+		"_postman_id": "assures-module",
+		"name": "👤 Assurés",
+		"description": "Gestion des assurés et bénéficiaires",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Lister bénéficiaires",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/assures/beneficiaires",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "assures", "beneficiaires"]
+				}
+			}
+		},
+		{
+			"name": "Détails bénéficiaire",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/assures/beneficiaires/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "assures", "beneficiaires", "1"]
+				}
+			}
+		},
+		{
+			"name": "Ajouter bénéficiaire",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"nom\": \"Bénéficiaire\",\n  \"prenoms\": \"Test\",\n  \"date_naissance\": \"1995-01-01\",\n  \"sexe\": \"F\",\n  \"email\": \"beneficiaire@example.com\",\n  \"contact\": \"+225123456789\",\n  \"profession\": \"Étudiant\",\n  \"lien_parente\": \"enfant\",\n  \"photo\": \"[FILE_UPLOAD]\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/assures/beneficiaires",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "assures", "beneficiaires"]
+				}
+			}
+		},
+		{
+			"name": "Modifier bénéficiaire",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"nom\": \"Bénéficiaire Modifié\",\n  \"prenoms\": \"Test\",\n  \"date_naissance\": \"1995-01-01\",\n  \"sexe\": \"F\",\n  \"email\": \"beneficiaire@example.com\",\n  \"contact\": \"+225123456789\",\n  \"profession\": \"Étudiant\",\n  \"lien_parente\": \"enfant\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/assures/beneficiaires/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "assures", "beneficiaires", "1"]
+				}
+			}
+		},
+		{
+			"name": "Supprimer bénéficiaire",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/assures/beneficiaires/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "assures", "beneficiaires", "1"]
+				}
+			}
+		},
+		{
+			"name": "Centres de soins",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/assures/centres-soins",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "assures", "centres-soins"]
+				}
+			}
+		},
+		{
+			"name": "Historique remboursements",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/assures/historique-remboursements",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "assures", "historique-remboursements"]
+				}
+			}
+		},
+		{
+			"name": "Contrat assuré",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/assures/contrat",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "assures", "contrat"]
+				}
+			}
+		},
+		{
+			"name": "Profil assuré",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/assures/profil",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "assures", "profil"]
+				}
+			}
+		},
+		{
+			"name": "Modifier profil",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"nom\": \"Nom Modifié\",\n  \"prenoms\": \"Prénoms Modifiés\",\n  \"contact\": \"+225123456789\",\n  \"adresse\": \"Nouvelle adresse\",\n  \"profession\": \"Nouvelle profession\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/assures/profil",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "assures", "profil"]
+				}
+			}
+		},
+		{
+			"name": "Employés assuré",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/assures/employes",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "assures", "employes"]
+				}
+			}
+		},
+		{
+			"name": "Lister bénéficiaires (client)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/beneficiaires",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "beneficiaires"]
+				}
+			}
+		},
+		{
+			"name": "Détails bénéficiaire (client)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/beneficiaires/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "beneficiaires", "1"]
+				}
+			}
+		},
+		{
+			"name": "Créer bénéficiaire (client)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"nom\": \"Bénéficiaire\",\n  \"prenoms\": \"Test\",\n  \"date_naissance\": \"1995-01-01\",\n  \"sexe\": \"F\",\n  \"email\": \"beneficiaire@example.com\",\n  \"contact\": \"+225123456789\",\n  \"profession\": \"Étudiant\",\n  \"lien_parente\": \"enfant\",\n  \"photo\": \"[FILE_UPLOAD]\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/beneficiaires",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "beneficiaires"]
+				}
+			}
+		},
+		{
+			"name": "Modifier bénéficiaire (client)",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"nom\": \"Bénéficiaire Modifié\",\n  \"prenoms\": \"Test\",\n  \"date_naissance\": \"1995-01-01\",\n  \"sexe\": \"F\",\n  \"email\": \"beneficiaire@example.com\",\n  \"contact\": \"+225123456789\",\n  \"profession\": \"Étudiant\",\n  \"lien_parente\": \"enfant\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/beneficiaires/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "beneficiaires", "1"]
+				}
+			}
+		},
+		{
+			"name": "Supprimer bénéficiaire (client)",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/beneficiaires/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "beneficiaires", "1"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"},
+		{"key": "access_token", "value": "", "type": "string"}
+	]
+}

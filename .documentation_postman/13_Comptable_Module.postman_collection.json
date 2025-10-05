@@ -1,0 +1,149 @@
+{
+	"info": {
+		"_postman_id": "comptable-module",
+		"name": "💰 Comptable",
+		"description": "Fonctions comptables et gestion financière",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Dashboard comptable",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/comptable/dashboard",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "comptable", "dashboard"]
+				}
+			}
+		},
+		{
+			"name": "Lister factures",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/comptable/factures",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "comptable", "factures"]
+				}
+			}
+		},
+		{
+			"name": "Valider remboursement",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"montant_rembourse\": 45000,\n  \"commentaires\": \"Remboursement validé\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/comptable/factures/1/valider-remboursement",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "comptable", "factures", "1", "valider-remboursement"]
+				}
+			}
+		},
+		{
+			"name": "Effectuer remboursement",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"reference_virement\": \"VIR123456\",\n  \"date_remboursement\": \"2024-01-15\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/comptable/factures/1/effectuer-remboursement",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "comptable", "factures", "1", "effectuer-remboursement"]
+				}
+			}
+		},
+		{
+			"name": "Rejeter facture",
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"motif_rejet\": \"Budget insuffisant\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/comptable/factures/1/rejeter",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "comptable", "factures", "1", "rejeter"]
+				}
+			}
+		},
+		{
+			"name": "Rapports",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/comptable/rapports",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "comptable", "rapports"]
+				}
+			}
+		},
+		{
+			"name": "Détails facture",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/comptable/factures/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "comptable", "factures", "1"]
+				}
+			}
+		},
+		{
+			"name": "Statistiques prestataires",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/comptable/statistiques-prestataires",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "comptable", "statistiques-prestataires"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"},
+		{"key": "access_token", "value": "", "type": "string"}
+	]
+}

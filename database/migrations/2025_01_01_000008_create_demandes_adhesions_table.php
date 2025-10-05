@@ -20,7 +20,7 @@ return new class extends Migration
             $table->foreignId('valide_par_id')->nullable()->constrained('personnels')->onDelete('cascade');
             $table->timestamp('valider_a')->nullable();
 
-            $table->foreignId('client_id')->nullable()->constrained('clients')->onDelete('cascade');
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
             $table->timestamps();
         });
     }

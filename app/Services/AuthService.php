@@ -60,28 +60,34 @@ class AuthService
             'client_id' => $client->id,
             'est_principal' => true,
             'lien_parente' => LienParenteEnum::PRINCIPAL,
-            'assure_principal_id'=> null
+            'assure_principal_id' => null
+        ]);
+    }
+
+    public function createClientMoral(User $user, array $validated): void
+    {
+        // Créer d'abord le client
+        $client = Client::create([
+            'user_id' => $user->id,
+            'type_client' => $validated['type_client'],
+        ]);
+
+        LienInvitation::create([
+            'client_id' => $client->id,
+            'jeton' => LienInvitation::genererToken(),
+            'expire_a' => now()->addDays((int) env('TOKEN_LINK_EXPIRE_TIME_DAYS')),
         ]);
     }
 
 
-        /**
+    /**
      * Créer un prestataire de soins
      */
     public function createPrestataire(User $user, array $validated): void
     {
-        $typePrestataire = match ($validated['type_demandeur']) {
-            TypeDemandeurEnum::CENTRE_DE_SOINS->value => TypePrestataireEnum::CENTRE_DE_SOINS,
-            TypeDemandeurEnum::LABORATOIRE_CENTRE_DIAGNOSTIC->value => TypePrestataireEnum::LABORATOIRE_CENTRE_DIAGNOSTIC,
-            TypeDemandeurEnum::PHARMACIE->value => TypePrestataireEnum::PHARMACIE,
-            TypeDemandeurEnum::OPTIQUE->value => TypePrestataireEnum::OPTIQUE,
-            default => TypePrestataireEnum::CENTRE_DE_SOINS, // Fallback
-        };
-
         Prestataire::create([
             'user_id' => $user->id,
-            'type_prestataire' => $typePrestataire,
-            'raison_sociale' => $validated['raison_sociale'],
+            'type_prestataire' => $validated['type_prestataire'],
         ]);
     }
 
@@ -140,5 +146,4 @@ class AuthService
         $user->phase = 1; // On repart toujours à la phase 1 après un succès
         $user->save();
     }
-
 }

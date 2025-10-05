@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\v1\Api\auth;
 
+use App\Enums\ClientTypeEnum;
 use App\Enums\EmailType;
 use App\Enums\OtpTypeEnum;
 use App\Enums\RoleEnum;
@@ -13,6 +14,7 @@ use App\Enums\TypePrestataireEnum;
 use App\Helpers\ApiResponse;
 use App\Helpers\ImageUploadHelper;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\auth\ChangePasswordFormRequest;
 use App\Http\Requests\auth\CheckUniqueFieldRequest;
 use App\Http\Requests\auth\LoginWithEmailAndPasswordFormRequest;
 use App\Http\Requests\auth\RegisterRequest;
@@ -24,6 +26,7 @@ use App\Http\Resources\UserResource;
 use App\Jobs\SendEmailJob;
 use App\Jobs\SendLoginNotificationJob;
 use App\Models\Client;
+use App\Models\Entreprise;
 use App\Models\Otp;
 use App\Models\Prestataire;
 use App\Models\Personne;
@@ -71,6 +74,22 @@ class AuthController extends Controller
             if (User::where('email', $validated['email'])->exists()) {
                 return ApiResponse::error('Cet email est déjà utilisé', 409);
             }
+
+            // Gestion du code parrainage (optionnel pour l'inscription client)
+            $commercialId = null;
+            if (isset($validated['code_parrainage']) && !empty($validated['code_parrainage'])) {
+                $commercial = User::where('code_parrainage_commercial', $validated['code_parrainage'])
+                    ->whereHas('roles', function($query) {
+                        $query->where('name', RoleEnum::COMMERCIAL->value);
+                    })
+                    ->first();
+                
+                if ($commercial) {
+                    $commercialId = $commercial->id;
+                } else {
+                    return ApiResponse::error('Code parrainage invalide', 400);
+                }
+            }
             // Créer d'abord la personne
             $personne = Personne::create([
                 'nom' => $validated['nom'] ?? null,
@@ -89,11 +108,18 @@ class AuthController extends Controller
                 'adresse' => $validated['adresse'],
                 'mot_de_passe_a_changer' => false,
                 'personne_id' => $personne->id,
+                'commercial_id' => $commercialId,
+                'compte_cree_par_commercial' => false,
+                'code_parrainage' => $validated['code_parrainage'] ?? null
             ]);
             // Créer l'entité selon le type de demandeur
             switch ($validated['type_demandeur']) {
                 case TypeDemandeurEnum::CLIENT->value:
-                    $this->authService->createClientPhysique($user, $validated);
+                    if($validated['type_client'] === ClientTypeEnum::PHYSIQUE) {
+                        $this->authService->createClientPhysique($user, $validated);
+                    } else {
+                        $this->authService->createClientMoral($user, $validated);
+                    }
                     $user->assignRole(RoleEnum::CLIENT->value);
                     // Notifier les techniciens d'un nouveau compte physique
                     $this->notificationService->notifyTechniciensNouveauCompte($user, 'client');
@@ -192,7 +218,7 @@ class AuthController extends Controller
     public function login(LoginWithEmailAndPasswordFormRequest $request)
     {
         $validated = $request->validated();
-
+        
         $user = User::where('email', $validated['email'])->first();
 
         // 1. Vérifier si l'utilisateur existe
@@ -302,6 +328,18 @@ class AuthController extends Controller
     //     }
     // }
 
+    /**
+     * Déconnexion
+     */
+    public function logout()
+    {
+        try {
+            JWTAuth::invalidate(JWTAuth::getToken());
+            return ApiResponse::success(null, 'Déconnexion réussie');
+        } catch (JWTException $e) {
+            return ApiResponse::error('Erreur lors de la déconnexion', 500);
+        }
+    }
     public function resetPassword(ResetPasswordRequest $request)
     {
         $validated = $request->validated();
@@ -316,7 +354,7 @@ class AuthController extends Controller
             return ApiResponse::error('Utilisateur non trouvé.', 404);
         }
 
-        if (Hash::check($validated['password'], $user->password)) {
+        if(Hash::check($validated['password'], $user->password)) {
             return ApiResponse::error('Entrez un mot de passe différent du précédent', 400);
         }
 
@@ -337,8 +375,8 @@ class AuthController extends Controller
                 'changed_at' => now()
             ]
         ));
-        // Invalider tous les tokens existants
-        try {
+          // Invalider tous les tokens existants
+          try {
             JWTAuth::invalidate(JWTAuth::getToken());
         } catch (JWTException $e) {
             Log::warning('Impossible d\'invalider le token: ' . $e->getMessage());
@@ -347,17 +385,45 @@ class AuthController extends Controller
         return ApiResponse::success(null, 'Mot de passe modifié avec succès.');
     }
 
-    /**
-     * Déconnexion
+      /**
+     * Changer le mot de passe
      */
-    public function logout()
+    public function changePassword(ChangePasswordFormRequest $request)
     {
+        $validated = $request->validated();
+        $user = User::where('email', $validated['email'])->first();
+        // Vérifier l'ancien mot de passe
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return ApiResponse::error('Mot de passe actuel incorrect', 422);
+        }
+        if(Hash::check($validated['new_password'], $user->password)) {
+            return ApiResponse::error('Entrez un mot de passe différent du précédent', 400);
+        }
+        // Mettre à jour le mot de passe
+        $user->update([
+            'password' => Hash::make($validated['new_password']),
+            'mot_de_passe_a_changer' => false,
+            'est_actif' => true,
+            'email_verifier_a' => now()
+        ]);
+        dispatch(new SendEmailJob(
+            $user->email,
+            'Mot de passe modifié - SUNU Santé',
+            EmailType::PASSWORD_CHANGED->value,
+            [
+                'user' => $user,
+                'changed_at' => now()
+            ]
+        ));
+
+        // Invalider tous les tokens existants
         try {
             JWTAuth::invalidate(JWTAuth::getToken());
-            return ApiResponse::success(null, 'Déconnexion réussie');
         } catch (JWTException $e) {
-            return ApiResponse::error('Erreur lors de la déconnexion', 500);
+            Log::warning('Impossible d\'invalider le token: ' . $e->getMessage());
         }
+
+        return ApiResponse::success(null, 'Mot de passe modifié avec succès');
     }
 
     /**
@@ -372,6 +438,7 @@ class AuthController extends Controller
 
         return ApiResponse::success([
             'exists' => $exists,
+            'message' => $exists ? 'Ce ' . $validated['champ'] . ' est déjà utilisé' : 'Ce ' . $validated['champ'] . ' est disponible'
         ]);
     }
 }

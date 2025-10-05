@@ -1,0 +1,119 @@
+{
+	"info": {
+		"_postman_id": "notifications-module",
+		"name": "🔔 Notifications",
+		"description": "Gestion des notifications",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Lister notifications",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/notifications",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "notifications"]
+				}
+			}
+		},
+		{
+			"name": "Statistiques notifications",
+			"request": {
+				"method": "GET",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/notifications/stats",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "notifications", "stats"]
+				}
+			}
+		},
+		{
+			"name": "Marquer comme lu",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/notifications/1/mark-as-read",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "notifications", "1", "mark-as-read"]
+				}
+			}
+		},
+		{
+			"name": "Marquer comme non lu",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/notifications/1/mark-as-unread",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "notifications", "1", "mark-as-unread"]
+				}
+			}
+		},
+		{
+			"name": "Marquer tout comme lu",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/notifications/mark-all-as-read",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "notifications", "mark-all-as-read"]
+				}
+			}
+		},
+		{
+			"name": "Supprimer notification",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/notifications/1",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "notifications", "1"]
+				}
+			}
+		},
+		{
+			"name": "Supprimer notifications lues",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{"key": "Authorization", "value": "Bearer {{access_token}}"},
+					{"key": "Accept", "value": "application/json"}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/notifications/destroy-read",
+					"host": ["{{base_url}}"],
+					"path": ["v1", "notifications", "destroy-read"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"},
+		{"key": "access_token", "value": "", "type": "string"}
+	]
+}
