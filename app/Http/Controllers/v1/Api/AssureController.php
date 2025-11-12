@@ -5,6 +5,7 @@ namespace App\Http\Controllers\v1\Api;
 use App\Enums\RoleEnum;
 use App\Enums\LienParenteEnum;
 use App\Helpers\ApiResponse;
+use App\Helpers\ImageUploadHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\beneficiaire\RegisterBeneficiaireRequest;
 use App\Http\Requests\beneficiaire\UpdateBeneficiaireRequest;
@@ -12,6 +13,7 @@ use App\Http\Resources\BeneficiaireResource;
 use App\Http\Resources\EmployeAssureResource;
 use App\Models\Assure;
 use App\Models\Facture;
+use App\Models\Personne;
 use App\Models\Prestataire;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -19,11 +21,13 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class AssureController extends Controller
 {
-    
+
     /**
      * Gestion des bénéficiaires
      */
@@ -32,55 +36,40 @@ class AssureController extends Controller
         $user = Auth::user();
         $assure = $user->assure;
 
+        if (!$assure) {
+            return ApiResponse::error('Aucun profil d\'assuré trouvé. Veuillez d\'abord soumettre une demande d\'adhésion.', 404);
+        }
+
         if (!$assure->est_principal) {
             return ApiResponse::error('Vous n\'êtes pas un assuré principal', 403);
         }
 
-        $perPage = $request->input('per_page', 10);
-
-        $beneficiaires = Assure::query()
-            ->where('assure_principal_id', $assure->id)
-            ->with('user')
-            ->when($request->filled('search'), function ($query) use ($request) {
-                $query->where('nom', 'like', '%' . $request->search . '%')
-                    ->orWhere('prenoms', 'like', '%' . $request->search . '%');
-            })
-            ->when($request->filled('lien_parente'), function ($query) use ($request) {
-                $query->where('lien_parente', $request->lien_parente);
-            })
-            ->when($request->filled('sexe'), function ($query) use ($request) { 
-                $query->where('sexe', $request->sexe);
-            })
+        $beneficiaires = Assure::where('assure_principal_id', $assure->id)
+            ->with(['user.personne'])
             ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+            ->get();
 
-        $beneficiairesCollection = $beneficiaires->getCollection()->map(fn ($beneficiaire) => $beneficiaire);
-
-
-        $paginatedData = new LengthAwarePaginator(
-            BeneficiaireResource::collection($beneficiairesCollection),
-            $beneficiaires->total(),
-            $beneficiaires->perPage(),
-            $beneficiaires->currentPage(),
-            [
-                'path' => Paginator::resolveCurrentPath(),
-            ]
+        return ApiResponse::success(
+            BeneficiaireResource::collection($beneficiaires),
+            'Liste des bénéficiaires récupérée avec succès'
         );
-
-        return ApiResponse::success($paginatedData, 'Liste des bénéficiaires récupérée avec succès');
     }
 
     public function beneficiaire($id)
     {
         $user = Auth::user();
         $assure = $user->assure;
-        
+
+        if (!$assure) {
+            return ApiResponse::error('Aucun profil d\'assuré trouvé. Veuillez d\'abord soumettre une demande d\'adhésion.', 404);
+        }
+
         if (!$assure->est_principal) {
             return ApiResponse::error('Vous n\'êtes pas un assuré principal', 403);
         }
 
-        $beneficiaire = $assure->beneficiaires()->find($id);
-        
+        $beneficiaire = $assure->beneficiaires()->with(['user.personne'])->find($id);
+
         if (!$beneficiaire) {
             return ApiResponse::error('Bénéficiaire non trouvé', 404);
         }
@@ -96,27 +85,61 @@ class AssureController extends Controller
         $user = Auth::user();
         $assure = $user->assure;
 
+
+        if (!$assure) {
+            return ApiResponse::error('Aucun profil d\'assuré trouvé. Veuillez d\'abord soumettre une demande d\'adhésion.', 404);
+        }
+
         if (!$assure->est_principal) {
             return ApiResponse::error('Vous n\'êtes pas un assuré principal', 403);
         }
 
+        $photoUrl = null;
         $validated = $request->validated();
+        // Gestion de l'upload de la photo
+        if (isset($validated['photo'])) {
+            $photoUrl = ImageUploadHelper::uploadImage($validated['photo'], 'uploads/users/' . $validated['email']);
+            if (!$photoUrl) {
+                return ApiResponse::error('Erreur lors de l\'upload de la photo', 422);
+            }
+        }
 
-        // Créer le bénéficiaire
-        $beneficiaire = Assure::create([
-            'nom' => $validated['nom'],
-            'prenoms' => $validated['prenoms'],
-            'date_naissance' => $validated['date_naissance'],
-            'sexe' => $validated['sexe'],
-            'lien_parente' => $validated['lien_parente'],
-            'adresse' => $validated['adresse'],
-            'contact' => $validated['contact'] ?? null,
-            'profession' => $validated['profession'] ?? null,
-            'assure_principal_id' => $assure->id,
-            'est_principal' => false,
-        ]);
+        DB::beginTransaction();
+        try {
+            // 1. Créer la personne
+            $personne = Personne::create([
+                'nom' => $validated['nom'],
+                'prenoms' => $validated['prenoms'],
+                'date_naissance' => $validated['date_naissance'],
+                'sexe' => $validated['sexe'],
+                'profession' => $validated['profession'] ?? null,
+            ]);
 
-        return ApiResponse::success(new BeneficiaireResource($beneficiaire), 'Bénéficiaire ajouté avec succès');
+            // 2. Créer l'utilisateur (sans compte de connexion)
+            $beneficiaireUser = User::create([
+                'email' => $validated['email'] ?? $validated['nom'] . '_' . time() . '@beneficiaire.local',
+                'password' => Hash::make(Str::random(32)), // Mot de passe aléatoire
+                'contact' => $validated['contact'] ?? null,
+                'adresse' => $validated['adresse'] ?? null,
+                'est_actif' => true,
+                'personne_id' => $personne->id,
+                'photo_url' => $photoUrl,
+            ]);
+
+            // Créer l'assuré bénéficiaire
+            $beneficiaire = Assure::create([
+                'user_id' => $beneficiaireUser->id,
+                'client_id' => $assure->client_id,
+                'lien_parente' => $validated['lien_parente'],
+                'est_principal' => false,
+                'assure_principal_id' => $assure->id,
+            ]);
+            DB::commit();
+            return ApiResponse::success(null, 'Bénéficiaire ajouté avec succès');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ApiResponse::error('Erreur lors de l\'ajout du bénéficiaire', 500, $e->getMessage());
+        }
     }
 
     /**
@@ -125,24 +148,71 @@ class AssureController extends Controller
     public function modifierBeneficiaire(UpdateBeneficiaireRequest $request, $id)
     {
         $user = Auth::user();
-        
+
         $assure = $user->assure;
-        
+
+        if (!$assure) {
+            return ApiResponse::error('Aucun profil d\'assuré trouvé. Veuillez d\'abord soumettre une demande d\'adhésion.', 404);
+        }
+
         if (!$assure->est_principal) {
             return ApiResponse::error('Vous n\'êtes pas un assuré principal', 403);
         }
 
         $beneficiaire = $assure->beneficiaires()->find($id);
-        
+
         if (!$beneficiaire) {
             return ApiResponse::error('Bénéficiaire non trouvé', 404);
         }
 
         $validated = $request->validated();
 
-        $beneficiaire->update($validated);
+        DB::beginTransaction();
+        try {
+            // Mettre à jour le lien de parenté si fourni
+            if (isset($validated['lien_parente'])) {
+                $beneficiaire->update([
+                    'lien_parente' => $validated['lien_parente']
+                ]);
+            }
 
-        return ApiResponse::success(new BeneficiaireResource($beneficiaire), 'Bénéficiaire modifié avec succès');
+            // Mettre à jour les informations de la personne
+            if ($beneficiaire->user && $beneficiaire->user->personne) {
+                $personneData = [];
+                if (isset($validated['nom'])) $personneData['nom'] = $validated['nom'];
+                if (isset($validated['prenoms'])) $personneData['prenoms'] = $validated['prenoms'];
+                if (isset($validated['date_naissance'])) $personneData['date_naissance'] = $validated['date_naissance'];
+                if (isset($validated['sexe'])) $personneData['sexe'] = $validated['sexe'];
+                if (isset($validated['profession'])) $personneData['profession'] = $validated['profession'];
+
+                if (!empty($personneData)) {
+                    $beneficiaire->user->personne->update($personneData);
+                }
+            }
+
+            // Mettre à jour les informations de l'utilisateur
+            if ($beneficiaire->user) {
+                $userData = [];
+                if (isset($validated['email'])) $userData['email'] = $validated['email'];
+                if (isset($validated['contact'])) $userData['contact'] = $validated['contact'];
+                if (isset($validated['adresse'])) $userData['adresse'] = $validated['adresse'];
+
+                if (!empty($userData)) {
+                    $beneficiaire->user->update($userData);
+                }
+            }
+
+            DB::commit();
+
+            return ApiResponse::success(
+                new BeneficiaireResource($beneficiaire->load('user.personne')),
+                'Bénéficiaire modifié avec succès'
+            );
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Erreur lors de la modification du bénéficiaire: ' . $e->getMessage());
+            return ApiResponse::error('Erreur lors de la modification du bénéficiaire', 500, $e->getMessage());
+        }
     }
 
     /**
@@ -151,15 +221,19 @@ class AssureController extends Controller
     public function supprimerBeneficiaire($id)
     {
         $user = Auth::user();
-        
+
         $assure = $user->assure;
-            
-            if (!$assure->est_principal) {
-                return ApiResponse::error('Vous n\'êtes pas un assuré principal', 403);
-            }
+
+        if (!$assure) {
+            return ApiResponse::error('Aucun profil d\'assuré trouvé. Veuillez d\'abord soumettre une demande d\'adhésion.', 404);
+        }
+
+        if (!$assure->est_principal) {
+            return ApiResponse::error('Vous n\'êtes pas un assuré principal', 403);
+        }
 
         $beneficiaire = $assure->beneficiaires()->find($id);
-        
+
         if (!$beneficiaire) {
             return ApiResponse::error('Bénéficiaire non trouvé', 404);
         }
@@ -177,6 +251,10 @@ class AssureController extends Controller
         $user = Auth::user();
         $assure = $user->assure;
 
+        if (!$assure) {
+            return ApiResponse::error('Aucun profil d\'assuré trouvé. Veuillez d\'abord soumettre une demande d\'adhésion.', 404);
+        }
+
         if (!$assure->est_principal) {
             return ApiResponse::error('Vous n\'êtes pas un assuré principal', 403);
         }
@@ -191,30 +269,65 @@ class AssureController extends Controller
     }
 
     /**
-     * Centres de soins assignés
+     * Récupérer le profil de l'assuré
+     */
+    public function profil()
+    {
+        $user = Auth::user();
+        $assure = $user->assure;
+
+        if (!$assure) {
+            return ApiResponse::error('Aucun profil d\'assuré trouvé. Veuillez d\'abord soumettre une demande d\'adhésion.', 404);
+        }
+
+        if (!$assure->est_principal) {
+            return ApiResponse::error('Vous n\'êtes pas un assuré principal', 403);
+        }
+
+        return ApiResponse::success([
+            'id' => $assure->id,
+            'nom' => $user->personne->nom ?? null,
+            'prenoms' => $user->personne->prenoms ?? null,
+            'date_naissance' => $user->personne->date_naissance ?? null,
+            'sexe' => $user->personne->sexe ?? null,
+            'contact' => $user->contact,
+            'email' => $user->email,
+            'adresse' => $user->adresse,
+            'photo_url' => $user->photo_url,
+            'lien_parente' => $assure->lien_parente,
+            'est_principal' => $assure->est_principal,
+        ], 'Profil récupéré avec succès');
+    }
+
+    /**
+     * Centres de soins assignés (alias de prestataires)
      */
     public function centresSoins(Request $request)
     {
+        return $this->prestataires($request);
+    }
+
+    /**
+     * Centres de soins assignés
+     */
+    public function prestataires(Request $request)
+    {
         $user = Auth::user();
-        
+
         $assure = $user->assure;
-        
+
+        if (!$assure) {
+            return ApiResponse::error('Aucun profil d\'assuré trouvé. Veuillez d\'abord soumettre une demande d\'adhésion.', 404);
+        }
+
         if (!$assure->est_principal) {
             return ApiResponse::error('Vous n\'êtes pas un assuré principal', 403);
         }
 
         $query = Prestataire::where('statut', 'valide');
 
-        // Filtres
-        if ($request->has('type_prestataire')) {
-            $query->where('type_prestataire', $request->type_prestataire);
-        }
 
-        if ($request->has('ville')) {
-            $query->where('ville', 'like', '%' . $request->ville . '%');
-        }
-
-        $prestataires = $query->paginate($request->get('per_page', 10));
+        $prestataires = $query->get();
 
         return ApiResponse::success($prestataires, 'Liste des centres de soins récupérée avec succès');
     }
@@ -225,9 +338,13 @@ class AssureController extends Controller
     public function historiqueRemboursements(Request $request)
     {
         $user = Auth::user();
-        
+
         $assure = $user->assure;
-        
+
+        if (!$assure) {
+            return ApiResponse::error('Aucun profil d\'assuré trouvé. Veuillez d\'abord soumettre une demande d\'adhésion.', 404);
+        }
+
         if (!$assure->est_principal) {
             return ApiResponse::error('Vous n\'êtes pas un assuré principal', 403);
         }
@@ -267,15 +384,19 @@ class AssureController extends Controller
     public function contrat()
     {
         $user = Auth::user();
-        
+
         $assure = $user->assure;
-        
+
+        if (!$assure) {
+            return ApiResponse::error('Aucun profil d\'assuré trouvé. Veuillez d\'abord soumettre une demande d\'adhésion.', 404);
+        }
+
         if (!$assure->est_principal) {
             return ApiResponse::error('Vous n\'êtes pas un assuré principal', 403);
         }
 
         $contrat = $assure->contrat;
-        
+
         if (!$contrat) {
             return ApiResponse::error('Aucun contrat actif trouvé', 404);
         }
@@ -289,9 +410,13 @@ class AssureController extends Controller
     public function updateProfil(Request $request)
     {
         $user = Auth::user();
-        
+
         $assure = $user->assure;
-        
+
+        if (!$assure) {
+            return ApiResponse::error('Aucun profil d\'assuré trouvé. Veuillez d\'abord soumettre une demande d\'adhésion.', 404);
+        }
+
         if (!$assure->est_principal) {
             return ApiResponse::error('Vous n\'êtes pas un assuré principal', 403);
         }
@@ -320,7 +445,7 @@ class AssureController extends Controller
 
 
         $assure = $user->assure;
-        
+
         if (!$assure) {
             return ApiResponse::error('Assuré non trouvé', 404);
         }
@@ -379,7 +504,10 @@ class AssureController extends Controller
         $user = Auth::user();
         $entreprise = $user->entreprise;
 
-     
+        if (!$entreprise) {
+            return ApiResponse::error('Aucun profil d\'entreprise trouvé.', 404);
+        }
+
         $perPage = $request->input('per_page', 10);
 
         $employes = Assure::query()
@@ -388,7 +516,7 @@ class AssureController extends Controller
             ->when($request->filled('search'), function ($query) use ($request) {
                 $query->where(function ($q) use ($request) {
                     $q->where('nom', 'like', '%' . $request->search . '%')
-                      ->orWhere('prenoms', 'like', '%' . $request->search . '%');
+                        ->orWhere('prenoms', 'like', '%' . $request->search . '%');
                 });
             })
             ->when($request->filled('sexe'), function ($query) use ($request) {
@@ -411,5 +539,4 @@ class AssureController extends Controller
 
         return ApiResponse::success($paginatedData, 'Liste des employés assurés récupérée avec succès');
     }
-
-} 
+}

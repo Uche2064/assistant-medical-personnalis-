@@ -20,13 +20,6 @@ class ClientReseauController extends Controller
     {
         try {
             $user = Auth::user();
-            
-            // Vérifier que l'utilisateur est un client (assure ou entreprise)
-            if (!$user->hasRole('assure') && !$user->hasRole('entreprise')) {
-                return ApiResponse::error('Accès non autorisé', 403);
-            }
-
-            $perPage = $request->input('per_page', 20);
 
             // Récupérer les contrats actifs du client
             $clientContrats = ClientContrat::where('client_id', $user->id)
@@ -46,9 +39,9 @@ class ClientReseauController extends Controller
 
                 foreach ($prestatairesActifs as $clientPrestataire) {
                     $prestataire = $clientPrestataire->prestataire;
-                    
+
                     // Filtrer par type de prestataire si demandé
-                    if ($request->filled('type_prestataire') && 
+                    if ($request->filled('type_prestataire') &&
                         $prestataire->type_prestataire !== $request->type_prestataire) {
                         continue;
                     }
@@ -58,8 +51,8 @@ class ClientReseauController extends Controller
                         $search = strtolower($request->search);
                         $raisonSociale = strtolower($prestataire->raison_sociale);
                         $adresse = strtolower($prestataire->adresse ?? '');
-                        
-                        if (strpos($raisonSociale, $search) === false && 
+
+                        if (strpos($raisonSociale, $search) === false &&
                             strpos($adresse, $search) === false) {
                             continue;
                         }
@@ -83,22 +76,7 @@ class ClientReseauController extends Controller
                     ]);
                 }
             }
-
-            // Paginer manuellement les résultats
-            $total = $prestatairesData->count();
-            $currentPage = $request->input('page', 1);
-            $offset = ($currentPage - 1) * $perPage;
-            $paginatedData = $prestatairesData->slice($offset, $perPage)->values();
-
-            return ApiResponse::success([
-                'data' => $paginatedData,
-                'pagination' => [
-                    'current_page' => $currentPage,
-                    'per_page' => $perPage,
-                    'total' => $total,
-                    'last_page' => ceil($total / $perPage),
-                ]
-            ], 'Prestataires assignés récupérés avec succès');
+            return ApiResponse::success($prestatairesData, 'Prestataires assignés récupérés avec succès');
 
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des prestataires du client', [
@@ -117,10 +95,6 @@ class ClientReseauController extends Controller
     {
         try {
             $user = Auth::user();
-            
-            if (!$user->hasRole('assure') && !$user->hasRole('entreprise')) {
-                return ApiResponse::error('Accès non autorisé', 403);
-            }
 
             // Compter les prestataires par type
             $stats = ClientContrat::where('client_id', $user->id)
@@ -171,10 +145,6 @@ class ClientReseauController extends Controller
     {
         try {
             $user = Auth::user();
-            
-            if (!$user->hasRole('assure') && !$user->hasRole('entreprise')) {
-                return ApiResponse::error('Accès non autorisé', 403);
-            }
 
             // Vérifier que le prestataire est bien assigné au client
             $assignation = ClientPrestataire::whereHas('clientContrat', function ($q) use ($user) {

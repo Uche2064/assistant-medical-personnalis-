@@ -29,10 +29,6 @@ class TypeContrat extends Model
             ->withPivot(['couverture','frais_gestion'])
             ->withTimestamps();
     }
-
-    public function assures() {
-        
-    }
 }
 
 

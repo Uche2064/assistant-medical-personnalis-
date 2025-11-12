@@ -1,0 +1,972 @@
+{
+  "info": {
+    "name": "Client Module - Système d'Assurance",
+    "description": "Collection complète pour le module Client du système d'assurance. Inclut l'authentification, les demandes d'adhésion, la gestion des bénéficiaires, les contrats et les statistiques.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "{{base_url}}",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "{{api_key}}",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "{{auth_token}}",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Ajouter l'API key à tous les headers",
+          "pm.request.headers.add({",
+          "    key: 'X-API-Key',",
+          "    value: pm.collectionVariables.get('api_key')",
+          "});",
+          "",
+          "// Ajouter le token d'authentification si disponible",
+          "if (pm.collectionVariables.get('auth_token')) {",
+          "    pm.request.headers.add({",
+          "        key: 'Authorization',",
+          "        value: 'Bearer ' + pm.collectionVariables.get('auth_token')",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Authentification",
+      "item": [
+        {
+          "name": "Connexion Client",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"client@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.status && response.data && response.data.token) {",
+                  "        pm.collectionVariables.set('auth_token', response.data.token);",
+                  "        console.log('Token d\\'authentification sauvegardé');",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Profil Utilisateur",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 Demandes d'Adhésion",
+      "item": [
+        {
+          "name": "Vérifier État Demande",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/demandes-adhesions/has-demande",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "demandes-adhesions", "has-demande"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has correct structure', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('status');",
+                  "    pm.expect(response).to.have.property('data');",
+                  "    pm.expect(response.data).to.have.property('existing');",
+                  "    pm.expect(response.data).to.have.property('can_submit');",
+                  "    pm.expect(response.data).to.have.property('status');",
+                  "});",
+                  "",
+                  "pm.test('If demande exists, it has complete information', function () {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data.existing) {",
+                  "        pm.expect(response.data.demande).to.have.property('id');",
+                  "        pm.expect(response.data.demande).to.have.property('type_demandeur');",
+                  "        pm.expect(response.data.demande).to.have.property('statut');",
+                  "        pm.expect(response.data.demande).to.have.property('assure_principal');",
+                  "        pm.expect(response.data.demande).to.have.property('beneficiaires');",
+                  "        pm.expect(response.data.demande).to.have.property('reponses_questions');",
+                  "        pm.expect(response.data.demande).to.have.property('total_beneficiaires');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Questions pour Client Physique",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/questions?destinataire=client",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "questions"],
+              "query": [
+                {
+                  "key": "destinataire",
+                  "value": "client"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Questions pour Employé",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/questions?destinataire=employe",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "questions"],
+              "query": [
+                {
+                  "key": "destinataire",
+                  "value": "employe"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Soumettre Demande Client Physique",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "type_demandeur",
+                  "value": "client",
+                  "type": "text"
+                },
+                {
+                  "key": "reponses[0][question_id]",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "reponses[0][reponse]",
+                  "value": "Réponse au questionnaire",
+                  "type": "text"
+                },
+                {
+                  "key": "beneficiaires[0][nom]",
+                  "value": "Dupont",
+                  "type": "text"
+                },
+                {
+                  "key": "beneficiaires[0][prenoms]",
+                  "value": "Marie",
+                  "type": "text"
+                },
+                {
+                  "key": "beneficiaires[0][date_naissance]",
+                  "value": "1990-05-15",
+                  "type": "text"
+                },
+                {
+                  "key": "beneficiaires[0][sexe]",
+                  "value": "F",
+                  "type": "text"
+                },
+                {
+                  "key": "beneficiaires[0][lien_parente]",
+                  "value": "conjoint",
+                  "type": "text"
+                },
+                {
+                  "key": "beneficiaires[0][email]",
+                  "value": "marie.dupont@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "beneficiaires[0][contact]",
+                  "value": "+225123456789",
+                  "type": "text"
+                },
+                {
+                  "key": "beneficiaires[0][profession]",
+                  "value": "Ingénieur",
+                  "type": "text"
+                },
+                {
+                  "key": "beneficiaires[0][photo_url]",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "beneficiaires[0][reponses][0][question_id]",
+                  "value": "2",
+                  "type": "text"
+                },
+                {
+                  "key": "beneficiaires[0][reponses][0][reponse]",
+                  "value": "Réponse bénéficiaire",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/demandes-adhesions/client",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "demandes-adhesions", "client"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Demande created successfully', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('status', true);",
+                  "    pm.expect(response).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "👥 Gestion Bénéficiaires",
+      "item": [
+        {
+          "name": "Liste Bénéficiaires",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/beneficiaires",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "beneficiaires"]
+            }
+          }
+        },
+        {
+          "name": "Détails Bénéficiaire",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/beneficiaires/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "beneficiaires", "1"]
+            }
+          }
+        },
+        {
+          "name": "Ajouter Bénéficiaire",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom\": \"Martin\",\n  \"prenoms\": \"Pierre\",\n  \"date_naissance\": \"1985-03-20\",\n  \"sexe\": \"M\",\n  \"lien_parente\": \"enfant\",\n  \"email\": \"pierre.martin@example.com\",\n  \"contact\": \"+225987654321\",\n  \"profession\": \"Étudiant\",\n  \"adresse\": \"Abidjan, Côte d\\'Ivoire\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/beneficiaires",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "beneficiaires"]
+            }
+          }
+        },
+        {
+          "name": "Modifier Bénéficiaire",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom\": \"Martin\",\n  \"prenoms\": \"Pierre Jean\",\n  \"date_naissance\": \"1985-03-20\",\n  \"sexe\": \"M\",\n  \"lien_parente\": \"enfant\",\n  \"email\": \"pierre.martin@example.com\",\n  \"contact\": \"+225987654321\",\n  \"profession\": \"Ingénieur\",\n  \"adresse\": \"Abidjan, Côte d\\'Ivoire\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/beneficiaires/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "beneficiaires", "1"]
+            }
+          }
+        },
+        {
+          "name": "Supprimer Bénéficiaire",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/beneficiaires/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "beneficiaires", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📄 Contrats",
+      "item": [
+        {
+          "name": "Mes Contrats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/mes-contrats?per_page=10&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "mes-contrats"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "10"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "statut",
+                  "value": "actif",
+                  "disabled": true
+                },
+                {
+                  "key": "date_debut",
+                  "value": "2024-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "date_fin",
+                  "value": "2024-12-31",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Contrats Proposés",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/contrats-proposes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "contrats-proposes"]
+            }
+          }
+        },
+        {
+          "name": "Accepter Contrat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/contrats-proposes/1/accepter",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "contrats-proposes", "1", "accepter"]
+            }
+          }
+        },
+        {
+          "name": "Refuser Contrat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"raison_refus\": \"Le contrat ne correspond pas à mes besoins actuels\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/contrats-proposes/1/refuser",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "contrats-proposes", "1", "refuser"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏥 Prestataires & Réseau",
+      "item": [
+        {
+          "name": "Mes Prestataires",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/prestataires",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "prestataires"]
+            }
+          }
+        },
+        {
+          "name": "Historique Remboursements",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/historique-remboursements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "historique-remboursements"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Statistiques & Profil",
+      "item": [
+        {
+          "name": "Statistiques Client",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Profil Client",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/profil",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "profil"]
+            }
+          }
+        },
+        {
+          "name": "Modifier Profil",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contact\": \"+225123456789\",\n  \"adresse\": \"Nouvelle adresse, Abidjan\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/profil",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "profil"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏢 Module Entreprise",
+      "item": [
+        {
+          "name": "Générer Lien Invitation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/entreprise/generer-lien-invitation",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "entreprise", "generer-lien-invitation"]
+            }
+          }
+        },
+        {
+          "name": "Lien Invitation Actuel",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/entreprise/lien-invitation",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "entreprise", "lien-invitation"]
+            }
+          }
+        },
+        {
+          "name": "Soumettre Demande Entreprise",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/entreprise/soumettre-demande-adhesion",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "entreprise", "soumettre-demande-adhesion"]
+            }
+          }
+        },
+        {
+          "name": "Mes Demandes Entreprise",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/entreprise/mes-demandes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "entreprise", "mes-demandes"]
+            }
+          }
+        },
+        {
+          "name": "Demandes Employés",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/entreprise/demandes-employes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "entreprise", "demandes-employes"]
+            }
+          }
+        },
+        {
+          "name": "Statistiques Employés",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/client/entreprise/statistiques-employes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "client", "entreprise", "statistiques-employes"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👨‍💼 Formulaire Employé (Public)",
+      "item": [
+        {
+          "name": "Afficher Formulaire Employé",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/employes/formulaire/TOKEN_INVITATION",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "employes", "formulaire", "TOKEN_INVITATION"]
+            }
+          }
+        },
+        {
+          "name": "Soumettre Fiche Employé",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "nom",
+                  "value": "Kouassi",
+                  "type": "text"
+                },
+                {
+                  "key": "prenoms",
+                  "value": "Jean",
+                  "type": "text"
+                },
+                {
+                  "key": "date_naissance",
+                  "value": "1980-12-10",
+                  "type": "text"
+                },
+                {
+                  "key": "sexe",
+                  "value": "M",
+                  "type": "text"
+                },
+                {
+                  "key": "profession",
+                  "value": "Comptable",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "jean.kouassi@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "contact",
+                  "value": "+225555123456",
+                  "type": "text"
+                },
+                {
+                  "key": "adresse",
+                  "value": "Abidjan, Côte d'Ivoire",
+                  "type": "text"
+                },
+                {
+                  "key": "photo",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "reponses[0][question_id]",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "reponses[0][reponse]",
+                  "value": "Réponse employé",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/employes/formulaire/TOKEN_INVITATION",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "employes", "formulaire", "TOKEN_INVITATION"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

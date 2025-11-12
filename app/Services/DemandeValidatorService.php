@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\RoleEnum;
 use App\Enums\StatutDemandeAdhesionEnum;
 use App\Enums\TypeDemandeurEnum;
+use App\Helpers\ImageUploadHelper;
 use App\Models\Assure;
 use App\Models\Client;
 use App\Models\DemandeAdhesion;
@@ -37,12 +38,12 @@ class DemandeValidatorService
 
     private function hasDemandeWithStatut(string $statut): bool
     {
-        $user = Auth::user()->load(['client']);
-        if (!$user || !$user->client) {
+        $user = Auth::user();
+        if (!$user) {
             return false;
         }
 
-        return DemandeAdhesion::where('user_id', $user->client->id)
+        return DemandeAdhesion::where('user_id', $user->id)
             ->where('statut', $statut)
             ->exists();
 
@@ -53,7 +54,7 @@ class DemandeValidatorService
      */
     public function createDemandeAdhesionClient(array $data, User $user): DemandeAdhesion
     {
-        
+
         $typeDemandeur = $data['type_demandeur'];
 
         // Créer la demande d'adhésion
@@ -62,6 +63,28 @@ class DemandeValidatorService
             'statut' => StatutDemandeAdhesionEnum::EN_ATTENTE->value,
             'user_id' => $user->id,
         ]);
+
+        // Créer le Client s'il n'existe pas déjà
+        $client = $user->client;
+        if (!$client) {
+            $client = Client::create([
+                'user_id' => $user->id,
+                'type_client' => $typeDemandeur === TypeDemandeurEnum::CLIENT->value
+                    ? \App\Enums\ClientTypeEnum::PHYSIQUE->value
+                    : \App\Enums\ClientTypeEnum::MORAL->value,
+            ]);
+        }
+
+        // Créer l'Assure principal s'il n'existe pas déjà
+        $assurePrincipal = $user->assure;
+        if (!$assurePrincipal) {
+            $assurePrincipal = Assure::create([
+                'user_id' => $user->id,
+                'client_id' => $client->id,
+                'est_principal' => true,
+                'lien_parente' => null, // Pas de lien de parenté pour l'assuré principal
+            ]);
+        }
 
         // Enregistrer les réponses au questionnaire
         if (isset($data['reponses'])) {
@@ -73,7 +96,7 @@ class DemandeValidatorService
         // Enregistrer les bénéficiaires si fournis (uniquement pour les personnes physiques)
         if (isset($data['beneficiaires'])) {
             foreach ($data['beneficiaires'] as $beneficiaire) {
-                $this->enregistrerBeneficiaire($demande, $beneficiaire);
+                $this->enregistrerBeneficiaire($demande, $beneficiaire, $client->id, $assurePrincipal->id);
             }
         }
 
@@ -133,8 +156,33 @@ class DemandeValidatorService
     /**
      * Enregistrer un bénéficiaire
      */
-    private function enregistrerBeneficiaire($demande, array $beneficiaireData): void
+    private function enregistrerBeneficiaire($demande, array $beneficiaireData, int $clientId, int $assurePrincipalId): void
     {
+        // check unique email
+        if (!empty($beneficiaireData['email']) && User::where('email', $beneficiaireData['email'])->exists()) {
+            throw new \Exception("L'email du bénéficiaire est déjà utilisé");
+        }
+
+        if(isset($beneficiaireData['contact']) && !empty($beneficiaireData['contact'])) {
+            if (User::where('contact', $beneficiaireData['contact'])->exists()) {
+                throw new \Exception("Le contact du bénéficiaire est déjà utilisé");
+            }
+        }
+
+        // Traiter la photo du bénéficiaire si fournie
+        $photoUrl = null;
+        if (isset($beneficiaireData['photo_url']) && $this->isUploadedFile($beneficiaireData['photo_url'])) {
+            $emailFolder = $beneficiaireData['email'] ?? $demande->user->email;
+            $photoUrl = ImageUploadHelper::uploadImage(
+                $beneficiaireData['photo_url'],
+                'users/' . $emailFolder . '/beneficiaires'
+            );
+
+            if (!$photoUrl) {
+                throw new \Exception('Erreur lors de l\'upload de la photo du bénéficiaire');
+            }
+        }
+
         // Créer la personne bénéficiaire
         $beneficiairePersonne = Personne::create([
             'nom' => $beneficiaireData['nom'],
@@ -143,13 +191,13 @@ class DemandeValidatorService
             'sexe' => $beneficiaireData['sexe'],
             'profession' => $beneficiaireData['profession'] ?? null,
         ]);
-        
+
         $plainPassword = User::genererMotDePasse();
         $beneficiaireUser = User::create([
             'email' => $beneficiaireData['email'] ?? null,
             'contact' => $beneficiaireData['contact'] ?? null,
             'adresse' => $beneficiaireData['adresse'] ?? null,
-            'photo_url' => $beneficiaireData['photo_url'] ?? null,
+            'photo_url' => $photoUrl,
             'personne_id' => $beneficiairePersonne->id,
             'password' => Hash::make($plainPassword),
             'est_actif' => false,
@@ -159,11 +207,11 @@ class DemandeValidatorService
         $beneficiaireUser->assignRole(RoleEnum::CLIENT->value);
 
         $beneficiaireAssure = Assure::create([
-            'client_id' => $demande->user->client->id,
+            'client_id' => $clientId,
             'est_principal' => false,
             'lien_parente' => $beneficiaireData['lien_parente'],
             'user_id' => $beneficiaireUser->id,
-            'assure_principal_id' => $demande->user->assure->id
+            'assure_principal_id' => $assurePrincipalId
         ]);
 
         // Envoyer les identifiants si email fourni

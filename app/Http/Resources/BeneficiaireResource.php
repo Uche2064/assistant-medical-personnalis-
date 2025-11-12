@@ -16,19 +16,27 @@ class BeneficiaireResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'nom' => $this->nom,
-            'prenoms' => $this->prenoms,
-            'date_naissance' => $this->date_naissance,
-            'sexe' => $this->sexe,
+            'nom' => $this->user->personne->nom ?? null,
+            'prenoms' => $this->user->personne->prenoms ?? null,
+            'date_naissance' => $this->user->personne->date_naissance ?? null,
+            'sexe' => $this->user->personne->sexe ?? null,
             'lien_parente' => $this->lien_parente,
-            'profession' => $this->profession,
-            'photo' => $this->photo,
-            'contact' => $this->contact,
-            'demande_adhesion_id' => $this->demande_adhesion_id,
+            'profession' => $this->user->personne->profession ?? null,
+            'photo_url' => $this->user->photo_url ?? null,
+            'contact' => $this->user->contact ?? null,
+            'email' => $this->user->email ?? null,
+            'adresse' => $this->user->adresse ?? null,
+            'est_principal' => $this->est_principal,
             'assure_principal_id' => $this->assure_principal_id,
-            'contrat_id' => $this->contrat_id,
-            'adresse' => $this->adresse,
-            
+            'assure_principal' => $this->whenLoaded('assurePrincipal', function () {
+                return [
+                    'id' => $this->assurePrincipal->id,
+                    'nom' => $this->assurePrincipal->user->personne->nom ?? null,
+                    'prenoms' => $this->assurePrincipal->user->personne->prenoms ?? null,
+                ];
+            }),
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
         ];
     }
 }

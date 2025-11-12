@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\RoleEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -122,7 +123,7 @@ class Personnel extends Model
     {
         do {
             $code = 'PAR' . strtoupper(substr(md5(uniqid()), 0, 6));
-        } while (self::where('code_parainage', $code)->exists());
+        } while (User::where('code_parrainage', $code)->exists());
 
         return $code;
     }
@@ -165,8 +166,8 @@ class Personnel extends Model
      */
     public function isMedecinControleur()
     {
-        return $this->categoriesGaranties()->exists() || 
-               $this->garanties()->exists() || 
+        return $this->categoriesGaranties()->exists() ||
+               $this->garanties()->exists() ||
                $this->prestataires()->exists();
     }
 
@@ -175,6 +176,6 @@ class Personnel extends Model
      */
     public function isComptable()
     {
-        return $this->facturesAutoriseesComptable()->exists();
+        return $this->user->role === RoleEnum::COMPTABLE->value;
     }
 }

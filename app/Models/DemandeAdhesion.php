@@ -31,19 +31,26 @@ class DemandeAdhesion extends Model
     ];
 
     /**
-     * Get the client that owns the demande adhesion.
-     */
-    public function client()
-    {
-        return $this->belongsTo(Client::class);
-    }
-
-    /**
-     * Get the user that owns the demande adhesion via client.
+     * Get the user that owns the demande adhesion.
      */
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the client associated with this demande via user.
+     */
+    public function client()
+    {
+        return $this->hasOneThrough(
+            Client::class,
+            User::class,
+            'id', // Foreign key on users table
+            'user_id', // Foreign key on clients table
+            'user_id', // Local key on demandes_adhesions table
+            'id' // Local key on users table
+        );
     }
 
     /**
@@ -75,16 +82,43 @@ class DemandeAdhesion extends Model
     // }
 
     /**
-     * Get reponses for the principal assure only
+     * Get reponses for the principal assure only (via user_id)
      */
     public function reponsesAssurePrincipal()
     {
         return $this->reponsesQuestions()
-                    ->whereHas('assure', function ($query) {
-                        $query->where('est_principal', true);
-                    })
-                    ->with(['assure.user.personne', 'question'])
+                    ->where('user_id', $this->user_id)
+                    ->with(['question'])
                     ->get();
+    }
+
+    /**
+     * Get reponses for the principal assure only (relation for eager loading)
+     */
+    public function reponsesAssurePrincipalRelation()
+    {
+        return $this->hasMany(ReponseQuestion::class, 'demande_adhesion_id')
+                    ->whereColumn('user_id', 'demandes_adhesions.user_id');
+    }
+
+    /**
+     * Get reponses for a specific user in this demande
+     */
+    public function reponsesParUtilisateur($userId)
+    {
+        return $this->reponsesQuestions()
+                    ->where('user_id', $userId)
+                    ->with(['question'])
+                    ->get();
+    }
+
+    /**
+     * Get reponses for a specific user (relation for eager loading)
+     */
+    public function reponsesParUtilisateurRelation($userId)
+    {
+        return $this->hasMany(ReponseQuestion::class, 'demande_adhesion_id')
+                    ->where('user_id', $userId);
     }
 
     /**
@@ -106,18 +140,24 @@ class DemandeAdhesion extends Model
      */
     public function assurePrincipal()
     {
-        return $this->hasOneThrough(Assure::class, Client::class, 'id', 'client_id', 'client_id', 'id')
+        return $this->hasOne(Assure::class, 'user_id', 'user_id')
             ->where('est_principal', true);
     }
 
     /**
      * Get all beneficiaries for this demande (via the principal assure)
+     * Cette méthode retourne une collection, pas une relation Eloquent
      */
-    public function beneficiaires()
+    public function getBeneficiairesAttribute()
     {
-        return $this->hasManyThrough(Assure::class, Client::class, 'id', 'client_id', 'client_id', 'id')
-            ->where('est_principal', false)
-            ->whereNotNull('assure_principal_id');
+        // Retourne les bénéficiaires via l'assuré principal
+        $assurePrincipal = $this->assurePrincipal;
+
+        if (!$assurePrincipal) {
+            return collect([]);
+        }
+
+        return $assurePrincipal->beneficiaires;
     }
 
     /**

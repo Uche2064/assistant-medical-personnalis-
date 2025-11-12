@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\v1\Api\technicien;
 
 use App\Enums\RoleEnum;
+use App\Enums\StatutContratEnum;
 use App\Enums\StatutDemandeAdhesionEnum;
 use App\Enums\StatutFactureEnum;
 use App\Enums\StatutPrestataireEnum;
@@ -24,8 +25,11 @@ use App\Models\Prestataire;
 use App\Models\Assure;
 use App\Models\Entreprise;
 use App\Http\Resources\AssureResource;
+use App\Http\Resources\DemandeAdhesionResource;
+use App\Models\Sinistre;
 use App\Services\NotificationService;
 use App\Traits\DemandeAdhesionDataTrait;
+use App\Services\DemandeAdhesionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -38,11 +42,13 @@ class TechnicienController extends Controller
     use DemandeAdhesionDataTrait;
 
     private $notificationService;
-
+    private $demandeAdhesionService;
     public function __construct(
         NotificationService $notificationService,
+        DemandeAdhesionService $demandeAdhesionService
     ) {
         $this->notificationService = $notificationService;
+        $this->demandeAdhesionService = $demandeAdhesionService;
     }
 
     /**
@@ -68,7 +74,7 @@ class TechnicienController extends Controller
 
             try {
 
-                $clientContrat = ClientContrat::where('user_id', $client->id)->firstOrFail();
+                $clientContrat = ClientContrat::where('client_id', $client->id)->firstOrFail();
 
                 foreach ($request->prestataires_ids as $prestataireId) {
 
@@ -151,54 +157,244 @@ class TechnicienController extends Controller
         }
     }
 
+    /**
+     * Statistiques complètes du technicien
+     */
+    public function technicienStats()
+    {
+        try {
+            $user = Auth::user()->load('personne', 'personnel', 'roles');
+            $technicien = $user->personnel;
+
+            if (!$technicien) {
+                return ApiResponse::error('Profil technicien non trouvé', 404);
+            }
+
+            // Statistiques des demandes d'adhésion
+            $statsDemandesAdhesion = $this->getStatsDemandesAdhesion();
+
+            // Statistiques des propositions de contrats
+            $statsPropositionsContrats = $this->getStatsPropositionsContrats($technicien);
+
+            // Statistiques des types de contrats
+            $statsTypesContrats = $this->getStatsTypesContrats($technicien);
+
+            // Statistiques des factures
+            $statsFactures = $this->getStatsFacturesTechnicien($technicien);
+
+            // Statistiques des clients
+            $statsClients = $this->getStatsClients();
+
+            // Évolutions mensuelles (pour graphiques)
+            $evolutionsMensuelles = $this->getEvolutionsMensuellesTechnicien();
+
+            return ApiResponse::success([
+                'demandes_adhesion' => $statsDemandesAdhesion,
+                'propositions_contrats' => $statsPropositionsContrats,
+                'types_contrats' => $statsTypesContrats,
+                'factures' => $statsFactures,
+                'clients' => $statsClients,
+                'evolutions_mensuelles' => $evolutionsMensuelles
+            ], 'Statistiques du technicien récupérées avec succès');
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des statistiques: ' . $e->getMessage());
+            return ApiResponse::error('Erreur lors de la récupération des statistiques', 500, $e->getMessage());
+        }
+    }
 
     /**
-     * Dashboard du technicien
+     * Statistiques des demandes d'adhésion
      */
-    public function dashboard()
+    private function getStatsDemandesAdhesion()
     {
-        $user = Auth::user();
-        $technicien = $user->personnel;
+        $demandes = DemandeAdhesion::all();
+        $total = $demandes->count();
 
-        if (!$technicien || !$technicien->isTechnicien()) {
-            return ApiResponse::error('Accès non autorisé', 403);
+        // Répartition par statut
+        $parStatut = $demandes->groupBy(function ($demande) {
+            return $demande->statut?->value ?? 'Non spécifié';
+        })->map(function ($group) use ($total) {
+            $count = $group->count();
+            return [
+                'count' => $count,
+                'pourcentage' => $total > 0 ? round(($count / $total) * 100, 2) : 0
+            ];
+        });
+
+        // Répartition par type de demandeur
+        $parType = $demandes->groupBy(function ($demande) {
+            return $demande->type_demandeur?->value ?? 'Non spécifié';
+        })->map(function ($group) use ($total) {
+            $count = $group->count();
+            return [
+                'count' => $count,
+                'pourcentage' => $total > 0 ? round(($count / $total) * 100, 2) : 0
+            ];
+        });
+
+        return [
+            'total' => $total,
+            'en_attente' => $demandes->where('statut.value', StatutDemandeAdhesionEnum::EN_ATTENTE->value)->count(),
+            'validees' => $demandes->where('statut.value', StatutDemandeAdhesionEnum::VALIDEE->value)->count(),
+            'rejetees' => $demandes->where('statut.value', StatutDemandeAdhesionEnum::REJETEE->value)->count(),
+            'taux_validation' => $total > 0 ? round(($demandes->where('statut.value', StatutDemandeAdhesionEnum::VALIDEE->value)->count() / $total) * 100, 2) : 0,
+            'nouvelles_ce_mois' => $demandes->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])->count(),
+            'repartition_par_statut' => $parStatut,
+            'repartition_par_type' => $parType
+        ];
+    }
+
+    /**
+     * Statistiques des propositions de contrats
+     */
+    private function getStatsPropositionsContrats($technicien)
+    {
+        $propositions = PropositionContrat::all();
+        $total = $propositions->count();
+
+        $parStatut = $propositions->groupBy(function ($proposition) {
+            return $proposition->statut?->value ?? 'Non spécifié';
+        })->map(function ($group) use ($total) {
+            $count = $group->count();
+            return [
+                'count' => $count,
+                'pourcentage' => $total > 0 ? round(($count / $total) * 100, 2) : 0
+            ];
+        });
+
+        return [
+            'total' => $total,
+            'proposees' => $propositions->where('statut.value', StatutPropositionContratEnum::PROPOSEE->value)->count(),
+            'acceptees' => $propositions->where('statut.value', StatutPropositionContratEnum::ACCEPTEE->value)->count(),
+            'refusees' => $propositions->where('statut.value', StatutPropositionContratEnum::REFUSEE->value)->count(),
+            'expirees' => $propositions->where('statut.value', StatutPropositionContratEnum::EXPIREE->value)->count(),
+            'taux_acceptation' => $total > 0 ? round(($propositions->where('statut.value', StatutPropositionContratEnum::ACCEPTEE->value)->count() / $total) * 100, 2) : 0,
+            'repartition_par_statut' => $parStatut
+        ];
+    }
+
+    /**
+     * Statistiques des types de contrats
+     */
+    private function getStatsTypesContrats($technicien)
+    {
+        $typesContrats = $technicien->contrats;
+        $total = $typesContrats->count();
+
+        return [
+            'total' => $total,
+            'actifs' => $typesContrats->where('est_actif', true)->count(),
+            'inactifs' => $typesContrats->where('est_actif', false)->count(),
+            'taux_activation' => $total > 0 ? round(($typesContrats->where('est_actif', true)->count() / $total) * 100, 2) : 0,
+            'prime_moyenne' => $total > 0 ? round($typesContrats->avg('prime_standard'), 2) : 0,
+            'prime_totale' => $typesContrats->sum('prime_standard')
+        ];
+    }
+
+    /**
+     * Statistiques des factures du technicien
+     */
+    private function getStatsFacturesTechnicien($technicien)
+    {
+        $factures = Facture::all();
+        $total = $factures->count();
+
+        $facturesValideesTechnicien = $technicien->facturesValideesTechnicien()->count();
+        $aValiderParTechnicien = $factures->filter(function ($facture) {
+            return !$facture->isValidatedByTechnicien();
+        })->count();
+
+        return [
+            'total' => $total,
+            'validees_par_technicien' => $facturesValideesTechnicien,
+            'a_valider_par_technicien' => $aValiderParTechnicien,
+            'en_attente_medecin' => $factures->filter(function ($facture) {
+                return $facture->isValidatedByTechnicien() && !$facture->isValidatedByMedecin();
+            })->count()
+        ];
+    }
+
+    /**
+     * Statistiques des clients
+     */
+    private function getStatsClients()
+    {
+        $clients = User::whereHas('roles', function ($q) {
+            $q->where('name', RoleEnum::CLIENT->value);
+        })->get();
+
+        $total = $clients->count();
+
+        return [
+            'total' => $total,
+            'actifs' => $clients->where('est_actif', true)->count(),
+            'inactifs' => $clients->where('est_actif', false)->count(),
+            'taux_activation' => $total > 0 ? round(($clients->where('est_actif', true)->count() / $total) * 100, 2) : 0
+        ];
+    }
+
+    /**
+     * Évolution mensuelle (12 derniers mois) - Pour graphiques
+     */
+    private function getEvolutionsMensuellesTechnicien()
+    {
+        $evolution = [];
+        $maintenant = now();
+
+        for ($i = 11; $i >= 0; $i--) {
+            $date = $maintenant->copy()->subMonths($i);
+            $moisDebut = $date->copy()->startOfMonth();
+            $moisFin = $date->copy()->endOfMonth();
+
+            // Demandes d'adhésion ce mois
+            $demandesCeMois = DemandeAdhesion::whereBetween('created_at', [$moisDebut, $moisFin])->count();
+
+            $demandesValideesCeMois = DemandeAdhesion::whereBetween('created_at', [$moisDebut, $moisFin])
+                ->where('statut', StatutDemandeAdhesionEnum::VALIDEE)
+                ->count();
+
+            $demandesRejeteesCeMois = DemandeAdhesion::whereBetween('created_at', [$moisDebut, $moisFin])
+                ->where('statut', StatutDemandeAdhesionEnum::REJETEE)
+                ->count();
+
+            // Propositions de contrats ce mois
+            $propositionsCeMois = PropositionContrat::whereBetween('created_at', [$moisDebut, $moisFin])->count();
+
+            $propositionsAccepteesCeMois = PropositionContrat::whereBetween('created_at', [$moisDebut, $moisFin])
+                ->where('statut', StatutPropositionContratEnum::ACCEPTEE)
+                ->count();
+
+            // Factures validées par technicien ce mois
+            $facturesValideesCeMois = Facture::whereBetween('valide_par_technicien_a', [$moisDebut, $moisFin])
+                ->whereNotNull('valide_par_technicien_a')
+                ->count();
+
+            // Clients créés ce mois
+            $clientsCeMois = User::whereHas('roles', function ($q) {
+                $q->where('name', RoleEnum::CLIENT->value);
+            })->whereBetween('created_at', [$moisDebut, $moisFin])->count();
+
+            $evolution[] = [
+                'mois' => $date->format('Y-m'),
+                'mois_nom' => $date->format('M Y'),
+                'mois_complet' => $date->format('F Y'),
+                'demandes_recues' => $demandesCeMois,
+                'demandes_validees' => $demandesValideesCeMois,
+                'demandes_rejetees' => $demandesRejeteesCeMois,
+                'propositions_envoyees' => $propositionsCeMois,
+                'propositions_acceptees' => $propositionsAccepteesCeMois,
+                'factures_validees' => $facturesValideesCeMois,
+                'clients_crees' => $clientsCeMois,
+                'taux_validation' => $demandesCeMois > 0
+                    ? round(($demandesValideesCeMois / $demandesCeMois) * 100, 2)
+                    : 0,
+                'taux_rejet' => $demandesCeMois > 0
+                    ? round(($demandesRejeteesCeMois / $demandesCeMois) * 100, 2)
+                    : 0
+            ];
         }
 
-        // Statistiques du technicien
-        $stats = [
-            'total_demandes' => DemandeAdhesion::count(),
-            'demandes_en_attente' => DemandeAdhesion::where('statut', StatutDemandeAdhesionEnum::EN_ATTENTE)->count(),
-            'demandes_validees' => DemandeAdhesion::where('statut', StatutDemandeAdhesionEnum::VALIDEE)->count(),
-            'demandes_rejetees' => DemandeAdhesion::where('statut', StatutDemandeAdhesionEnum::REJETEE)->count(),
-            'contrats_proposes' => $technicien->contrats()->count(),
-            'contrats_acceptes' => $technicien->contrats()->where('statut', 'accepte')->count(),
-            'factures_validees' => $technicien->facturesValideesTechnicien()->count(),
-        ];
-
-        // Demandes récentes
-        $demandesRecentes = DemandeAdhesion::with(['user', 'client', 'entreprise'])
-            ->latest()
-            ->take(5)
-            ->get();
-
-        // Factures en attente de validation
-        $facturesEnAttente = Facture::where('statut', StatutFactureEnum::EN_ATTENTE)
-            ->with(['prestataire', 'assure'])
-            ->latest()
-            ->take(5)
-            ->get();
-
-        return ApiResponse::success([
-            'technicien' => [
-                'id' => $technicien->id,
-                'nom' => $technicien->nom,
-                'prenoms' => $technicien->prenoms,
-                'email' => $technicien->email,
-            ],
-            'statistiques' => $stats,
-            'demandes_recentes' => $demandesRecentes,
-            'factures_en_attente' => $facturesEnAttente,
-        ], 'Dashboard technicien récupéré avec succès');
+        return $evolution;
     }
 
     /**
@@ -227,27 +423,24 @@ class TechnicienController extends Controller
      */
     public function demandesAdhesion(Request $request)
     {
-        $user = Auth::user();
+        $user = Auth::user()->load('personne', 'personnel', 'roles');
         $technicien = $user->personnel;
 
         if (!$technicien || !$technicien->isTechnicien()) {
             return ApiResponse::error('Accès non autorisé', 403);
         }
 
-        $query = DemandeAdhesion::with(['user', 'client', 'entreprise']);
+        $query = DemandeAdhesion::with([
+            'user',
+            'assurePrincipal.user.personne',
+            'assurePrincipal.beneficiaires.user.personne',
+            'propositionsContrat.contrat',
+            'reponsesQuestions.question', // Charger toutes les réponses
+        ]);
+        $this->demandeAdhesionService->applyRoleFilters($query, $user);
+        $demandes = $query->orderByDesc('created_at')->get();
 
-        // Filtres
-        if ($request->has('statut')) {
-            $query->where('statut', $request->statut);
-        }
-
-        if ($request->has('type_demandeur')) {
-            $query->where('type_demandeur', $request->type_demandeur);
-        }
-
-        $demandes = $query->paginate($request->get('per_page', 10));
-
-        return ApiResponse::success($demandes, 'Liste des demandes d\'adhésion récupérée avec succès');
+        return ApiResponse::success(DemandeAdhesionResource::collection($demandes), 'Liste des demandes d\'adhésion récupérée avec succès');
     }
 
     /**
@@ -698,7 +891,6 @@ class TechnicienController extends Controller
                 return ApiResponse::error('Accès non autorisé', 403);
             }
 
-            $perPage = $request->input('per_page', 20);
 
             // Récupérer les propositions de contrat acceptées
             $query = PropositionContrat::with([
@@ -724,15 +916,20 @@ class TechnicienController extends Controller
                 });
             }
 
-            $propositions = $query->paginate($perPage);
+            $propositions = $query->get();
 
-            $clients = $propositions->getCollection()->map(function ($proposition) {
+            $clients = $propositions->map(function ($proposition) {
                 $demande = $proposition->demandeAdhesion;
                 $user = $demande->user;
+                $client = $user->client;
+
+                if (!$client) {
+                    return ApiResponse::error('Client non trouvé pour cet utilisateur', 404);
+                }
 
                 // Vérifier si des prestataires sont déjà assignés
-                $prestatairesAssignes = ClientContrat::where('user_id', $user->id)
-                    ->where('contrat_id', $proposition->contrat->id)
+                $prestatairesAssignes = ClientContrat::where('client_id', $client->id)
+                    ->where('type_contrat_id', $proposition->contrat->id)
                     ->whereHas('prestataires', function ($q) {
                         $q->where('statut', StatutPrestataireEnum::ACTIF->value);
                     })
@@ -760,15 +957,7 @@ class TechnicienController extends Controller
                 ];
             });
 
-            return ApiResponse::success([
-                'data' => $clients,
-                'pagination' => [
-                    'current_page' => $propositions->currentPage(),
-                    'per_page' => $propositions->perPage(),
-                    'total' => $propositions->total(),
-                    'last_page' => $propositions->lastPage(),
-                ]
-            ], 'Clients avec contrats acceptés récupérés avec succès');
+            return ApiResponse::success($clients, 'Clients avec contrats acceptés récupérés avec succès');
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des clients avec contrats acceptés', [
                 'error' => $e->getMessage(),
@@ -776,6 +965,64 @@ class TechnicienController extends Controller
             ]);
 
             return ApiResponse::error('Erreur lors de la récupération: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Liste des sinistres
+     */
+    public function sinistres(Request $request)
+    {
+        try {
+            if (!Auth::user()->hasRole('technicien')) {
+                return ApiResponse::error('Accès non autorisé', 403);
+            }
+
+            $query = Sinistre::with(['assure.user', 'facture']);
+
+            // Filtres
+            if ($request->filled('statut')) {
+                $query->where('statut', $request->statut);
+            }
+
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->whereHas('assure', function ($q) use ($search) {
+                    $q->where('nom', 'like', '%' . $search . '%')
+                        ->orWhere('prenoms', 'like', '%' . $search . '%');
+                });
+            }
+
+            $sinistres = $query->latest()->get();
+
+            return ApiResponse::success($sinistres, 'Liste des sinistres récupérée avec succès');
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des sinistres: ' . $e->getMessage());
+            return ApiResponse::error('Erreur lors de la récupération des sinistres', 500, $e->getMessage());
+        }
+    }
+
+    /**
+     * Détails d'un sinistre
+     */
+    public function showSinistre($id)
+    {
+        try {
+            if (!Auth::user()->hasRole('technicien')) {
+                return ApiResponse::error('Accès non autorisé', 403);
+            }
+
+            $sinistre = Sinistre::with(['assure.user', 'facture.prestataire', 'facture.lignesFacture'])
+                ->find($id);
+
+            if (!$sinistre) {
+                return ApiResponse::error('Sinistre non trouvé', 404);
+            }
+
+            return ApiResponse::success($sinistre, 'Détails du sinistre récupérés avec succès');
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération du sinistre: ' . $e->getMessage());
+            return ApiResponse::error('Erreur lors de la récupération du sinistre', 500, $e->getMessage());
         }
     }
 
@@ -789,10 +1036,9 @@ class TechnicienController extends Controller
                 return ApiResponse::error('Accès non autorisé', 403);
             }
 
-            $perPage = $request->input('per_page', 50);
 
             $query = Prestataire::with('user')
-                ->where('statut', \App\Enums\StatutPrestataireEnum::ACTIF);
+                ->where('statut', StatutPrestataireEnum::ACTIF->value);
 
             // Recherche par nom ou adresse
             if ($request->filled('search')) {
@@ -808,9 +1054,9 @@ class TechnicienController extends Controller
                 $query->where('type_prestataire', $request->type_prestataire);
             }
 
-            $prestataires = $query->paginate($perPage);
+            $prestataires = $query->get();
 
-            $prestatairesList = $prestataires->getCollection()->map(function ($prestataire) {
+            $prestatairesList = $prestataires->map(function ($prestataire) {
                 return [
                     'id' => $prestataire->id,
                     'raison_sociale' => $prestataire->raison_sociale,
@@ -820,21 +1066,13 @@ class TechnicienController extends Controller
                     'email' => $prestataire->user->email,
                     'statut' => $prestataire->statut,
                     'nombre_clients_assignes' => ClientPrestataire::where('prestataire_id', $prestataire->id)
-                        ->where('statut', 'actif')
+                        ->where('statut', StatutPrestataireEnum::ACTIF->value)
                         ->count(),
                     'created_at' => $prestataire->created_at,
                 ];
             });
 
-            return ApiResponse::success([
-                'data' => $prestatairesList,
-                'pagination' => [
-                    'current_page' => $prestataires->currentPage(),
-                    'per_page' => $prestataires->perPage(),
-                    'total' => $prestataires->total(),
-                    'last_page' => $prestataires->lastPage(),
-                ]
-            ], 'Prestataires pour assignation récupérés avec succès');
+            return ApiResponse::success($prestatairesList, 'Prestataires pour assignation récupérés avec succès');
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des prestataires pour assignation', [
                 'error' => $e->getMessage(),
@@ -855,12 +1093,27 @@ class TechnicienController extends Controller
                 return ApiResponse::error('Accès non autorisé', 403);
             }
 
-            $client = User::find($clientId);
-            if (!$client) {
+            $client = User::with('client')->find($clientId);
+            if (!$client || !$client->client) {
                 return ApiResponse::error('Client non trouvé', 404);
             }
 
-            $clientContrat = ClientContrat::where('user_id', $clientId)->where('statut', 'actif')->first();
+            // Récupérer le contrat actif du client
+            $clientContrat = ClientContrat::where('client_id', $client->client->id)
+                ->where('statut', StatutContratEnum::ACTIF->value)
+                ->first();
+
+            if (!$clientContrat) {
+                return ApiResponse::success([
+                    'client' => [
+                        'id' => $client->id,
+                        'nom' => optional($client->personne)->nom ?? $client->email,
+                        'email' => $client->email,
+                    ],
+                    "client_prestataire" => [],
+                    'message' => 'Ce client n\'a pas de contrat actif'
+                ], 'Aucun contrat actif trouvé pour ce client');
+            }
 
             $clientPrestataire = ClientPrestataire::where('client_contrat_id', $clientContrat->id)
                 ->with(['clientContrat', 'prestataire'])
@@ -871,7 +1124,7 @@ class TechnicienController extends Controller
             return ApiResponse::success([
                 'client' => [
                     'id' => $client->id,
-                    'nom' => $client->assure->nom ?? $client->entreprise->raison_sociale,
+                    'nom' => optional($client->personne)->nom ?? $client->email,
                     'email' => $client->email,
                 ],
                 "client_prestataire" => $clientPrestataire,
@@ -947,17 +1200,10 @@ class TechnicienController extends Controller
             }
 
             // Pagination
-            $perPage = $request->query('per_page', 10);
-            $assures = $query->orderByDesc('created_at')->paginate($perPage);
+            $assures = $query->orderByDesc('created_at')->get();
 
             // Formater les données avec AssureResource
-            $paginatedData = new LengthAwarePaginator(
-                AssureResource::collection($assures),
-                $assures->total(),
-                $assures->perPage(),
-                $assures->currentPage(),
-                ['path' => Paginator::resolveCurrentPath()]
-            );
+            $paginatedData = AssureResource::collection($assures);
 
             return ApiResponse::success($paginatedData, "Liste des assurés récupérée avec succès");
         } catch (\Exception $e) {

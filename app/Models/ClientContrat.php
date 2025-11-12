@@ -14,6 +14,8 @@ class ClientContrat extends Model
 {
     use HasFactory;
 
+    protected $table = 'clients_contrats';
+
     protected $fillable = [
         'client_id',
         'type_contrat_id',
@@ -29,7 +31,7 @@ class ClientContrat extends Model
         'statut' => StatutContratEnum::class
     ];
 
-    
+
     /**
      * Generate a unique police number.
      */
@@ -40,7 +42,7 @@ class ClientContrat extends Model
         } while (self::where('numero_police', $numero)->exists());
 
         return $numero;
-    }    
+    }
 
 
     public function genererNumeroPolice() {

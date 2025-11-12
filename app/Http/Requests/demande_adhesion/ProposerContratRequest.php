@@ -23,7 +23,7 @@ class ProposerContratRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'contrat_id' => 'required|exists:contrats,id',
+            'contrat_id' => 'required|exists:types_contrats,id',
             'commentaires_technicien' => 'nullable|string|max:1000',
         ];
     }
@@ -42,4 +42,4 @@ class ProposerContratRequest extends FormRequest
             'pourcentage_gestion.max' => 'Le pourcentage de gestion doit être inférieur à 100.',
         ];
     }
-} 
+}

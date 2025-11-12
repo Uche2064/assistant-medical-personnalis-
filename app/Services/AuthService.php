@@ -57,7 +57,7 @@ class AuthService
         // Puis créer l'assuré lié au client
         Assure::create([
             'user_id' => $user->id,
-            'client_id' => $client->id,
+            'client_id' => $client->id, 
             'est_principal' => true,
             'lien_parente' => LienParenteEnum::PRINCIPAL,
             'assure_principal_id' => null

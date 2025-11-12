@@ -83,7 +83,7 @@ class AuthController extends Controller
                         $query->where('name', RoleEnum::COMMERCIAL->value);
                     })
                     ->first();
-                
+
                 if ($commercial) {
                     $commercialId = $commercial->id;
                 } else {
@@ -147,13 +147,13 @@ class AuthController extends Controller
             ));
             Log::info("Email:" . $validated['email'] . " otp: " . $otp);
             DB::commit();
-            return ApiResponse::success(new UserResource($user->load('prestataire', 'assure')), 'Inscription réussie. Vérifiez votre email pour valider votre compte.');
+            return ApiResponse::success(new UserResource($user->load('prestataire', 'assure', 'personne')), 'Inscription réussie. Vérifiez votre email pour valider votre compte.');
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('Erreur lors de l\'inscription: ' . $e->getMessage());
             return ApiResponse::error('Erreur lors de l\'inscription', 500, $e->getMessage());
         }
-    }
+    }   
 
     /**
      * Vérifier l'OTP et activer le compte
@@ -205,7 +205,7 @@ class AuthController extends Controller
 
             return ApiResponse::success([
                 'access_token' => $token,
-                'user' => new UserResource($user->load('prestataire', 'assure')),
+                'user' => new UserResource($user->load('prestataire', 'assure', 'personne')),
             ], 'Votre compte a été validé avec succès.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -218,7 +218,7 @@ class AuthController extends Controller
     public function login(LoginWithEmailAndPasswordFormRequest $request)
     {
         $validated = $request->validated();
-        
+
         $user = User::where('email', $validated['email'])->first();
 
         // 1. Vérifier si l'utilisateur existe
@@ -343,8 +343,10 @@ class AuthController extends Controller
     public function resetPassword(ResetPasswordRequest $request)
     {
         $validated = $request->validated();
+
+        Log::info('Reset password request: ' . json_encode($validated));
         // $resetToken = $validated['token'];
-        $newPassword = $validated['password'];
+        $newPassword = $validated['new_password'];
         $email = $validated['email'];
 
 
@@ -354,7 +356,7 @@ class AuthController extends Controller
             return ApiResponse::error('Utilisateur non trouvé.', 404);
         }
 
-        if(Hash::check($validated['password'], $user->password)) {
+        if(Hash::check($validated['new_password'], $user->password)) {
             return ApiResponse::error('Entrez un mot de passe différent du précédent', 400);
         }
 

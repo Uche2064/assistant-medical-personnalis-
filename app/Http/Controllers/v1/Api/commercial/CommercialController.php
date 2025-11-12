@@ -9,9 +9,11 @@ use App\Helpers\ApiResponse;
 use App\Helpers\ImageUploadHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\commercial\CreateClientRequest;
+use App\Http\Resources\CommercialParrainageCodeResource;
 use App\Http\Resources\UserResource;
 use App\Jobs\SendEmailJob;
 use App\Models\Client;
+use App\Models\CommercialParrainageCode;
 use App\Models\Entreprise;
 use App\Models\Personne;
 use App\Models\User;
@@ -49,15 +51,30 @@ class CommercialController extends Controller
                 return ApiResponse::error('Accès non autorisé. Seuls les commerciaux peuvent générer un code parrainage.', 403);
             }
 
-            // Générer un code parrainage unique
-            $codeParrainage = $this->genererCodeUnique();
+            // Vérifier s'il y a déjà un code actif
+            $currentCode = CommercialParrainageCode::getCurrentCode($commercial->id);
+            
+            if ($currentCode) {
+                return ApiResponse::error(
+                    'Vous avez déjà un code de parrainage actif. Il expire le ' . $currentCode->date_expiration->format('d/m/Y à H:i'),
+                    422,
+                    [
+                        'code_actuel' => $currentCode->code_parrainage,
+                        'date_expiration' => $currentCode->date_expiration->format('Y-m-d H:i:s'),
+                        'peut_renouveler' => $currentCode->canBeRenewed(),
+                        'jours_restants' => now()->diffInDays($currentCode->date_expiration, false)
+                    ]
+                );
+            }
 
-            // Mettre à jour le code parrainage du commercial
-            $commercial->update(['code_parrainage_commercial' => $codeParrainage]);
+            // Générer un nouveau code
+            $newCode = CommercialParrainageCode::generateNewCode($commercial->id);
+
+            // Mettre à jour le code parrainage dans la table users (pour compatibilité)
+            $commercial->update(['code_parrainage_commercial' => $newCode->code_parrainage]);
 
             return ApiResponse::success([
-                'code_parrainage' => $codeParrainage,
-                // 'commercial' => new UserResource($commercial)
+                'code_parrainage' => new CommercialParrainageCodeResource($newCode)
             ], 'Code parrainage généré avec succès');
         } catch (Exception $e) {
             Log::error('Erreur lors de la génération du code parrainage: ' . $e->getMessage());
@@ -111,6 +128,13 @@ class CommercialController extends Controller
                 'profession' => $validated['profession'] ?? null,
             ]);
 
+            // Obtenir le code parrainage actuel du commercial
+            $currentParrainageCode = CommercialParrainageCode::getCurrentCode($commercial->id);
+            
+            if (!$currentParrainageCode) {
+                return ApiResponse::error('Vous n\'avez pas de code de parrainage actif. Veuillez en générer un d\'abord.', 422);
+            }
+
             // Créer l'utilisateur avec le mot de passe généré
             $user = User::create([
                 'email' => $validated['email'],
@@ -118,11 +142,12 @@ class CommercialController extends Controller
                 'contact' => $validated['contact'],
                 'photo_url' => $photoUrl, // Pas de photo lors de la création par commercial
                 'adresse' => $validated['adresse'],
+                'est_actif' => false,
                 'mot_de_passe_a_changer' => true, // Le client devra changer son mot de passe
                 'personne_id' => $personne->id,
                 'commercial_id' => $commercial->id,
                 'compte_cree_par_commercial' => true,
-                'code_parrainage' => $commercial->code_parrainage_commercial
+                'code_parrainage' => $currentParrainageCode->code_parrainage
             ]);
 
             // Créer l'entité selon le type de client
@@ -205,46 +230,74 @@ class CommercialController extends Controller
                 return ApiResponse::error('Accès non autorisé. Seuls les commerciaux peuvent voir leurs statistiques.', 403);
             }
 
-            $totalClients = $commercial->clientsParraines()
+            // Base query pour tous les clients parrainés
+            $clientsQuery = $commercial->clientsParraines()
                 ->whereHas('roles', function ($query) {
                     $query->where('name', RoleEnum::CLIENT->value);
-                })
-                ->count();
+                });
 
-            $clientsActifs = $commercial->clientsParraines()
-                ->whereHas('roles', function ($query) {
-                    $query->where('name', RoleEnum::CLIENT->value);
-                })
-                ->where('est_actif', true)
-                ->count();
+            // Statistiques générales
+            $totalClients = $clientsQuery->count();
+            $clientsActifs = $clientsQuery->clone()->where('est_actif', true)->count();
+            $clientsInactifs = $clientsQuery->clone()->where('est_actif', false)->count();
 
-            $clientsPhysiques = $commercial->clientsParraines()
-                ->whereHas('roles', function ($query) {
-                    $query->where('name', RoleEnum::CLIENT->value);
-                })
+            // Répartition par type
+            $clientsPhysiques = $clientsQuery->clone()
                 ->whereHas('client', function ($query) {
                     $query->where('type_client', ClientTypeEnum::PHYSIQUE->value);
                 })
                 ->count();
 
-            $clientsMoraux = $commercial->clientsParraines()
-                ->whereHas('roles', function ($query) {
-                    $query->where('name', RoleEnum::CLIENT->value);
-                })
+            $clientsMoraux = $clientsQuery->clone()
                 ->whereHas('client', function ($query) {
                     $query->where('type_client', ClientTypeEnum::MORAL->value);
                 })
                 ->count();
 
+            // Répartition par mois (12 derniers mois)
+            $repartitionParMois = $this->getRepartitionParMois($clientsQuery->clone());
+
+            // Statistiques du code parrainage actuel
+            $currentParrainageCode = CommercialParrainageCode::getCurrentCode($commercial->id);
+            $codeParrainageStats = null;
+            
+            if ($currentParrainageCode) {
+                $clientsAvecCodeActuel = $clientsQuery->clone()
+                    ->where('code_parrainage', $currentParrainageCode->code_parrainage)
+                    ->count();
+                
+                $codeParrainageStats = [
+                    'code_actuel' => $currentParrainageCode->code_parrainage,
+                    'date_debut' => $currentParrainageCode->date_debut->format('Y-m-d'),
+                    'date_expiration' => $currentParrainageCode->date_expiration->format('Y-m-d'),
+                    'jours_restants' => now()->diffInDays($currentParrainageCode->date_expiration, false),
+                    'clients_avec_ce_code' => $clientsAvecCodeActuel
+                ];
+            }
+
             return ApiResponse::success([
                 'statistiques' => [
+                    // Statistiques générales
                     'total_clients' => $totalClients,
                     'clients_actifs' => $clientsActifs,
-                    'clients_physiques' => $clientsPhysiques,
-                    'clients_moraux' => $clientsMoraux,
-                    'taux_activation' => $totalClients > 0 ? round(($clientsActifs / $totalClients) * 100, 2) : 0
+                    'clients_inactifs' => $clientsInactifs,
+                    'taux_activation' => $totalClients > 0 ? round(($clientsActifs / $totalClients) * 100, 2) : 0,
+                    
+                    // Répartition par type
+                    'repartition_par_type' => [
+                        'physiques' => $clientsPhysiques,
+                        'moraux' => $clientsMoraux,
+                        'pourcentage_physiques' => $totalClients > 0 ? round(($clientsPhysiques / $totalClients) * 100, 2) : 0,
+                        'pourcentage_moraux' => $totalClients > 0 ? round(($clientsMoraux / $totalClients) * 100, 2) : 0
+                    ],
+                    
+                    // Répartition par mois (pour graphiques)
+                    'repartition_par_mois' => $repartitionParMois,
+                    
+                    // Statistiques du code parrainage
+                    'code_parrainage_stats' => $codeParrainageStats
                 ],
-                'commercial' => new UserResource($commercial)
+                // 'commercial' => new UserResource($commercial)
             ], 'Statistiques récupérées avec succès');
         } catch (Exception $e) {
             Log::error('Erreur lors de la récupération des statistiques: ' . $e->getMessage());
@@ -253,7 +306,145 @@ class CommercialController extends Controller
     }
 
     /**
-     * Générer un code parrainage unique
+     * Obtenir la répartition des clients par mois (12 derniers mois)
+     */
+    private function getRepartitionParMois($clientsQuery)
+    {
+        $repartition = [];
+        $maintenant = now();
+        
+        // Générer les 12 derniers mois
+        for ($i = 11; $i >= 0; $i--) {
+            $date = $maintenant->copy()->subMonths($i);
+            $moisDebut = $date->copy()->startOfMonth();
+            $moisFin = $date->copy()->endOfMonth();
+            
+            $clientsCeMois = $clientsQuery->clone()
+                ->whereBetween('created_at', [$moisDebut, $moisFin])
+                ->count();
+            
+            $clientsActifsCeMois = $clientsQuery->clone()
+                ->whereBetween('created_at', [$moisDebut, $moisFin])
+                ->where('est_actif', true)
+                ->count();
+            
+            $repartition[] = [
+                'mois' => $date->format('Y-m'),
+                'mois_nom' => $date->format('M Y'),
+                'mois_complet' => $date->format('F Y'),
+                'total_clients' => $clientsCeMois,
+                'clients_actifs' => $clientsActifsCeMois,
+                'clients_inactifs' => $clientsCeMois - $clientsActifsCeMois
+            ];
+        }
+        
+        return $repartition;
+    }
+
+    /**
+     * Obtenir le code de parrainage actuel du commercial
+     */
+    public function monCodeParrainage()
+    {
+        try {
+            $commercial = Auth::user();
+
+            // Vérifier que l'utilisateur est bien un commercial
+            if (!$commercial->hasRole(RoleEnum::COMMERCIAL->value)) {
+                return ApiResponse::error('Accès non autorisé. Seuls les commerciaux peuvent voir leur code parrainage.', 403);
+            }
+
+            $currentCode = CommercialParrainageCode::getCurrentCode($commercial->id);
+
+            if (!$currentCode) {
+                return ApiResponse::success([
+                    'code_parrainage' => null,
+                    'message' => 'Aucun code de parrainage actif. Vous pouvez en générer un nouveau.'
+                ], 'Aucun code de parrainage actif');
+            }
+
+            return ApiResponse::success([
+                'code_parrainage' => new CommercialParrainageCodeResource($currentCode)
+            ], 'Code de parrainage actuel récupéré avec succès');
+        } catch (Exception $e) {
+            Log::error('Erreur lors de la récupération du code parrainage: ' . $e->getMessage());
+            return ApiResponse::error('Erreur lors de la récupération du code parrainage', 500, $e->getMessage());
+        }
+    }
+
+    /**
+     * Obtenir l'historique des codes de parrainage du commercial
+     */
+    public function historiqueCodesParrainage()
+    {
+        try {
+            $commercial = Auth::user();
+
+            // Vérifier que l'utilisateur est bien un commercial
+            if (!$commercial->hasRole(RoleEnum::COMMERCIAL->value)) {
+                return ApiResponse::error('Accès non autorisé. Seuls les commerciaux peuvent voir leur historique.', 403);
+            }
+
+            $codes = CommercialParrainageCode::getHistory($commercial->id);
+
+            return ApiResponse::success([
+                'codes' => CommercialParrainageCodeResource::collection($codes),
+                'total' => $codes->count(),
+                'codes_actifs' => $codes->where('est_actif', true)->count(),
+                'codes_expires' => $codes->where('est_actif', true)->filter(function($code) {
+                    return $code->isExpired();
+                })->count()
+            ], 'Historique des codes de parrainage récupéré avec succès');
+        } catch (Exception $e) {
+            Log::error('Erreur lors de la récupération de l\'historique: ' . $e->getMessage());
+            return ApiResponse::error('Erreur lors de la récupération de l\'historique', 500, $e->getMessage());
+        }
+    }
+
+    /**
+     * Renouveler le code de parrainage (après expiration)
+     */
+    public function renouvelerCodeParrainage()
+    {
+        try {
+            $commercial = Auth::user();
+
+            // Vérifier que l'utilisateur est bien un commercial
+            if (!$commercial->hasRole(RoleEnum::COMMERCIAL->value)) {
+                return ApiResponse::error('Accès non autorisé. Seuls les commerciaux peuvent renouveler leur code parrainage.', 403);
+            }
+
+            // Vérifier s'il y a un code expiré à renouveler
+            $expiredCode = CommercialParrainageCode::where('commercial_id', $commercial->id)
+                ->where('est_actif', true)
+                ->where('date_expiration', '<', now())
+                ->first();
+
+            if (!$expiredCode) {
+                return ApiResponse::error('Aucun code expiré à renouveler. Vous devez attendre l\'expiration de votre code actuel.', 422);
+            }
+
+            // Marquer l'ancien code comme renouvelé
+            $expiredCode->update(['est_renouvele' => true]);
+
+            // Générer un nouveau code
+            $newCode = CommercialParrainageCode::generateNewCode($commercial->id);
+
+            // Mettre à jour le code parrainage dans la table users (pour compatibilité)
+            $commercial->update(['code_parrainage_commercial' => $newCode->code_parrainage]);
+
+            return ApiResponse::success([
+                'nouveau_code' => new CommercialParrainageCodeResource($newCode),
+                'ancien_code' => new CommercialParrainageCodeResource($expiredCode)
+            ], 'Code de parrainage renouvelé avec succès');
+        } catch (Exception $e) {
+            Log::error('Erreur lors du renouvellement du code parrainage: ' . $e->getMessage());
+            return ApiResponse::error('Erreur lors du renouvellement du code parrainage', 500, $e->getMessage());
+        }
+    }
+
+    /**
+     * Générer un code parrainage unique (méthode privée conservée pour compatibilité)
      */
     private function genererCodeUnique()
     {

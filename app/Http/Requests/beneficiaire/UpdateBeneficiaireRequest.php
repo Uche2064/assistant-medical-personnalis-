@@ -2,11 +2,14 @@
 
 namespace App\Http\Requests\beneficiaire;
 
-use Illuminate\Http\Request;
+use Illuminate\Foundation\Http\FormRequest;
 use App\Enums\LienParenteEnum;
 use App\Enums\SexeEnum;
+use App\Helpers\ApiResponse;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
-class UpdateBeneficiaireRequest extends Request
+class UpdateBeneficiaireRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -30,6 +33,7 @@ class UpdateBeneficiaireRequest extends Request
             'profession' => 'nullable|string|max:255',
             'contact' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
+            'adresse' => 'nullable|string',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ];
     }
@@ -54,6 +58,15 @@ class UpdateBeneficiaireRequest extends Request
             'photo.image' => 'Le fichier doit être une image',
             'photo.mimes' => 'L\'image doit être au format jpeg, png, jpg ou gif',
             'photo.max' => 'L\'image ne peut pas dépasser 2MB',
+            'adresse.string' => 'L\'adresse doit être une chaîne de caractères',
         ];
+    }
+
+    /**
+     * Handle a failed validation attempt.
+     */
+    public function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(ApiResponse::error('Validation failed', 422, $validator->errors()));
     }
 }

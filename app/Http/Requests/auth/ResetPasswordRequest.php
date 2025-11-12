@@ -26,7 +26,7 @@ class ResetPasswordRequest extends FormRequest
     {
         return [
             "email" => ['required', 'email'],
-            "password" => ['required', 'string', 'min:8', 'confirmed'],
+            "new_password" => ['required', 'string', 'min:8'],
             "password_confirmation" => ['required', 'string'],
         ];
     }
@@ -38,11 +38,9 @@ class ResetPasswordRequest extends FormRequest
             'email.required' => 'L\'email est obligatoire.',
             'email.email' => 'L\'email doit être une adresse email valide.',
             'email.exists' => 'Aucun compte trouvé avec cet email.',
-            'password.required' => 'Le mot de passe est obligatoire.',
-            'password.string' => 'Le mot de passe doit être une chaîne de caractères.',
-            'password.min' => 'Le mot de passe doit contenir au moins 8 caractères.',
-            'password.confirmed' => 'La confirmation du mot de passe ne correspond pas.',
-            'password_confirmation.required' => 'La confirmation du mot de passe est obligatoire.',
+            'new_password.required' => 'Le mot de passe est obligatoire.',
+            'new_password.string' => 'Le mot de passe doit être une chaîne de caractères.',
+            'new_password.min' => 'Le mot de passe doit contenir au moins 8 caractères.',
             'token.required' => 'Le token de réinitialisation est obligatoire.',
             'token.string' => 'Le token doit être une chaîne de caractères.',
         ];

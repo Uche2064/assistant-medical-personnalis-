@@ -124,7 +124,7 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasOne(Prestataire::class);
     }
 
-    
+
 
     /**
      * Get the demandes d'adhésion associated with the user.
@@ -189,12 +189,12 @@ class User extends Authenticatable implements JWTSubject
         if ($this->personnel) {
             return $this->personnel->nom . ' ' . $this->personnel->prenoms;
         }
-        
+
         if ($this->client) {
             // If client is moral, you can adapt to show company name from related place if stored
             return $this->email;
         }
-        
+
         return $this->email;
     }
 
@@ -215,6 +215,24 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
+     * Get all parrainage codes for this commercial
+     */
+    public function parrainageCodes()
+    {
+        return $this->hasMany(CommercialParrainageCode::class, 'commercial_id');
+    }
+
+    /**
+     * Get the current active parrainage code
+     */
+    public function currentParrainageCode()
+    {
+        return $this->hasOne(CommercialParrainageCode::class, 'commercial_id')
+            ->where('est_actif', true)
+            ->where('date_expiration', '>', now());
+    }
+
+    /**
      * Get the user's type
      */
     public function getUserTypeAttribute()
@@ -222,7 +240,7 @@ class User extends Authenticatable implements JWTSubject
         if ($this->personnel) return 'personnel';
         if ($this->client) return 'client';
         if ($this->assure) return 'assure';
-        if($this->prestataire) return 'prestataire';        
+        if($this->prestataire) return 'prestataire';
         return 'user';
     }
 

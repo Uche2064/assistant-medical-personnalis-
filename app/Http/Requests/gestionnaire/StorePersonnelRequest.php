@@ -11,7 +11,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 
 class StorePersonnelRequest extends FormRequest
-{
+{   
     
     public function authorize(): bool
     {
@@ -26,7 +26,7 @@ class StorePersonnelRequest extends FormRequest
             'prenoms' => ['nullable', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'contact' => ['nullable', 'string', 'unique:users,contact', 'regex:/^[0-9]+$/'],
-            'adresse' => ['required', 'string', 'max:500'],
+            'adresse' => ['nullable', 'string', 'max:500'],
             'sexe' => ['nullable', Rule::in(SexeEnum::values())],
             'date_naissance' => ['nullable', 'date', 'before:today'],
             'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'],

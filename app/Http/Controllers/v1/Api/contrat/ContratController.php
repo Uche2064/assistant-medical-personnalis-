@@ -37,31 +37,13 @@ class ContratController extends Controller
      */
     public function index(Request $request)
     {
-        Log::info($request->all());
     
-        $search = $request->query('search');   // recherche
-        $perPage = $request->query('per_page', 15);
-        $estActif = $request->query('est_actif');   // statut
+        $query = TypeContrat::with(['technicien', 'categoriesGaranties.garanties']);
+        $contrats = $query->latest()->get();
     
-        $query = TypeContrat::with(['technicien', 'categoriesGaranties.garanties', 'assures'])
-            ->when($search, function ($q, $search) {
-                $q->where('libelle', 'like', '%' . $search . '%');
-            })
-            ->when(!is_null($estActif), function ($q) use ($estActif) {
-                $q->where('est_actif', filter_var($estActif, FILTER_VALIDATE_BOOLEAN));
-            });
-    
-        $contrats = $query->latest()->paginate($perPage);
-    
-        $paginatedData = new LengthAwarePaginator(
-            ContratResource::collection($contrats->items()),
-            $contrats->total(),
-            $contrats->perPage(),
-            $contrats->currentPage()
-        );
-    
+        
         return ApiResponse::success(
-            $paginatedData,
+            ContratResource::collection($contrats),
             'Liste des contrats récupérée avec succès'
         );
     }
@@ -71,7 +53,7 @@ class ContratController extends Controller
      */
     public function show(string $id)
     {
-        $contrat = TypeContrat::with(['technicien', 'categoriesGaranties.garanties', 'assures'])
+        $contrat = TypeContrat::with(['technicien', 'categoriesGaranties.garanties'])
             ->find($id);
 
         if (!$contrat) {
@@ -116,7 +98,10 @@ class ContratController extends Controller
                 foreach ($validatedData['categories_garanties'] as $categorieData) {
                     $contrat->categoriesGaranties()->attach(
                         $categorieData['categorie_garantie_id'],
-                        ['couverture' => $validatedData['couverture']]
+                        [
+                            'couverture' => $validatedData['couverture'],
+                            'frais_gestion' => $validatedData['frais_gestion']
+                        ]
                     );
                 }
             }

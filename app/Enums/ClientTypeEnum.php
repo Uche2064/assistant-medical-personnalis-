@@ -12,4 +12,12 @@ enum ClientTypeEnum: string
         return array_column(self::cases(), 'value');
     }
 
+    public function getLabel(): string
+    {
+        return match($this) {
+            self::MORAL => 'Entreprise',
+            self::PHYSIQUE => 'Particulier',
+        };
+    }
+
 }

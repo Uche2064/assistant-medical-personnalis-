@@ -2,7 +2,7 @@
 
 ## 🎯 Vue d'ensemble
 
-Cette documentation contient **19 modules Postman** couvrant toutes les fonctionnalités de l'API backend AMP SUNU Santé. Chaque module est organisé par domaine fonctionnel pour faciliter l'utilisation et la maintenance.
+Cette documentation contient **20 modules Postman** couvrant toutes les fonctionnalités de l'API backend AMP SUNU Santé. Chaque module est organisé par domaine fonctionnel pour faciliter l'utilisation et la maintenance.
 
 ## 📋 Modules disponibles
 
@@ -115,12 +115,63 @@ Cette documentation contient **19 modules Postman** couvrant toutes les fonction
 - Historique des interactions
 - Gestion des partenariats
 
-### 🎯 **19_Commercial_Module** - Système de parrainage commercial ⭐ **NOUVEAU**
-- Génération de codes parrainage
-- Création de comptes clients
-- Suivi des clients parrainés
-- Statistiques commerciales
-- Inscription avec code parrainage
+### 🎯 **19_Commercial_Module** - Système de parrainage commercial ⭐ **MIS À JOUR**
+
+**Nouvelles fonctionnalités de gestion des codes :**
+- **Durée contrôlée** : Chaque code parrainage est valide pendant exactement 1 an
+- **Un seul code actif** : Un commercial ne peut avoir qu'un seul code actif à la fois
+- **Historique complet** : Consultation de tous les codes précédents avec leurs statuts
+- **Renouvellement contrôlé** : Nouveau code seulement après expiration du précédent
+- **Consultation du code actuel** : Voir le code avec sa date d'expiration et jours restants
+
+**Endpoints disponibles :**
+- `POST /generer-code-parrainage` - Génération avec restrictions
+- `GET /mon-code-parrainage` - Voir le code actuel
+- `GET /historique-codes-parrainage` - Historique complet
+- `POST /renouveler-code-parrainage` - Renouvellement après expiration
+- `POST /creer-compte-client` - Création avec code actuel automatique
+- `GET /mes-clients-parraines` - Suivi des clients
+- `GET /mes-statistiques` - Statistiques commerciales
+
+**Règles métier :**
+- Si un commercial essaie de générer un nouveau code alors qu'il en a un actif, le système lui renvoie le code actuel avec sa date d'expiration
+- Tous les codes précédents sont conservés dans l'historique
+- Les statuts incluent : Actif, Expiré, Renouvelé
+- Messages d'erreur informatifs avec détails sur les restrictions
+
+### 🩺 **20_Medecin_Controleur_Module** - Médecin Contrôleur ⭐ **NOUVEAU**
+
+**Gestion des questions pour prestataires :**
+- Création de questions en masse (optimisé)
+- Types de données variés (text, select, checkbox, radio, etc.)
+- Questions obligatoires/optionnelles
+- Statistiques des questions
+
+**Gestion des garanties médicales :**
+- Création et modification de garanties
+- Définition des montants maximum
+- Activation/Désactivation des garanties
+- Organisation par catégories
+
+**Validation des prestataires :**
+- Validation des demandes d'adhésion prestataires
+- Vérification des qualifications médicales
+- Rejet avec motif si non conforme
+- Création automatique du compte prestataire
+
+**Validation des factures :**
+- Validation médicale des factures (2ème étape)
+- Vérification de la conformité des actes médicaux
+- Rejet avec motif médical
+- Notification automatique au comptable
+
+**Endpoints disponibles :**
+- `GET/POST/PUT/DELETE /questions` - Gestion des questions
+- `GET/POST/PUT/DELETE /garanties` - Gestion des garanties
+- `GET/POST/PUT/DELETE /categories-garanties` - Gestion des catégories
+- `PUT /demandes-adhesions/{id}/valider-prestataire` - Validation prestataire
+- `POST /factures/{id}/validate-medecin` - Validation facture
+- `GET /questions/stats` - Statistiques
 
 ## 🚀 Installation et utilisation
 
@@ -130,7 +181,7 @@ Cette documentation contient **19 modules Postman** couvrant toutes les fonction
 1. Ouvrez Postman
 2. Cliquez sur **Import**
 3. Sélectionnez chaque fichier `.json` individuellement
-4. Répétez pour tous les 19 modules
+4. Répétez pour tous les 20 modules
 
 #### Méthode 2 : Import en lot
 1. Ouvrez Postman

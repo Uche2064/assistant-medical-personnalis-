@@ -30,7 +30,7 @@ class ClientController extends Controller
         $this->notificationService = $notificationService;
     }
 
-    
+
     /**
      * Récupérer les contrats proposés pour un client
      */
@@ -38,7 +38,7 @@ class ClientController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
             // Récupérer les propositions de contrats pour ce client avec toutes les relations nécessaires
             $propositions = PropositionContrat::with([
                 'contrat',
@@ -49,7 +49,7 @@ class ClientController extends Controller
             })
             ->where('statut', StatutPropositionContratEnum::PROPOSEE->value)
             ->get();
-    
+
             $contratsProposes = $propositions->map(function ($proposition) {
                 // Structurer les catégories de garanties avec leurs garanties
                 $categoriesGaranties = $proposition->contrat->categoriesGaranties->map(function ($categorie) {
@@ -74,7 +74,7 @@ class ClientController extends Controller
                         })
                     ];
                 });
-    
+
                 return [
                     'proposition_id' => $proposition->id,
                     'categories_garanties' => $categoriesGaranties,
@@ -100,53 +100,45 @@ class ClientController extends Controller
             });
 
             Log::info($contratsProposes);
-    
+
             return ApiResponse::success($contratsProposes, 'Contrats proposés récupérés avec succès');
-    
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des contrats proposés', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id()
             ]);
-    
+
             return ApiResponse::error('Erreur lors de la récupération des contrats proposés: ' . $e->getMessage(), 500);
         }
     }
 
 
-    public function mesContrats(Request $request) 
+    public function mesContrats(Request $request)
 {
     try {
         $user = Auth::user();
 
-        // Récupération des paramètres d'entrée
-        $params = $this->getRequestParams($request);
-    
         // Construction de la requête de base avec toutes les relations nécessaires
         $query = ClientContrat::with([
-            'contrat.categoriesGaranties.garanties',
-            'client.assure',
+                'typeContrat.categoriesGaranties.garanties',
+                'client.user.personne',
             'prestataires'
         ])
-            ->where('user_id', $user->id)
-            ->when($params['statut'], fn($q) => $q->where('statut', $params['statut']))
-            ->when($params['dateDebut'], fn($q) => $q->whereDate('date_debut', '>=', $params['dateDebut']))
-            ->when($params['dateFin'], fn($q) => $q->whereDate('date_fin', '<=', $params['dateFin']))
-            ->orderBy($params['sortBy'], $params['sortOrder']);
-    
-        // Pagination
-        $contrats = $query->paginate($params['perPage']);
-        
+                ->whereHas('client', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })
+                ->orderByDesc('created_at');
+
+            // Récupération des contrats
+            $contrats = $query->get();
+
         // Utiliser la resource pour formater les données
-        $contrats->setCollection(
-            $contrats->getCollection()->map(function ($contrat) {
+            $contratsFormatted = $contrats->map(function ($contrat) {
                 return new ClientContratResource($contrat);
-            })
-        );
-    
-        return ApiResponse::success($contrats, 'Contrats récupérés avec succès');
-    
+            });
+
+            return ApiResponse::success($contratsFormatted, 'Contrats récupérés avec succès');
     } catch (\Exception $e) {
         Log::error('Erreur lors de la récupération des contrats utilisateur', [
             'error' => $e->getMessage(),
@@ -154,39 +146,294 @@ class ClientController extends Controller
             'user_id' => Auth::id(),
             'filters' => $request->all()
         ]);
-    
+
         return ApiResponse::error('Erreur lors de la récupération des contrats: ' . $e->getMessage(), 500);
     }
 }
 
-private function getRequestParams(Request $request): array
-{
+    /**
+     * Récupérer les détails d'un contrat spécifique
+     */
+    public function contratDetails(Request $request, int $id)
+    {
+        try {
+            $user = Auth::user();
+
+            // Récupérer le contrat avec toutes les relations nécessaires
+            $contrat = ClientContrat::with([
+                'typeContrat.categoriesGaranties.garanties',
+                'client.user.personne',
+                'prestataires.prestataire'
+            ])
+            ->whereHas('client', function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+            })
+            ->find($id);
+
+            if (!$contrat) {
+                return ApiResponse::error('Contrat non trouvé ou vous n\'êtes pas autorisé à le consulter', 404);
+            }
+
+            // Utiliser la resource pour formater les données
+            $contratFormatted = new ClientContratResource($contrat);
+
+            return ApiResponse::success($contratFormatted, 'Détails du contrat récupérés avec succès');
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des détails du contrat', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
+                'contrat_id' => $id
+            ]);
+
+            return ApiResponse::error('Erreur lors de la récupération des détails du contrat: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Récupérer les statistiques du client selon son type
+     */
+    public function statistiques(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $client = $user->client;
+
+            if (!$client) {
+                return ApiResponse::error('Profil client non trouvé', 404);
+            }
+
+            // Vérifier le type de client et retourner les statistiques appropriées
+            if ($client->type_client === \App\Enums\ClientTypeEnum::PHYSIQUE) {
+                return $this->getStatistiquesClientPhysique($client, $user);
+            } elseif ($client->type_client === \App\Enums\ClientTypeEnum::MORAL) {
+                return $this->getStatistiquesClientMoral($client, $user);
+            } else {
+                return ApiResponse::error('Type de client non reconnu', 400);
+            }
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des statistiques client', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id()
+            ]);
+
+            return ApiResponse::error('Erreur lors de la récupération des statistiques: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Statistiques pour les clients physiques (particuliers)
+     */
+    private function getStatistiquesClientPhysique($client, $user)
+    {
+        // Récupérer l'assuré principal
+        $assurePrincipal = $user->assure;
+        if (!$assurePrincipal) {
+            return ApiResponse::error('Profil assuré non trouvé', 404);
+        }
+
+        // Statistiques des bénéficiaires
+        $totalBeneficiaires = $assurePrincipal->beneficiaires()->count();
+        $beneficiaires = $assurePrincipal->beneficiaires()->with('user.personne')->get();
+
+        // Statistiques des contrats actifs
+        $contratsActifs = ClientContrat::with([
+            'typeContrat.categoriesGaranties.garanties',
+            'prestataires.prestataire'
+        ])
+        ->where('client_id', $client->id)
+        ->where('statut', 'actif')
+        ->get();
+
+        // Statistiques des prestataires assignés
+        $prestatairesAssignes = collect();
+        $repartitionPrestataires = [];
+        $totalPrestataires = 0;
+
+        foreach ($contratsActifs as $contrat) {
+            foreach ($contrat->prestataires as $clientPrestataire) {
+                $prestataire = $clientPrestataire->prestataire;
+                if ($prestataire) {
+                    $prestatairesAssignes->push($prestataire);
+                    $type = $prestataire->type_prestataire->value;
+                    $repartitionPrestataires[$type] = ($repartitionPrestataires[$type] ?? 0) + 1;
+                    $totalPrestataires++;
+                }
+            }
+        }
+
+        // Statistiques des sinistres
+        $sinistres = \App\Models\Sinistre::whereHas('assure', function ($query) use ($assurePrincipal) {
+            $query->where('assure_principal_id', $assurePrincipal->id)
+                  ->orWhere('id', $assurePrincipal->id);
+        })->with(['prestataire', 'factures'])->get();
+
+        $statistiquesSinistres = [
+            'total' => $sinistres->count(),
+            'en_cours' => $sinistres->where('statut', 'en_cours')->count(),
+            'clotures' => $sinistres->where('statut', 'cloture')->count(),
+            'montant_total_reclame' => $sinistres->sum(function ($sinistre) {
+                return $sinistre->factures->sum('montant_facture');
+            }),
+            'montant_total_rembourse' => $sinistres->sum(function ($sinistre) {
+                return $sinistre->factures->where('statut', 'paye')->sum('montant_facture');
+            })
+        ];
+
+        // Statistiques des garanties
+        $categoriesGaranties = collect();
+        $garantiesDetails = collect();
+
+        foreach ($contratsActifs as $contrat) {
+            if ($contrat->typeContrat && $contrat->typeContrat->categoriesGaranties) {
+                foreach ($contrat->typeContrat->categoriesGaranties as $categorie) {
+                    $categoriesGaranties->push([
+                        'id' => $categorie->id,
+                        'libelle' => $categorie->libelle,
+                        'description' => $categorie->description,
+                        'couverture' => $categorie->pivot->couverture ?? null
+                    ]);
+
+                    if ($categorie->garanties) {
+                        foreach ($categorie->garanties as $garantie) {
+                            $garantiesDetails->push([
+                                'id' => $garantie->id,
+                                'libelle' => $garantie->libelle,
+                                'plafond' => $garantie->plafond,
+                                'prix_standard' => $garantie->prix_standard,
+                                'taux_couverture' => $garantie->taux_couverture,
+                                'categorie_id' => $categorie->id,
+                                'categorie_libelle' => $categorie->libelle
+                            ]);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Statistiques financières
+        $soldeActuel = $user->solde ?? 0;
+        $totalPrimes = $contratsActifs->sum(function ($contrat) {
+            return $contrat->typeContrat->prime_standard ?? 0;
+        });
+
+        // Statistiques des remboursements (derniers 12 mois)
+        $dateDebut = now()->subMonths(12);
+        $remboursementsRecents = $sinistres->filter(function ($sinistre) use ($dateDebut) {
+            return $sinistre->created_at >= $dateDebut;
+        });
+
+        $statistiquesRemboursements = [
+            'total_derniers_12_mois' => $remboursementsRecents->count(),
+            'montant_total_derniers_12_mois' => $remboursementsRecents->sum(function ($sinistre) {
+                return $sinistre->factures->sum('montant_facture');
+            }),
+            'moyenne_mensuelle' => $remboursementsRecents->count() / 12
+        ];
+
+        // Statistiques des contrats
+        $statistiquesContrats = [
+            'total_actifs' => $contratsActifs->count(),
+            'total_historique' => ClientContrat::where('client_id', $client->id)->count(),
+            'contrats_par_statut' => ClientContrat::where('client_id', $client->id)
+                ->groupBy('statut')
+                ->selectRaw('statut, count(*) as total')
+                ->pluck('total', 'statut')
+        ];
+
+        return ApiResponse::success([
+            'type_client' => 'physique',
+            'client_info' => [
+                'id' => $client->id,
+                'type_client' => $client->type_client->value,
+                'type_client_label' => $client->type_client->getLabel(),
+                'solde_actuel' => $soldeActuel,
+                'solde_actuel_formatted' => number_format($soldeActuel, 0, ',', ' ') . ' FCFA',
+                'total_primes' => $totalPrimes,
+                'total_primes_formatted' => number_format($totalPrimes, 0, ',', ' ') . ' FCFA'
+            ],
+
+            'beneficiaires' => [
+                'total' => $totalBeneficiaires,
+                'details' => $beneficiaires->map(function ($beneficiaire) {
+                    return [
+                        'id' => $beneficiaire->id,
+                        'nom' => $beneficiaire->user->personne->nom ?? null,
+                        'prenoms' => $beneficiaire->user->personne->prenoms ?? null,
+                        'nom_complet' => ($beneficiaire->user->personne->nom ?? '') . ' ' . ($beneficiaire->user->personne->prenoms ?? ''),
+                        'lien_parente' => $beneficiaire->lien_parente,
+                        'date_naissance' => $beneficiaire->user->personne->date_naissance ?? null,
+                        'sexe' => $beneficiaire->user->personne->sexe ?? null
+                    ];
+                })
+            ],
+
+            'prestataires' => [
+                'total_assignes' => $totalPrestataires,
+                'repartition_par_type' => $repartitionPrestataires,
+                'repartition_formatted' => collect($repartitionPrestataires)->map(function ($count, $type) use ($totalPrestataires) {
+                    return [
+                        'type' => $type,
+                        'type_label' => \App\Enums\TypePrestataireEnum::from($type)->getLabel(),
+                        'count' => $count,
+                        'percentage' => $totalPrestataires > 0 ? round(($count / $totalPrestataires) * 100, 2) : 0
+                    ];
+                })->values(),
+                'details' => $prestatairesAssignes->unique('id')->map(function ($prestataire) {
     return [
-        'statut' => $request->input('statut'),
-        'dateDebut' => $request->input('date_debut'),
-        'dateFin' => $request->input('date_fin'),
-        'sortBy' => $request->input('sort_by', 'created_at'),
-        'sortOrder' => $request->input('sort_order', 'desc'),
-        'perPage' => $request->input('per_page', 15),
-    ];
-}
+                        'id' => $prestataire->id,
+                        'raison_sociale' => $prestataire->user->personne->nom ?? 'N/A',
+                        'type_prestataire' => $prestataire->type_prestataire->value,
+                        'type_prestataire_label' => $prestataire->type_prestataire->getLabel(),
+                        'statut' => $prestataire->statut->value,
+                        'statut_label' => $prestataire->statut->getLabel(),
+                        'contact' => $prestataire->user->contact ?? null,
+                        'adresse' => $prestataire->user->adresse ?? null
+                    ];
+                })
+            ],
 
-private function getPaginationData($contrats): array
-{
-    return [
-        'current_page' => $contrats->currentPage(),
-        'per_page' => $contrats->perPage(),
-        'total' => $contrats->total(),
-        'last_page' => $contrats->lastPage(),
-        'from' => $contrats->firstItem(),
-        'to' => $contrats->lastItem(),
-        'has_more_pages' => $contrats->hasMorePages(),
-    ];
-}
+            'garanties' => [
+                'categories' => $categoriesGaranties->unique('id')->values(),
+                'garanties_details' => $garantiesDetails->unique('id')->values(),
+                'total_categories' => $categoriesGaranties->unique('id')->count(),
+                'total_garanties' => $garantiesDetails->unique('id')->count()
+            ],
 
-    
+            'sinistres' => $statistiquesSinistres,
 
+            'remboursements' => $statistiquesRemboursements,
 
+            'contrats' => $statistiquesContrats,
+
+            'resume' => [
+                'total_beneficiaires' => $totalBeneficiaires + 1, // +1 pour l'assuré principal
+                'total_prestataires' => $totalPrestataires,
+                'total_contrats_actifs' => $contratsActifs->count(),
+                'total_sinistres' => $statistiquesSinistres['total'],
+                'solde_actuel' => $soldeActuel,
+                'solde_actuel_formatted' => number_format($soldeActuel, 0, ',', ' ') . ' FCFA'
+            ]
+        ], 'Statistiques du client particulier récupérées avec succès');
+    }
+
+    /**
+     * Statistiques pour les clients moraux (entreprises)
+     */
+    private function getStatistiquesClientMoral($client, $user)
+    {
+        // Pour l'instant, retourner un message indiquant que cette fonctionnalité sera implémentée
+        return ApiResponse::success([
+            'type_client' => 'moral',
+            'message' => 'Statistiques pour les clients entreprise seront implémentées prochainement',
+            'client_info' => [
+                'id' => $client->id,
+                'type_client' => $client->type_client->value,
+                'type_client_label' => $client->type_client->getLabel()
+            ]
+        ], 'Statistiques du client entreprise récupérées avec succès');
+    }
 
      /**
      * Refuser une proposition de contrat
@@ -197,13 +444,13 @@ private function getPaginationData($contrats): array
             'raison_refus' => 'required|string|max:1000',
         ]);
 
-        if($validatedData->fails()) {
+        if ($validatedData->fails()) {
             return ApiResponse::error('Erreur de validation: ' . $validatedData->errors()->first(), 422);
         }
 
         try {
             $user = Auth::user();
-            
+
             // Récupérer la proposition
             $proposition = PropositionContrat::with([
                 'demandeAdhesion.user.assure',
@@ -211,7 +458,7 @@ private function getPaginationData($contrats): array
                 'technicien'
             ])->find($propositionId);
 
-            if(!$proposition) {
+            if (!$proposition) {
                 return ApiResponse::error('Proposition de contrat non trouvée', 404);
             }
 
@@ -260,12 +507,10 @@ private function getPaginationData($contrats): array
                     'proposition_id' => $proposition->id,
                     'message' => 'Proposition refusée avec succès'
                 ], 'Proposition refusée avec succès');
-
             } catch (\Exception $e) {
                 DB::rollBack();
                 throw $e;
             }
-
         } catch (\Exception $e) {
             Log::error('Erreur lors du refus du contrat', [
                 'error' => $e->getMessage(),
@@ -285,10 +530,10 @@ private function getPaginationData($contrats): array
         try {
             $user = Auth::user();
 
-            // Vérifier que l'utilisateur est un client physique
-            if ($user->entreprise) {
-                return ApiResponse::error('Cette fonctionnalité est réservée aux clients physiques', 403);
-            }
+            // // Vérifier que l'utilisateur est un client physique
+            // if ($user->entreprise) {
+            //     return ApiResponse::error('Cette fonctionnalité est réservée aux clients physiques', 403);
+            // }
 
             // Récupérer l'assuré principal (est_principal = true, assure_principal_id = null)
             $assurePrincipal = Assure::where('user_id', $user->id)
@@ -358,7 +603,6 @@ private function getPaginationData($contrats): array
             ];
 
             return ApiResponse::success($stats, 'Statistiques des bénéficiaires récupérées avec succès');
-
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des statistiques des bénéficiaires', [
                 'error' => $e->getMessage(),
@@ -368,4 +612,4 @@ private function getPaginationData($contrats): array
             return ApiResponse::error('Erreur lors de la récupération des statistiques: ' . $e->getMessage(), 500);
         }
     }
-} 
+}

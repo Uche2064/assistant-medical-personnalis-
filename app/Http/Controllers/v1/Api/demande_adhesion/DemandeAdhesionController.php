@@ -46,6 +46,7 @@ use App\Models\InvitationEmploye;
 use App\Models\Personnel;
 use App\Models\Prestataire;
 use App\Models\Question;
+use App\Models\ReponseQuestion;
 use App\Models\ReponseQuestionnaire;
 use App\Models\User;
 use App\Models\Entreprise;
@@ -87,17 +88,31 @@ class DemandeAdhesionController extends Controller
         $this->demandeAdhesionService = $demandeAdhesionService;
     }
 
-    
+
     public function hasDemande()
     {
         $user = Auth::user();
 
-        // Récupérer la demande via la relation client
-        $demande = DemandeAdhesion::whereHas('client', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
-        })
-            ->orderBy('created_at', 'desc')
-            ->first();
+        // Récupérer la demande avec toutes les relations nécessaires
+        $demande = DemandeAdhesion::with([
+            'user.personne',
+            'user.client',
+            'assurePrincipal.user.personne',
+            'assurePrincipal.beneficiaires.user.personne',
+            'validePar'
+        ])
+        ->where('user_id', $user->id)
+        ->orderBy('created_at', 'desc')
+        ->first();
+
+        // Récupérer les réponses de l'utilisateur connecté pour cette demande
+        $reponsesQuestions = collect([]);
+        if ($demande) {
+            $reponsesQuestions = ReponseQuestion::with('question')
+                ->where('demande_adhesion_id', $demande->id)
+                ->where('user_id', $user->id)
+                ->get();
+        }
 
         if (!$demande) {
             return ApiResponse::success([
@@ -111,9 +126,91 @@ class DemandeAdhesionController extends Controller
         $status = $demande->statut?->value ?? $demande->statut;
         $canSubmit = in_array($status, ['rejetee']); // Can resubmit if rejected
 
+        // Préparer les réponses aux questions (seulement celles de l'utilisateur connecté)
+        $reponsesQuestionsFormatted = $reponsesQuestions->map(function ($reponse) {
+            return [
+                'id' => $reponse->id,
+                'question_id' => $reponse->question_id,
+                'question' => [
+                    'id' => $reponse->question->id,
+                    'libelle' => $reponse->question->libelle,
+                    'type_de_donnee' => $reponse->question->type_de_donnee,
+                    'obligatoire' => $reponse->question->obligatoire,
+                    'destinataire' => $reponse->question->destinataire,
+                ],
+                'reponse' => $reponse->reponse,
+                'date_reponse' => $reponse->date_reponse,
+                'user_id' => $reponse->user_id,
+            ];
+        });
+
+        // Préparer les bénéficiaires
+        $beneficiaires = collect([]);
+        if ($demande->assurePrincipal && $demande->assurePrincipal->beneficiaires) {
+            $beneficiaires = $demande->assurePrincipal->beneficiaires->map(function ($beneficiaire) {
+                return [
+                    'id' => $beneficiaire->id,
+                    'nom' => $beneficiaire->user->personne->nom ?? null,
+                    'prenoms' => $beneficiaire->user->personne->prenoms ?? null,
+                    'date_naissance' => $beneficiaire->user->personne->date_naissance ?? null,
+                    'sexe' => $beneficiaire->user->personne->sexe ?? null,
+                    'profession' => $beneficiaire->user->personne->profession ?? null,
+                    'email' => $beneficiaire->user->email ?? null,
+                    'contact' => $beneficiaire->user->contact ?? null,
+                    'adresse' => $beneficiaire->user->adresse ?? null,
+                    'photo_url' => $beneficiaire->user->photo_url ?? null,
+                    'lien_parente' => $beneficiaire->lien_parente,
+                    'est_principal' => $beneficiaire->est_principal,
+                    'created_at' => $beneficiaire->created_at,
+                ];
+            });
+        }
+
+
+        // Informations de l'assuré principal
+        $assurePrincipal = null;
+        if ($demande->assurePrincipal) {
+            $assurePrincipal = [
+                'id' => $demande->assurePrincipal->id,
+                'nom' => $demande->assurePrincipal->user->personne->nom ?? null,
+                'prenoms' => $demande->assurePrincipal->user->personne->prenoms ?? null,
+                'date_naissance' => $demande->assurePrincipal->user->personne->date_naissance ?? null,
+                'sexe' => $demande->assurePrincipal->user->personne->sexe ?? null,
+                'profession' => $demande->assurePrincipal->user->personne->profession ?? null,
+                'email' => $demande->assurePrincipal->user->email ?? null,
+                'contact' => $demande->assurePrincipal->user->contact ?? null,
+                'adresse' => $demande->assurePrincipal->user->adresse ?? null,
+                'photo_url' => $demande->assurePrincipal->user->photo_url ?? null,
+                'est_principal' => $demande->assurePrincipal->est_principal,
+                'lien_parente' => $demande->assurePrincipal->lien_parente,
+                'created_at' => $demande->assurePrincipal->created_at,
+            ];
+        }
+
         return ApiResponse::success([
             'existing' => true,
-            'demande' => $demande,
+            'demande' => [
+                'id' => $demande->id,
+                'type_demandeur' => $demande->type_demandeur?->value ?? $demande->type_demandeur,
+                'statut' => $status,
+                'created_at' => $demande->created_at,
+                'updated_at' => $demande->updated_at,
+                'motif_rejet' => $demande->motif_rejet,
+                'valider_a' => $demande->valider_a,
+                'valide_par' => $demande->validePar ? [
+                    'id' => $demande->validePar->id,
+                    'nom' => $demande->validePar->nom,
+                    'prenoms' => $demande->validePar->prenoms,
+                ] : null,
+
+                // Informations complètes
+                'assure_principal' => $assurePrincipal,
+                'beneficiaires' => $beneficiaires,
+                'reponses_questions' => $reponsesQuestionsFormatted,
+
+                // Statistiques
+                'total_beneficiaires' => $beneficiaires->count(),
+            ],
             'can_submit' => $canSubmit,
             'status' => $status,
             'motif_rejet' => $demande->motif_rejet ?? null,
@@ -125,8 +222,9 @@ class DemandeAdhesionController extends Controller
     {
         $user = Auth::user();
         $query = DemandeAdhesion::with([
+            'user',
             'assurePrincipal.user.personne',
-            'beneficiaires.user.personne',
+            'assurePrincipal.beneficiaires.user.personne',
             'propositionsContrat.contrat',
             'reponsesQuestions.question',
         ]);
@@ -140,14 +238,15 @@ class DemandeAdhesionController extends Controller
         return ApiResponse::success(DemandeAdhesionResource::collection($demandes), 'Liste des demandes d\'adhésion récupérée avec succès', 200);
     }
 
-    
-    public function show($demandeId, $assureId)
+
+    public function show($demandeId, $assureId = null)
     {
         Log::info('show demande', ['id' => $demandeId]);
         $user = Auth::user();
         $demande = DemandeAdhesion::with([
+            'user',
             'assurePrincipal.user.personne',
-            'beneficiaires.user.personne',
+            'assurePrincipal.beneficiaires.user.personne',
             'propositionsContrat.contrat',
             'reponsesQuestions.question',
         ])->find($demandeId);
@@ -204,7 +303,16 @@ class DemandeAdhesionController extends Controller
         $data = $request->validated();
         $typeDemandeur = $data['type_demandeur'];
 
-        // Log::info('Demande d\'adhésion soumise', ['data' => $data]);
+        // Extraire les fichiers uploadés des bénéficiaires et les ajouter aux données
+        if ($request->has('beneficiaires') && is_array($request->get('beneficiaires'))) {
+            $beneficiaires = $request->get('beneficiaires');
+            foreach ($beneficiaires as $index => $beneficiaire) {
+                // Récupérer le fichier photo du bénéficiaire depuis la requête brute
+                if ($request->hasFile("beneficiaires.$index.photo_url")) {
+                    $data['beneficiaires'][$index]['photo_url'] = $request->file("beneficiaires.$index.photo_url");
+                }
+            }
+        }
 
         // Vérifier si l'utilisateur a déjà une demande en cours ou validée (optionnel)
         if ($this->demandeValidatorService->hasPendingDemande()) {
@@ -225,7 +333,7 @@ class DemandeAdhesionController extends Controller
             return ApiResponse::success(null, 'Demande d\'adhésion soumise avec succès.', 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            return ApiResponse::error('Erreur lors de la soumission de la demande d\'adhésion : ' . $e->getMessage(), 500);
+            return ApiResponse::error('Erreur lors de la soumission de la demande d\'adhésion', 500, $e->getMessage());
         }
     }
 
@@ -452,7 +560,7 @@ class DemandeAdhesionController extends Controller
                 return ApiResponse::error('Accès non autorisé', 403);
             }
 
-            // Vérifier que la proposition est en statut PROPOSEE   
+            // Vérifier que la proposition est en statut PROPOSEE
             if ($proposition->statut->value !== StatutPropositionContratEnum::PROPOSEE->value) {
                 return ApiResponse::error('Cette proposition a déjà été traitée', 400);
             }
@@ -462,9 +570,8 @@ class DemandeAdhesionController extends Controller
             try {
                 // 1. Créer l'entrée dans client_contrats (pivot table)
                 $clientContrat = ClientContrat::create([
-                    'user_id' => $proposition->demandeAdhesion->user_id,
-                    'contrat_id' => $proposition->contrat->id,
-                    'type_client' => $proposition->demandeAdhesion->type_demandeur,
+                    'client_id' => $proposition->demandeAdhesion->user->client->id,
+                    'type_contrat_id' => $proposition->contrat->id,
                     'date_debut' => now(),
                     'date_fin' => now()->addYear(),
                     'numero_police' => ClientContrat::generateNumeroPolice(),
@@ -472,7 +579,7 @@ class DemandeAdhesionController extends Controller
                 ]);
 
                 $proposition->demandeAdhesion->user->update([
-                    'solde' => $proposition->contrat->prime_totale
+                    'solde' => $proposition->prime_totale
                 ]);
 
                 // 2. Mettre à jour la proposition
@@ -634,5 +741,21 @@ class DemandeAdhesionController extends Controller
             new PropositionContratResource($proposition),
             'Proposition de contrat récupérée avec succès'
         );
+    }
+
+    /**
+     * Get the reponses for a specific user in a demande
+     */
+    public function getReponsesUtilisateur($demandeId, $userId)
+    {
+        try {
+            $demande = DemandeAdhesion::findOrFail($demandeId);
+            $reponses = $demande->reponsesParUtilisateur($userId);
+
+            return ApiResponse::success($reponses, 'Réponses récupérées avec succès');
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des réponses: ' . $e->getMessage());
+            return ApiResponse::error('Erreur lors de la récupération des réponses', 500, $e->getMessage());
+        }
     }
 }

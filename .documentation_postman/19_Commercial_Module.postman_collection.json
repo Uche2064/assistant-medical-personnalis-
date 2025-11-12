@@ -1,8 +1,8 @@
 {
     "info": {
         "_postman_id": "commercial-module",
-        "name": "💼 Commercial",
-        "description": "Fonctions commerciales et prospection avec système de parrainage",
+        "name": "💼 Commercial - Système de Parrainage",
+        "description": "Système complet de parrainage commercial avec gestion des codes (durée 1 an, historique, renouvellement)",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
@@ -31,7 +31,83 @@
                     "host": ["{{base_url}}"],
                     "path": ["v1", "commercial", "generer-code-parrainage"]
                 },
-                "description": "Génère un code parrainage unique pour le commercial connecté. Ce code sera utilisé pour lier les clients au commercial."
+                "description": "Génère un code parrainage unique pour le commercial connecté. Durée de validité : 1 an. Un commercial ne peut avoir qu'un seul code actif à la fois. Si un code existe déjà, retourne le code actuel avec sa date d'expiration."
+            }
+        },
+        {
+            "name": "Voir Mon Code Parrainage Actuel",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "X-API-Key",
+                        "value": "{{api_key}}",
+                        "description": "Clé API obligatoire"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{access_token}}",
+                        "description": "Token JWT du commercial"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/v1/commercial/mon-code-parrainage",
+                    "host": ["{{base_url}}"],
+                    "path": ["v1", "commercial", "mon-code-parrainage"]
+                },
+                "description": "Récupère le code de parrainage actuel du commercial avec toutes les informations : code, dates de début/expiration, jours restants, statut."
+            }
+        },
+        {
+            "name": "Historique des Codes Parrainage",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "X-API-Key",
+                        "value": "{{api_key}}",
+                        "description": "Clé API obligatoire"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{access_token}}",
+                        "description": "Token JWT du commercial"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/v1/commercial/historique-codes-parrainage",
+                    "host": ["{{base_url}}"],
+                    "path": ["v1", "commercial", "historique-codes-parrainage"]
+                },
+                "description": "Récupère l'historique complet des codes de parrainage du commercial : tous les codes précédents avec leurs statuts (actif, expiré, renouvelé)."
+            }
+        },
+        {
+            "name": "Renouveler Code Parrainage",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "X-API-Key",
+                        "value": "{{api_key}}",
+                        "description": "Clé API obligatoire"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{access_token}}",
+                        "description": "Token JWT du commercial"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/v1/commercial/renouveler-code-parrainage",
+                    "host": ["{{base_url}}"],
+                    "path": ["v1", "commercial", "renouveler-code-parrainage"]
+                },
+                "description": "Renouvelle le code de parrainage après expiration. Ne peut être utilisé qu'après l'expiration du code actuel. Génère un nouveau code valide pour 1 an."
             }
         },
         {
@@ -68,7 +144,7 @@
                         }
                     }
                 },
-                "description": "Crée un compte client physique avec mot de passe généré automatiquement. Pas de photo requise pour la création par commercial."
+                "description": "Crée un compte client physique avec mot de passe généré automatiquement. Utilise automatiquement le code de parrainage actuel du commercial. Pas de photo requise pour la création par commercial."
             }
         },
         {
@@ -105,7 +181,7 @@
                         }
                     }
                 },
-                "description": "Crée un compte client moral (entreprise) avec mot de passe généré automatiquement. Pas de données personnelles requises."
+                "description": "Crée un compte client moral (entreprise) avec mot de passe généré automatiquement. Utilise automatiquement le code de parrainage actuel du commercial. Pas de données personnelles requises."
             }
         },
         {
@@ -153,7 +229,7 @@
                     "host": ["{{base_url}}"],
                     "path": ["v1", "commercial", "mes-statistiques"]
                 },
-                "description": "Récupère les statistiques du commercial : nombre total de clients, clients actifs, répartition par type, taux d'activation."
+                "description": "Récupère les statistiques complètes du commercial : total clients, actifs/inactifs, répartition par type, évolution mensuelle (12 mois) pour graphiques, statistiques du code parrainage actuel."
             }
         },
         {
@@ -186,6 +262,47 @@
                     }
                 },
                 "description": "Inscription d'un client avec code parrainage (optionnel). Si le code est valide, le client sera lié au commercial correspondant. Photo requise pour l'inscription normale."
+            }
+        }
+    ],
+    "event": [
+        {
+            "listen": "prerequest",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    "// Variables globales pour les tests",
+                    "pm.globals.set('commercial_id', '1');",
+                    "pm.globals.set('code_parrainage_exemple', 'COMABC123');"
+                ]
+            }
+        },
+        {
+            "listen": "test",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    "// Tests généraux pour toutes les requêtes",
+                    "pm.test('Status code is successful', function () {",
+                    "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 422]);",
+                    "});",
+                    "",
+                    "pm.test('Response has required structure', function () {",
+                    "    const response = pm.response.json();",
+                    "    pm.expect(response).to.have.property('success');",
+                    "    pm.expect(response).to.have.property('message');",
+                    "});",
+                    "",
+                    "// Tests spécifiques pour les codes de parrainage",
+                    "if (pm.request.url.path.includes('parrainage')) {",
+                    "    pm.test('Parrainage response structure', function () {",
+                    "        const response = pm.response.json();",
+                    "        if (response.success && response.data) {",
+                    "            pm.expect(response.data).to.have.property('code_parrainage');",
+                    "        }",
+                    "    });",
+                    "}"
+                ]
             }
         }
     ],

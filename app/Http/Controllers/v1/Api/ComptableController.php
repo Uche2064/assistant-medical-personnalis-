@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ComptableController extends Controller
 {
@@ -23,10 +24,6 @@ class ComptableController extends Controller
         $user = Auth::user();
         $comptable = $user->personnel;
 
-        if (!$comptable || !$comptable->isComptable()) {
-            return ApiResponse::error('Accès non autorisé', 403);
-        }
-
         // Statistiques financières
         $stats = [
             'total_factures' => Facture::count(),
@@ -35,12 +32,12 @@ class ComptableController extends Controller
             'factures_validees_medecin' => Facture::where('statut', StatutFactureEnum::VALIDEE_MEDECIN)->count(),
             'factures_autorisees_comptable' => Facture::where('statut', StatutFactureEnum::AUTORISEE_COMPTABLE)->count(),
             'factures_remboursees' => Facture::where('statut', StatutFactureEnum::REMBOURSEE)->count(),
-            'montant_total_rembourse' => Facture::where('statut', StatutFactureEnum::REMBOURSEE)->sum('montant'),
+            'montant_total_rembourse' => Facture::where('statut', StatutFactureEnum::REMBOURSEE)->sum('montant_facture'),
             'montant_en_attente' => Facture::whereIn('statut', [
                 StatutFactureEnum::EN_ATTENTE,
                 StatutFactureEnum::VALIDEE_TECHNICIEN,
                 StatutFactureEnum::VALIDEE_MEDECIN
-            ])->sum('montant'),
+            ])->sum('montant_facture'),
         ];
 
         // Factures récentes
@@ -69,38 +66,12 @@ class ComptableController extends Controller
         $user = Auth::user();
         $comptable = $user->personnel;
 
-        if (!$comptable || !$comptable->isComptable()) {
-            return ApiResponse::error('Accès non autorisé', 403);
-        }
+       
 
         $query = Facture::with(['prestataire', 'assure', 'technicien', 'medecin']);
 
-        // Filtres
-        if ($request->has('statut')) {
-            $query->where('statut', $request->statut);
-        }
-
-        if ($request->has('prestataire_id')) {
-            $query->where('prestataire_id', $request->prestataire_id);
-        }
-
-        if ($request->has('date_debut')) {
-            $query->whereDate('created_at', '>=', $request->date_debut);
-        }
-
-        if ($request->has('date_fin')) {
-            $query->whereDate('created_at', '<=', $request->date_fin);
-        }
-
-        if ($request->has('montant_min')) {
-            $query->where('montant', '>=', $request->montant_min);
-        }
-
-        if ($request->has('montant_max')) {
-            $query->where('montant', '<=', $request->montant_max);
-        }
-
-        $factures = $query->paginate($request->get('per_page', 10));
+        
+        $factures = $query->get();
 
         return ApiResponse::success($factures, 'Liste des factures récupérée avec succès');
     }
@@ -113,9 +84,7 @@ class ComptableController extends Controller
         $user = Auth::user();
         $comptable = $user->personnel;
 
-        if (!$comptable || !$comptable->isComptable()) {
-            return ApiResponse::error('Accès non autorisé', 403);
-        }
+       
 
         $facture = Facture::find($id);
 
@@ -142,9 +111,7 @@ class ComptableController extends Controller
         $user = Auth::user();
         $comptable = $user->personnel;
 
-        if (!$comptable || !$comptable->isComptable()) {
-            return ApiResponse::error('Accès non autorisé', 403);
-        }
+       
 
         $validated = $request->validate([
             'reference_paiement' => 'required|string|max:255',
@@ -186,9 +153,7 @@ class ComptableController extends Controller
         $user = Auth::user();
         $comptable = $user->personnel;
 
-        if (!$comptable || !$comptable->isComptable()) {
-            return ApiResponse::error('Accès non autorisé', 403);
-        }
+       
 
         $validated = $request->validate([
             'motif_rejet' => 'required|string|max:500',
@@ -219,9 +184,6 @@ class ComptableController extends Controller
         $user = Auth::user();
         $comptable = $user->personnel;
 
-        if (!$comptable || !$comptable->isComptable()) {
-            return ApiResponse::error('Accès non autorisé', 403);
-        }
 
         $periode = $request->get('periode', 'mois'); // jour, semaine, mois, annee
         $dateDebut = $request->get('date_debut');
@@ -252,18 +214,18 @@ class ComptableController extends Controller
         $rapport = [
             'periode' => $periode,
             'total_factures' => $query->count(),
-            'montant_total' => $query->sum('montant'),
-            'montant_rembourse' => $query->where('statut', StatutFactureEnum::REMBOURSEE)->sum('montant'),
+            'montant_total' => $query->sum('montant_facture'),
+            'montant_rembourse' => $query->where('statut', StatutFactureEnum::REMBOURSEE)->sum('montant_facture'),
             'montant_en_attente' => $query->whereIn('statut', [
                 StatutFactureEnum::EN_ATTENTE,
                 StatutFactureEnum::VALIDEE_TECHNICIEN,
                 StatutFactureEnum::VALIDEE_MEDECIN,
                 StatutFactureEnum::AUTORISEE_COMPTABLE
-            ])->sum('montant'),
-            'montant_rejete' => $query->where('statut', StatutFactureEnum::REJETEE)->sum('montant'),
+            ])->sum('montant_facture'),
+            'montant_rejete' => $query->where('statut', StatutFactureEnum::REJETEE)->sum('montant_facture'),
             'taux_remboursement' => $query->count() > 0 ? 
                 round(($query->where('statut', StatutFactureEnum::REMBOURSEE)->count() / $query->count()) * 100, 2) : 0,
-            'repartition_par_statut' => $query->selectRaw('statut, COUNT(*) as count, SUM(montant) as total')
+            'repartition_par_statut' => $query->selectRaw('statut, COUNT(*) as count, SUM(montant_facture) as total')
                 ->groupBy('statut')
                 ->get(),
         ];
@@ -279,9 +241,6 @@ class ComptableController extends Controller
         $user = Auth::user();
         $comptable = $user->personnel;
 
-        if (!$comptable || !$comptable->isComptable()) {
-            return ApiResponse::error('Accès non autorisé', 403);
-        }
 
         $facture = Facture::with([
             'prestataire', 
@@ -306,27 +265,16 @@ class ComptableController extends Controller
         $user = Auth::user();
         $comptable = $user->personnel;
 
-        if (!$comptable || !$comptable->isComptable()) {
-            return ApiResponse::error('Accès non autorisé', 403);
-        }
 
         $query = Facture::with('prestataire');
-
-        if ($request->has('date_debut')) {
-            $query->whereDate('created_at', '>=', $request->date_debut);
-        }
-
-        if ($request->has('date_fin')) {
-            $query->whereDate('created_at', '<=', $request->date_fin);
-        }
 
         $statsPrestataires = $query->selectRaw('
                 prestataire_id,
                 COUNT(*) as total_factures,
-                SUM(montant) as montant_total,
-                SUM(CASE WHEN statut = ? THEN montant ELSE 0 END) as montant_rembourse,
+                SUM(montant_facture) as montant_total,
+                SUM(CASE WHEN statut = ? THEN montant_facture ELSE 0 END) as montant_rembourse,
                 SUM(CASE WHEN statut = ? THEN 1 ELSE 0 END) as factures_remboursees
-            ', [StatutFactureEnum::REMBOURSEE, StatutFactureEnum::REMBOURSEE])
+            ', [StatutFactureEnum::REMBOURSEE->value, StatutFactureEnum::REMBOURSEE->value])
             ->groupBy('prestataire_id')
             ->with('prestataire')
             ->get();

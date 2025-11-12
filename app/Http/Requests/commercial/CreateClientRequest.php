@@ -37,7 +37,7 @@ class CreateClientRequest extends FormRequest
             'sexe' => 'required_if:type_client,physique|in:M,F',
 
             // Pas de photo requise pour la création par commercial
-            'photo' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+            'photo' => 'required_if:type_client,physique|image|mimes:jpeg,png,jpg|max:2048',
             // Pas de mot de passe requis (généré automatiquement)
         ];
     }

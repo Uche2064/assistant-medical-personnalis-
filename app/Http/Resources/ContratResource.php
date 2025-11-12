@@ -17,6 +17,9 @@ class ContratResource extends JsonResource
         return [
             'id' => $this->id,
             'libelle' => $this->libelle,
+            'description' => $this->description,
+            'couverture' => $this->couverture,
+            'frais_gestion' => $this->frais_gestion,
             'prime_standard' => $this->prime_standard,
             'prime_standard_formatted' => number_format($this->prime_standard, 0, ',', ' ') . ' FCFA',
             'est_actif' => $this->est_actif,

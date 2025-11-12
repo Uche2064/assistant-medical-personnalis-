@@ -46,48 +46,58 @@ class DemandeAdhesionResource extends JsonResource
             'updated_at' => $this->updated_at,
 
             'reponses_questions' => $this->whenLoaded('reponsesQuestions', function () {
-                return $this->reponsesQuestions->map(function ($reponse) {
+                // Filtrer uniquement les réponses de l'assuré principal
+                $reponsesAssurePrincipal = $this->reponsesQuestions->where('user_id', $this->user_id);
+
+                return $reponsesAssurePrincipal->map(function ($reponse) {
                     return [
                         'id' => $reponse->id,
                         'reponse' => $reponse->reponse,
+                        'date_reponse' => $reponse->date_reponse,
+                        'user_id' => $reponse->user_id,
                         'question' => $reponse->relationLoaded('question') ? [
-                                        'id' => $reponse->question->id,
-                                        'libelle' => $reponse->question->libelle,
-                                        'type_de_donnee' => $reponse->question->type_de_donnee,
-                                        'est_obligatoire' => $reponse->question->est_obligatoire
-                                    ] : null
+                            'id' => $reponse->question->id,
+                            'libelle' => $reponse->question->libelle,
+                            'type_de_donnee' => $reponse->question->type_de_donnee,
+                            'obligatoire' => $reponse->question->obligatoire
+                        ] : null
                     ];
-                });
+                })->values();
             }),
 
-            // Liste des bénéficiaires s'il y en a
-            'beneficiaires' => $this->whenLoaded('beneficiaires', function () {
-                return $this->beneficiaires->map(function ($beneficiaire) {
+            // // Liste des bénéficiaires s'il y en a
+            'beneficiaires' => $this->when($this->assurePrincipal && $this->assurePrincipal->relationLoaded('beneficiaires'), function () {
+                return $this->assurePrincipal->beneficiaires->map(function ($beneficiaire) {
+                    // Récupérer les réponses de ce bénéficiaire
+                    $reponsesBeneficiaire = $this->reponsesQuestions->where('user_id', $beneficiaire->user_id);
+
                     return [
                         'id' => $beneficiaire->id,
-                        'nom' => $beneficiaire->nom,
-                        'prenoms' => $beneficiaire->prenoms,
-                        'date_naissance' => $beneficiaire->date_naissance,
-                        'sexe' => $beneficiaire->sexe,
-                        'profession' => $beneficiaire->profession,
+                        'nom' => $beneficiaire->user->personne->nom ?? null,
+                        'prenoms' => $beneficiaire->user->personne->prenoms ?? null,
+                        'date_naissance' => $beneficiaire->user->personne->date_naissance ?? null,
+                        'sexe' => $beneficiaire->user->personne->sexe ?? null,
+                        'profession' => $beneficiaire->user->personne->profession ?? null,
                         'lien_parente' => $beneficiaire->lien_parente,
                         'email' => $beneficiaire->user->email ?? null,
                         'contact' => $beneficiaire->user->contact ?? null,
-                        'photo' => $beneficiaire->photo,
-                        'reponses_questions' => $this->whenLoaded('reponsesQuestions', function () {
-                            return $this->reponsesQuestions->map(function ($reponse) {
-                                return [
-                                    'id' => $reponse->id,
-                                    'reponse' => $reponse->reponse,
-                                    'question' => $reponse->relationLoaded('question') ? [
-                                        'id' => $reponse->question->id,
-                                        'libelle' => $reponse->question->libelle,
-                                        'type_de_donnee' => $reponse->question->type_de_donnee,
-                                        'est_obligatoire' => $reponse->question->est_obligatoire
-                                    ] : null
-                                ];
-                            });
-                        }),
+                        'photo_url' => $beneficiaire->user->photo_url ?? null,
+                        'est_principal' => $beneficiaire->est_principal,
+                        'created_at' => $beneficiaire->created_at,
+                        'reponses_questions' => $reponsesBeneficiaire->map(function ($reponse) {
+                            return [
+                                'id' => $reponse->id,
+                                'reponse' => $reponse->reponse,
+                                'date_reponse' => $reponse->date_reponse,
+                                'user_id' => $reponse->user_id,
+                                'question' => $reponse->relationLoaded('question') ? [
+                                    'id' => $reponse->question->id,
+                                    'libelle' => $reponse->question->libelle,
+                                    'type_de_donnee' => $reponse->question->type_de_donnee,
+                                    'obligatoire' => $reponse->question->obligatoire
+                                ] : null
+                            ];
+                        })->values()
                     ];
                 });
             }),

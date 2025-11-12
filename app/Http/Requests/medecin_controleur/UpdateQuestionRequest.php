@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\medecin_controleur;
 
+use App\Enums\ClientTypeEnum;
 use App\Enums\RoleEnum;
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
+use App\Enums\TypePrestataireEnum;
 use App\Helpers\ApiResponse;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -32,7 +34,7 @@ class UpdateQuestionRequest extends FormRequest
         return [
             'libelle' =>  ['sometimes', 'string', 'max:255'],
             'type_de_donnee' => ['sometimes', 'string', Rule::in(TypeDonneeEnum::values())],
-            'destinataire' => ['sometimes', 'string', Rule::in(TypeDemandeurEnum::values())],
+            'destinataire' => ['sometimes', 'string', Rule::in(array_merge(TypePrestataireEnum::values(), ClientTypeEnum::values()))],
             'est_obligatoire' => ['sometimes', 'boolean'],
             'est_active' => ['sometimes', 'boolean'],
             // options doit être un tableau si type_de_donnee est select, checkbox ou radio

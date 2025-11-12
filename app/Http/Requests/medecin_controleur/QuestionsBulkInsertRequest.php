@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\medecin_controleur;
 
+use App\Enums\ClientTypeEnum;
 use App\Enums\RoleEnum;
 use App\Enums\TypeDemandeurEnum;
 use App\Enums\TypeDonneeEnum;
+use App\Enums\TypePrestataireEnum;
 use App\Helpers\ApiResponse;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -25,7 +27,7 @@ class QuestionsBulkInsertRequest extends FormRequest
             '*' => ['required', 'array', 'min:1'],
             '*.libelle' => ['required', 'string', 'max:255'],
             '*.type_de_donnee' => ['required', 'string', Rule::in(TypeDonneeEnum::values())],
-            '*.destinataire' => ['required', 'string', Rule::in(TypeDemandeurEnum::values())],
+            '*.destinataire' => ['required', 'string', Rule::in(array_merge(TypePrestataireEnum::values(), ClientTypeEnum::values()))],
             '*.est_obligatoire' => ['boolean'],
             '*.est_active' => ['boolean'],
             // options doit être un tableau si type_donnee est select, checkbox ou radio

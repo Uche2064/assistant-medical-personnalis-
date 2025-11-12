@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Enums\ClientTypeEnum;
 
 class Client extends Model
 {
@@ -12,6 +13,10 @@ class Client extends Model
     protected $fillable = [
         'user_id',
         'type_client',
+    ];
+
+    protected $casts = [
+        'type_client' => ClientTypeEnum::class,
     ];
 
     public function user()
@@ -30,11 +35,11 @@ class Client extends Model
     }
 
     public function isMoral() {
-        return $this->type_client === 'moral';
+        return $this->type_client === ClientTypeEnum::MORAL;
     }
 
     public function isPhysique() {
-        return $this->type_client === 'physique';
+        return $this->type_client === ClientTypeEnum::PHYSIQUE;
     }
 
     public function lienInvitations() {

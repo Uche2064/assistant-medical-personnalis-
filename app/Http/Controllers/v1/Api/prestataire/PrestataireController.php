@@ -17,6 +17,8 @@ use App\Models\ClientPrestataire;
 use App\Models\TypeContrat;
 use App\Models\DemandeAdhesion;
 use App\Models\Prestataire;
+use App\Models\Sinistre;
+use App\Models\Facture;
 use App\Models\User;
 use App\Services\DemandeAdhesionService;
 use App\Services\DemandeValidatorService;
@@ -43,42 +45,158 @@ class PrestataireController extends Controller
         $this->demandeAdhesionService = $demandeAdhesionService;
     }
 
+
     /**
-     * Soumission d'une demande d'adhésion pour une personne physique
+     * Dashboard statistiques pour le prestataire connecté
      */
-    public function storeDemande(StoreDemandeAdhesionRequest $request)
+    public function dashboard(Request $request)
     {
-        $user = Auth::user();
-        $data = $request->validated();
-        $typeDemandeur = $data['type_demandeur'];
-
-
-        Log::info('Demande d\'adhésion soumise', ['data' => $data]);
-
-        // Vérifier si l'utilisateur a déjà une demande en cours ou validée (optionnel)
-        if ($this->demandeValidatorService->hasPendingDemande($data)) {
-            return ApiResponse::error('Vous avez déjà une demande d\'adhésion en cours de traitement. Veuillez attendre la réponse.', 400);
-        }
-        if ($this->demandeValidatorService->hasValidatedDemande($data)) {
-            return ApiResponse::error('Vous avez déjà une demande d\'adhésion validée. Vous ne pouvez plus soumettre une nouvelle demande.', 400);
-        }
-
-        DB::beginTransaction();
         try {
-            if ($typeDemandeur === TypeDemandeurEnum::CLIENT->value || $typeDemandeur === TypeDemandeurEnum::ENTREPRISE->value) {
-                $demande = $this->demandeValidatorService->createDemandeAdhesionClient($data, $user);
-            } else {
-                $demande = $this->demandeValidatorService->createDemandeAdhesionPrestataire($data, $user);
+            $user = Auth::user()->load('prestataire');
+            $prestataire = $user->prestataire;
+
+            if (!$prestataire) {
+                return ApiResponse::error('Prestataire non trouvé', 404);
             }
 
-            // Notifier selon le type de demandeur via le service
-            $this->demandeAdhesionService->notifyByDemandeurType($demande, $typeDemandeur);
+            // Assurés assignés (même logique que getAssure mais en count)
+            $clientContratsAssignes = ClientPrestataire::where('prestataire_id', $prestataire->id)
+                ->where('statut', 'actif')
+                ->with(['clientContrat' => function ($query) {
+                    $query->where('statut', 'actif')
+                        ->where('date_debut', '<=', now())
+                        ->where('date_fin', '>=', now());
+                }])
+                ->get()
+                ->pluck('clientContrat')
+                ->filter()
+                ->pluck('id')
+                ->toArray();
 
-            DB::commit();
-            return ApiResponse::success(null, 'Demande d\'adhésion soumise avec succès.', 201);
+            $clientContrats = ClientContrat::whereIn('id', $clientContratsAssignes)->get();
+            $clientIds = $clientContrats->pluck('user_id')->toArray();
+
+            $assuresCount = Assure::where(function ($q) use ($clientIds) {
+                $q->where(function ($subQ) use ($clientIds) {
+                    $subQ->whereIn('user_id', $clientIds)
+                        ->where('est_principal', true)
+                        ->whereHas('user.demandesAdhesions', function ($demandeQ) {
+                            $demandeQ->whereIn('statut', ['validee', 'acceptee']);
+                        });
+                })
+                    ->orWhereHas('assurePrincipal', function ($principalQ) use ($clientIds) {
+                        $principalQ->whereIn('user_id', $clientIds)
+                            ->where('est_principal', true)
+                            ->whereHas('user.demandesAdhesions', function ($demandeQ) {
+                                $demandeQ->whereIn('statut', ['validee', 'acceptee']);
+                            });
+                    })
+                    ->orWhereHas('client', function ($clientQ) use ($clientIds) {
+                        $clientQ->whereIn('user_id', $clientIds)
+                            ->whereHas('user.demandesAdhesions', function ($demandeQ) {
+                                $demandeQ->whereIn('statut', ['validee', 'acceptee']);
+                            });
+                    });
+            })->distinct('id')->count('id');
+
+            // Sinistres
+            $sinistresQuery = Sinistre::where('prestataire_id', $prestataire->id);
+            $totalSinistres = $sinistresQuery->count();
+
+            $sinistresParStatut = Sinistre::select('statut', DB::raw('COUNT(*) as total'))
+                ->where('prestataire_id', $prestataire->id)
+                ->groupBy('statut')
+                ->pluck('total', 'statut');
+
+            // Répartition mensuelle (12 derniers mois)
+            $start = now()->startOfMonth()->subMonths(11);
+            $end = now()->endOfMonth();
+            $sinistresParMois = Sinistre::where('prestataire_id', $prestataire->id)
+                ->whereBetween('created_at', [$start, $end])
+                ->select(DB::raw("DATE_FORMAT(created_at, '%Y-%m') as mois"), DB::raw('COUNT(*) as total'))
+                ->groupBy('mois')
+                ->orderBy('mois')
+                ->pluck('total', 'mois');
+
+            // Compléter les mois manquants à 0
+            $moisLabels = [];
+            $moisData = [];
+            $cursor = $start->copy();
+            while ($cursor <= $end) {
+                $key = $cursor->format('Y-m');
+                $moisLabels[] = $cursor->translatedFormat('M Y');
+                $moisData[] = (int) ($sinistresParMois[$key] ?? 0);
+                $cursor->addMonth();
+            }
+
+            // Factures liées au prestataire
+            $facturesQuery = Facture::where('prestataire_id', $prestataire->id);
+            $totalFactures = $facturesQuery->count();
+            $montantTotalFactures = (float) $facturesQuery->sum('montant_facture');
+            $montantTotalTickets = (float) $facturesQuery->sum('ticket_moderateur');
+            $facturesParStatut = Facture::select('statut', DB::raw('COUNT(*) as total'))
+                ->where('prestataire_id', $prestataire->id)
+                ->groupBy('statut')
+                ->pluck('total', 'statut');
+
+            $montantAutorise = (float) Facture::where('prestataire_id', $prestataire->id)
+                ->where('statut', 'autorisee_comptable')
+                ->sum(DB::raw('(montant_facture - COALESCE(ticket_moderateur,0))'));
+
+            $montantRembourse = (float) Facture::where('prestataire_id', $prestataire->id)
+                ->where('statut', 'rembourse')
+                ->sum(DB::raw('(montant_facture - COALESCE(ticket_moderateur,0))'));
+
+            // Taux de clôture sinistres
+            $nbClotures = Sinistre::where('prestataire_id', $prestataire->id)->where('statut', 'cloture')->count();
+            $tauxCloture = $totalSinistres > 0 ? round(($nbClotures / $totalSinistres) * 100, 2) : 0;
+
+            // Top 5 assurés par nombre de sinistres
+            $topAssures = Sinistre::where('prestataire_id', $prestataire->id)
+                ->select('assure_id', DB::raw('COUNT(*) as total'))
+                ->groupBy('assure_id')
+                ->orderByDesc('total')
+                ->with('assure:user_id,id,nom,prenoms')
+                ->limit(5)
+                ->get()
+                ->map(function ($row) {
+                    return [
+                        'assure_id' => $row->assure_id,
+                        'nom' => $row->assure->nom ?? null,
+                        'prenoms' => $row->assure->prenoms ?? null,
+                        'total_sinistres' => (int) $row->total,
+                    ];
+                });
+
+            return ApiResponse::success([
+                'assures' => [
+                    'total_assignes' => (int) $assuresCount,
+                ],
+                'sinistres' => [
+                    'total' => (int) $totalSinistres,
+                    'par_statut' => $sinistresParStatut,
+                    'par_mois' => [
+                        'labels' => $moisLabels,
+                        'data' => $moisData,
+                    ],
+                    'taux_cloture' => $tauxCloture,
+                    'top_assures' => $topAssures,
+                ],
+                'factures' => [
+                    'total' => (int) $totalFactures,
+                    'par_statut' => $facturesParStatut,
+                    'montant_total' => $montantTotalFactures,
+                    'ticket_moderateur_total' => $montantTotalTickets,
+                    'montant_autorise' => $montantAutorise,
+                    'montant_rembourse' => $montantRembourse,
+                ],
+            ], 'Statistiques du tableau de bord prestataire');
         } catch (\Exception $e) {
-            DB::rollBack();
-            return ApiResponse::error('Erreur lors de la soumission de la demande d\'adhésion : ' . $e->getMessage(), 500);
+            Log::error('Erreur dashboard prestataire', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+            ]);
+            return ApiResponse::error('Erreur lors de la récupération des statistiques: ' . $e->getMessage(), 500);
         }
     }
 
@@ -197,9 +315,9 @@ class PrestataireController extends Controller
     }
 
 
-    public function getAssure(Request $request)
+    public function getAssure()
     {
-        $user = Auth::user();
+        $user = Auth::user()->load('prestataire');
         $prestataire = $user->prestataire;
 
         if (!$prestataire) {
@@ -211,8 +329,8 @@ class PrestataireController extends Controller
             ->where('statut', 'actif')
             ->with(['clientContrat' => function ($query) {
                 $query->where('statut', 'actif')
-                      ->where('date_debut', '<=', now())
-                      ->where('date_fin', '>=', now());
+                    ->where('date_debut', '<=', now())
+                    ->where('date_fin', '>=', now());
             }])
             ->get()
             ->pluck('clientContrat')
@@ -231,7 +349,7 @@ class PrestataireController extends Controller
         // 3. Construire la requête de base pour les assurés
         $query = Assure::with([
             'assurePrincipal.user',
-            'entreprise.user',
+            'client.user',
             'beneficiaires',
             'user'
         ]);
@@ -241,50 +359,35 @@ class PrestataireController extends Controller
             // Cas 1: Assurés principaux (physiques ou entreprises)
             $q->where(function ($subQ) use ($clientIds) {
                 $subQ->whereIn('user_id', $clientIds)
-                     ->where('est_principal', true)
-                     ->whereHas('user.demandes', function ($demandeQ) {
-                         $demandeQ->whereIn('statut', ['validee', 'acceptee']);
-                     }); 
+                    ->where('est_principal', true)
+                    ->whereHas('user.demandesAdhesions', function ($demandeQ) {
+                        $demandeQ->whereIn('statut', ['validee', 'acceptee']);
+                    });
             })
-            // Cas 2: Bénéficiaires des assurés principaux
-            ->orWhereHas('assurePrincipal', function ($principalQ) use ($clientIds) {
-                $principalQ->whereIn('user_id', $clientIds)
-                           ->where('est_principal', true)
-                           ->whereHas('user.demandes', function ($demandeQ) {
-                               $demandeQ->whereIn('statut', ['validee', 'acceptee']);
-                           });
-            })
-            // Cas 3: Employés d'entreprises assignées
-            ->orWhereHas('entreprise', function ($entrepriseQ) use ($clientIds) {
-                $entrepriseQ->whereIn('user_id', $clientIds)
-                            ->whereHas('user.demandes', function ($demandeQ) {
-                                $demandeQ->whereIn('statut', ['validee', 'acceptee']);
-                            });
-            });
+                // Cas 2: Bénéficiaires des assurés principaux
+                ->orWhereHas('assurePrincipal', function ($principalQ) use ($clientIds) {
+                    $principalQ->whereIn('user_id', $clientIds)
+                        ->where('est_principal', true)
+                        ->whereHas('user.demandesAdhesions', function ($demandeQ) {
+                            $demandeQ->whereIn('statut', ['validee', 'acceptee']);
+                        });
+                })
+                // Cas 3: Employés d'entreprises assignées
+                ->orWhereHas('client', function ($clientQ) use ($clientIds) {
+                    $clientQ->whereIn('user_id', $clientIds)
+                        ->whereHas('user.demandesAdhesions', function ($demandeQ) {
+                            $demandeQ->whereIn('statut', ['validee', 'acceptee']);
+                        });
+                });
         });
 
-        // 5. Filtres de recherche
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->whereRaw('LOWER(nom) LIKE ?', ['%' . strtolower($search) . '%'])
-                    ->orWhereRaw('LOWER(prenoms) LIKE ?', ['%' . strtolower($search) . '%']);
-            });
-        }
-
-        if ($request->filled('sexe')) {
-            $sexe = $request->sexe;
-            $query->where('sexe', $sexe);
-        }
-
         // 6. Pagination
-        $perPage = $request->query('per_page', $request->per_page ?? 10);
-        $assures = $query->orderByDesc('created_at')->paginate($perPage);
+        $assures = $query->orderByDesc('created_at')->get();
 
         // 7. Vérifier les contrats associés et logger
         foreach ($assures as $assure) {
             $contrat = $assure->getContratAssocie();
-        
+
             if ($contrat) {
                 Log::info("TypeContrat trouvé pour {$assure->nom} {$assure->prenoms}: " . $contrat->statut->value);
             } else {
@@ -292,14 +395,6 @@ class PrestataireController extends Controller
             }
         }
 
-        $paginatedData = new LengthAwarePaginator(
-            AssureResource::collection($assures),
-            $assures->total(),
-            $assures->perPage(),
-            $assures->currentPage(),
-            ['path' => Paginator::resolveCurrentPath()]
-        );
-
-        return ApiResponse::success($paginatedData, "Liste des assurés récupérée");
+        return ApiResponse::success(AssureResource::collection($assures), "Liste des assurés récupérée avec succès");
     }
 }

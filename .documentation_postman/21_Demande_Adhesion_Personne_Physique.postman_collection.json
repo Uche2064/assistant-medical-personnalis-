@@ -1,0 +1,941 @@
+{
+	"info": {
+		"_postman_id": "demande-adhesion-physique-2025",
+		"name": "21. Demande Adhésion - Personne Physique",
+		"description": "Collection complète des endpoints API pour la gestion des demandes d'adhésion des personnes physiques.\n\n## 📋 Vue d'ensemble\n\nCette collection permet de :\n- Soumettre une demande d'adhésion avec questionnaire dynamique\n- Ajouter des bénéficiaires\n- Consulter le statut d'une demande\n- Gérer les propositions de contrat\n\n## 🔐 Authentification\n\nTous les endpoints nécessitent :\n- **Api-Key** : Clé API dans les headers\n- **Authorization** : Token JWT Bearer\n\n## 👥 Rôles\n\n- **Client** : Peut soumettre et consulter ses demandes\n- **Technicien** : Traite les demandes de type 'client'\n- **Médecin Contrôleur** : Traite les demandes de type 'prestataire'\n- **Admin Global** : Accès complet\n\n## 📝 Workflow\n\n1. Client vérifie s'il a une demande existante\n2. Si non, il soumet sa demande avec questionnaire et bénéficiaires\n3. Personnel examine la demande\n4. Technicien propose un contrat ou rejette\n5. Client accepte ou refuse la proposition\n\n---\n\n**Version** : 1.0\n**Date** : Octobre 2025\n**Base URL** : {{base_url}}/api/v1",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Client - Vérifier demande existante",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has success property\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('success');",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});",
+							"",
+							"pm.test(\"Response has data with existing property\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data).to.have.property('existing');",
+							"    pm.expect(jsonData.data).to.have.property('can_submit');",
+							"    pm.expect(jsonData.data).to.have.property('status');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Api-Key",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{client_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/demandes-adhesions/has-demande",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"demandes-adhesions",
+						"has-demande"
+					]
+				},
+				"description": "## 🎯 Objectif\n\nPermet à un client de vérifier s'il a déjà soumis une demande d'adhésion.\n\n## 🔐 Authentification\n\n**Rôle requis** : `client`\n\n## 📊 Réponses possibles\n\n### Cas 1 : Aucune demande\n```json\n{\n  \"existing\": false,\n  \"can_submit\": true,\n  \"status\": \"none\"\n}\n```\n\n### Cas 2 : Demande existante\n```json\n{\n  \"existing\": true,\n  \"can_submit\": false,\n  \"status\": \"en_attente\",\n  \"demande\": {...}\n}\n```\n\n### Cas 3 : Demande rejetée\n```json\n{\n  \"existing\": true,\n  \"can_submit\": true,\n  \"status\": \"rejetee\",\n  \"motif_rejet\": \"...\"\n}\n```"
+			},
+			"response": [
+				{
+					"name": "Aucune demande existante",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/demandes-adhesions/has-demande",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"demandes-adhesions",
+								"has-demande"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Aucune demande d'adhésion trouvée\",\n    \"data\": {\n        \"existing\": false,\n        \"demande\": null,\n        \"can_submit\": true,\n        \"status\": \"none\"\n    }\n}"
+				},
+				{
+					"name": "Demande en attente",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/demandes-adhesions/has-demande",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"demandes-adhesions",
+								"has-demande"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Demande d'adhésion récupérée avec succès\",\n    \"data\": {\n        \"existing\": true,\n        \"demande\": {\n            \"id\": 1,\n            \"type_demandeur\": \"client\",\n            \"statut\": \"en_attente\",\n            \"created_at\": \"2025-10-12T10:00:00.000000Z\",\n            \"updated_at\": \"2025-10-12T10:00:00.000000Z\"\n        },\n        \"can_submit\": false,\n        \"status\": \"en_attente\",\n        \"motif_rejet\": null,\n        \"valider_a\": null\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "2. Client - Soumettre demande (Simple)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"pm.test(\"Demande créée avec succès\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"    pm.expect(jsonData.message).to.include('succès');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Api-Key",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{client_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"type_demandeur\": \"client\",\n    \"reponses\": [\n        {\n            \"question_id\": 1,\n            \"reponse\": \"Non\"\n        },\n        {\n            \"question_id\": 2,\n            \"reponse\": 175\n        },\n        {\n            \"question_id\": 3,\n            \"reponse\": 75.5\n        },\n        {\n            \"question_id\": 4,\n            \"reponse\": true\n        },\n        {\n            \"question_id\": 5,\n            \"reponse\": \"2025-01-15\"\n        }\n    ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/demandes-adhesions/client",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"demandes-adhesions",
+						"client"
+					]
+				},
+				"description": "## 🎯 Objectif\n\nSoumettre une demande d'adhésion simple sans bénéficiaires.\n\n## 🔐 Authentification\n\n**Rôle requis** : `client`\n\n## 📝 Corps de la requête\n\n### Type de demandeur\n- `type_demandeur`: `\"client\"` (obligatoire)\n\n### Réponses au questionnaire\nTableau d'objets contenant :\n- `question_id` : ID de la question (integer)\n- `reponse` : Réponse adaptée au type de question\n\n### Types de réponses\n- **text** : string\n- **number** : numeric\n- **boolean** : true/false\n- **date** : \"YYYY-MM-DD\"\n- **radio** : string (option sélectionnée)\n- **file** : fichier (utiliser form-data)\n\n## ⚠️ Règles importantes\n\n1. Un client ne peut avoir qu'une seule demande active\n2. Les questions dépendent du `type_demandeur`\n3. Les réponses obligatoires doivent être fournies\n4. Email de confirmation envoyé automatiquement"
+			},
+			"response": [
+				{
+					"name": "Succès - Demande créée",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"type_demandeur\": \"client\",\n    \"reponses\": [\n        {\n            \"question_id\": 1,\n            \"reponse\": \"Non\"\n        },\n        {\n            \"question_id\": 2,\n            \"reponse\": 175\n        }\n    ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/demandes-adhesions/client",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"demandes-adhesions",
+								"client"
+							]
+						}
+					},
+					"status": "Created",
+					"code": 201,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Demande d'adhésion soumise avec succès.\",\n    \"data\": null\n}"
+				},
+				{
+					"name": "Erreur - Demande en cours",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"type_demandeur\": \"client\",\n    \"reponses\": []\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/demandes-adhesions/client",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"demandes-adhesions",
+								"client"
+							]
+						}
+					},
+					"status": "Bad Request",
+					"code": 400,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"success\": false,\n    \"message\": \"Vous avez déjà une demande d'adhésion en cours de traitement. Veuillez attendre la réponse.\",\n    \"data\": null\n}"
+				}
+			]
+		},
+		{
+			"name": "3. Client - Soumettre demande (Avec bénéficiaires)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"pm.test(\"Demande avec bénéficiaires créée\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Api-Key",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{client_token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "type_demandeur",
+							"value": "client",
+							"type": "text"
+						},
+						{
+							"key": "reponses[0][question_id]",
+							"value": "1",
+							"type": "text"
+						},
+						{
+							"key": "reponses[0][reponse]",
+							"value": "Non",
+							"type": "text"
+						},
+						{
+							"key": "reponses[1][question_id]",
+							"value": "2",
+							"type": "text"
+						},
+						{
+							"key": "reponses[1][reponse]",
+							"value": "175",
+							"type": "text"
+						},
+						{
+							"key": "reponses[2][question_id]",
+							"value": "5",
+							"type": "text",
+							"description": "Question de type FILE"
+						},
+						{
+							"key": "reponses[2][reponse]",
+							"type": "file",
+							"src": "/path/to/document.pdf"
+						},
+						{
+							"key": "beneficiaires[0][nom]",
+							"value": "Doe",
+							"type": "text"
+						},
+						{
+							"key": "beneficiaires[0][prenoms]",
+							"value": "Jane",
+							"type": "text"
+						},
+						{
+							"key": "beneficiaires[0][date_naissance]",
+							"value": "1995-05-15",
+							"type": "text"
+						},
+						{
+							"key": "beneficiaires[0][sexe]",
+							"value": "F",
+							"type": "text"
+						},
+						{
+							"key": "beneficiaires[0][email]",
+							"value": "jane.doe@example.com",
+							"type": "text"
+						},
+						{
+							"key": "beneficiaires[0][contact]",
+							"value": "+237690000000",
+							"type": "text"
+						},
+						{
+							"key": "beneficiaires[0][profession]",
+							"value": "Enseignante",
+							"type": "text"
+						},
+						{
+							"key": "beneficiaires[0][lien_parente]",
+							"value": "conjoint",
+							"type": "text"
+						},
+						{
+							"key": "beneficiaires[0][photo_url]",
+							"type": "file",
+							"src": "/path/to/photo.jpg"
+						},
+						{
+							"key": "beneficiaires[0][reponses][0][question_id]",
+							"value": "1",
+							"type": "text"
+						},
+						{
+							"key": "beneficiaires[0][reponses][0][reponse]",
+							"value": "Non",
+							"type": "text"
+						},
+						{
+							"key": "beneficiaires[0][reponses][1][question_id]",
+							"value": "2",
+							"type": "text"
+						},
+						{
+							"key": "beneficiaires[0][reponses][1][reponse]",
+							"value": "165",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/demandes-adhesions/client",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"demandes-adhesions",
+						"client"
+					]
+				},
+				"description": "## 🎯 Objectif\n\nSoumettre une demande d'adhésion complète avec bénéficiaires et fichiers.\n\n## 📤 Format de la requête\n\n**Content-Type** : `multipart/form-data`\n\n⚠️ **Important** : Utiliser `form-data` car des fichiers sont inclus\n\n## 👨‍👩‍👧‍👦 Bénéficiaires\n\nChaque bénéficiaire doit contenir :\n\n### Champs obligatoires\n- `nom` : Nom du bénéficiaire\n- `date_naissance` : Date (YYYY-MM-DD)\n- `sexe` : \"M\" ou \"F\"\n- `lien_parente` : conjoint | enfant | parent | autre\n- `photo_url` : Fichier image (JPG, PNG, max 5Mo)\n- `reponses` : Tableau de réponses au questionnaire\n\n### Champs optionnels\n- `prenoms` : Prénoms\n- `email` : Email valide\n- `contact` : Téléphone\n- `profession` : Profession\n\n## 📁 Fichiers\n\n### Limites\n- **Photos bénéficiaires** : 5 Mo max\n- **Documents (réponses)** : 2 Mo max\n\n### Formats acceptés\n- **Images** : JPEG, PNG, JPG\n- **Documents** : PDF, JPEG, PNG, JPG"
+			},
+			"response": []
+		},
+		{
+			"name": "4. Personnel - Lister toutes les demandes",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response is an array\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data).to.be.an('array');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Api-Key",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{technicien_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/demandes-adhesions",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"demandes-adhesions"
+					]
+				},
+				"description": "## 🎯 Objectif\n\nRécupérer la liste de toutes les demandes d'adhésion.\n\n## 🔐 Authentification\n\n**Rôles requis** : \n- `technicien` (voir uniquement type \"client\")\n- `medecin_controleur` (voir uniquement type \"prestataire\")\n- `admin_global` (voir tout)\n- `gestionnaire`\n- `commercial`\n\n## 🔍 Filtrage automatique\n\nLe système filtre automatiquement selon le rôle :\n- **Technicien** → Demandes de type `client` uniquement\n- **Médecin contrôleur** → Demandes de type `prestataire` uniquement\n- **Admin/Gestionnaire/Commercial** → Toutes les demandes\n\n## 📊 Données retournées\n\nPour chaque demande :\n- Informations de base (ID, type, statut)\n- Utilisateur associé\n- Propositions de contrat\n- Réponses au questionnaire\n- Bénéficiaires (si applicable)"
+			},
+			"response": [
+				{
+					"name": "Liste des demandes",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/demandes-adhesions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"demandes-adhesions"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Liste des demandes d'adhésion récupérée avec succès\",\n    \"data\": [\n        {\n            \"id\": 1,\n            \"type_demandeur\": \"client\",\n            \"statut\": \"en_attente\",\n            \"created_at\": \"2025-10-12T10:00:00.000000Z\",\n            \"updated_at\": \"2025-10-12T10:00:00.000000Z\",\n            \"user\": {\n                \"id\": 5,\n                \"email\": \"client@example.com\",\n                \"contact\": \"+237690000000\"\n            },\n            \"propositions_contrat\": []\n        },\n        {\n            \"id\": 2,\n            \"type_demandeur\": \"client\",\n            \"statut\": \"proposee\",\n            \"created_at\": \"2025-10-11T14:30:00.000000Z\",\n            \"updated_at\": \"2025-10-12T09:15:00.000000Z\",\n            \"user\": {\n                \"id\": 7,\n                \"email\": \"autre.client@example.com\",\n                \"contact\": \"+237691111111\"\n            },\n            \"propositions_contrat\": [\n                {\n                    \"id\": 1,\n                    \"contrat_id\": 3,\n                    \"statut\": \"proposee\"\n                }\n            ]\n        }\n    ]\n}"
+				}
+			]
+		},
+		{
+			"name": "5. Personnel - Détails d'une demande",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has demandeur\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data).to.have.property('demandeur');",
+							"});",
+							"",
+							"pm.test(\"Response has questionnaire\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data).to.have.property('reponses_questionnaire');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Api-Key",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{technicien_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/demandes-adhesions/:demande_id",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"demandes-adhesions",
+						":demande_id"
+					],
+					"variable": [
+						{
+							"key": "demande_id",
+							"value": "1",
+							"description": "ID de la demande d'adhésion"
+						}
+					]
+				},
+				"description": "## 🎯 Objectif\n\nRécupérer tous les détails d'une demande d'adhésion spécifique.\n\n## 🔐 Authentification\n\n**Rôles requis** : \n- `technicien` (demandes type \"client\" uniquement)\n- `medecin_controleur` (demandes type \"prestataire\" uniquement)\n\n## 📊 Données incluses\n\n### Pour une personne physique (client)\n- **Demandeur** : Informations personnelles complètes\n- **Questionnaire** : Toutes les réponses\n- **Bénéficiaires** : Liste avec leurs réponses\n- **Statistiques** :\n  - Nombre de bénéficiaires\n  - Répartition par sexe\n  - Répartition par âge\n- **Contrat proposé** : Si applicable\n- **Validation** : Infos sur qui a validé/rejeté\n\n## 🚫 Restrictions\n\n- Technicien ne peut voir que les demandes \"client\"\n- Médecin contrôleur ne peut voir que les demandes \"prestataire\"\n- 403 si tentative d'accès non autorisé"
+			},
+			"response": [
+				{
+					"name": "Détails demande client",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/demandes-adhesions/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"demandes-adhesions",
+								"1"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Détails de la demande d'adhésion\",\n    \"data\": {\n        \"id\": 1,\n        \"type_demandeur\": \"client\",\n        \"statut\": \"en_attente\",\n        \"created_at\": \"2025-10-12T10:00:00.000000Z\",\n        \"updated_at\": \"2025-10-12T10:00:00.000000Z\",\n        \"motif_rejet\": null,\n        \"valide_par\": null,\n        \"valider_a\": null,\n        \"demandeur\": {\n            \"nom\": \"Dupont\",\n            \"prenoms\": \"Jean\",\n            \"date_naissance\": \"1990-01-15\",\n            \"sexe\": \"M\",\n            \"profession\": \"Ingénieur\",\n            \"contact\": \"+237690000000\",\n            \"email\": \"jean.dupont@example.com\",\n            \"photo\": \"https://example.com/storage/users/photo.jpg\",\n            \"adresse\": \"Yaoundé, Cameroun\"\n        },\n        \"contrat_propose\": null,\n        \"reponses_questionnaire\": [\n            {\n                \"question_id\": 1,\n                \"question\": \"Avez-vous des antécédents médicaux ?\",\n                \"type_donnee\": \"boolean\",\n                \"reponse\": true\n            },\n            {\n                \"question_id\": 2,\n                \"question\": \"Quelle est votre taille (en cm) ?\",\n                \"type_donnee\": \"number\",\n                \"reponse\": 175\n            }\n        ],\n        \"statistiques\": {\n            \"nombre_beneficiaires\": 2,\n            \"repartition_par_sexe\": {\n                \"M\": 1,\n                \"F\": 1\n            },\n            \"repartition_par_age\": {\n                \"0-18\": 1,\n                \"19-35\": 0,\n                \"36-60\": 1,\n                \"60+\": 0\n            }\n        }\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "6. Client - Accepter proposition contrat",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Contrat accepté\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data).to.have.property('contrat_id');",
+							"    pm.expect(jsonData.message).to.include('succès');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Api-Key",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{client_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/client/contrats-proposes/:proposition_id/accepter",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"client",
+						"contrats-proposes",
+						":proposition_id",
+						"accepter"
+					],
+					"variable": [
+						{
+							"key": "proposition_id",
+							"value": "1",
+							"description": "ID de la proposition de contrat"
+						}
+					]
+				},
+				"description": "## 🎯 Objectif\n\nPermet à un client d'accepter une proposition de contrat qui lui a été faite.\n\n## 🔐 Authentification\n\n**Rôles requis** : `client`, `entreprise`\n\n## ⚙️ Processus automatique\n\n1. Création d'un `ClientContrat` (contrat actif)\n2. Mise à jour de la proposition → statut `acceptee`\n3. Mise à jour de la demande → statut `acceptee`\n4. Génération du numéro de police\n5. Mise à jour du solde client\n6. Notifications envoyées :\n   - Au client (confirmation)\n   - Au technicien (info)\n\n## 📅 Dates\n\n- **Date début** : Date actuelle\n- **Date fin** : +1 an\n- **Statut** : `actif`\n\n## ⚠️ Conditions\n\n- La proposition doit être au statut `proposee`\n- Le client doit être propriétaire de la demande\n- Une seule acceptation possible"
+			},
+			"response": [
+				{
+					"name": "Succès - Contrat accepté",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/client/contrats-proposes/1/accepter",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"client",
+								"contrats-proposes",
+								"1",
+								"accepter"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Contrat accepté avec succès\",\n    \"data\": {\n        \"contrat_id\": 15,\n        \"message\": \"Contrat accepté avec succès\"\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "7. Personnel - Rejeter une demande",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Demande rejetée\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data.statut).to.equal('rejetee');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Api-Key",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{technicien_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"motif_rejet\": \"Documents médicaux incomplets. Veuillez fournir les résultats d'analyses suivants : glycémie, tension artérielle, et certificat médical récent.\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/demandes-adhesions/:demande_id/rejeter",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"demandes-adhesions",
+						":demande_id",
+						"rejeter"
+					],
+					"variable": [
+						{
+							"key": "demande_id",
+							"value": "1",
+							"description": "ID de la demande à rejeter"
+						}
+					]
+				},
+				"description": "## 🎯 Objectif\n\nPermet au personnel de rejeter une demande d'adhésion avec un motif.\n\n## 🔐 Authentification\n\n**Rôles requis** : `technicien`, `medecin_controleur`\n\n## 📝 Corps de la requête\n\n### Paramètre requis\n- `motif_rejet` : string (minimum 10 caractères)\n\n### Exemple de motifs\n- Documents incomplets\n- Informations non conformes\n- Critères d'éligibilité non remplis\n- Dossier médical présentant des risques\n\n## ⚙️ Processus automatique\n\n1. Vérification du statut (doit être `en_attente`)\n2. Mise à jour du statut → `rejetee`\n3. Enregistrement du motif\n4. Enregistrement de qui a rejeté\n5. Notification au client :\n   - Notification in-app\n   - Email avec le motif\n6. Client peut resoumettre une nouvelle demande\n\n## ⚠️ Conditions\n\n- Seules les demandes `en_attente` peuvent être rejetées\n- Le motif doit être clair et détaillé\n- Action irréversible"
+			},
+			"response": [
+				{
+					"name": "Succès - Demande rejetée",
+					"originalRequest": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"motif_rejet\": \"Documents médicaux incomplets.\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/demandes-adhesions/1/rejeter",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"demandes-adhesions",
+								"1",
+								"rejeter"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Demande d'adhésion rejetée avec succès\",\n    \"data\": {\n        \"demande_id\": 1,\n        \"statut\": \"rejetee\",\n        \"rejetee_par\": \"Dr. Martin Dupont\"\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "8. Télécharger document demande",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Api-Key",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/download/demande-adhesion/:demande_id",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"download",
+						"demande-adhesion",
+						":demande_id"
+					],
+					"variable": [
+						{
+							"key": "demande_id",
+							"value": "1",
+							"description": "ID de la demande"
+						}
+					]
+				},
+				"description": "## 🎯 Objectif\n\nTélécharger un PDF récapitulatif de la demande d'adhésion.\n\n## 🔐 Authentification\n\n**Authentification requise** : Oui\n\n## 📄 Contenu du PDF\n\n- Informations du demandeur\n- Réponses au questionnaire\n- Liste des bénéficiaires (si applicable)\n- Statut de la demande\n- Propositions de contrat\n- Historique de validation\n\n## 📥 Format\n\n- **Type** : application/pdf\n- **Nom** : demande_adhesion_{id}.pdf"
+			},
+			"response": []
+		},
+		{
+			"name": "9. Client - Mes contrats proposés",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Api-Key",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{client_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/client/contrats-proposes",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"client",
+						"contrats-proposes"
+					]
+				},
+				"description": "## 🎯 Objectif\n\nRécupérer la liste des propositions de contrat pour le client connecté.\n\n## 🔐 Authentification\n\n**Rôles requis** : `client`, `entreprise`\n\n## 📊 Données retournées\n\nPour chaque proposition :\n- ID de la proposition\n- Détails du contrat proposé\n- Garanties incluses\n- Prime totale\n- Statut de la proposition\n- Date de proposition\n- Technicien ayant fait la proposition"
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Script global avant chaque requête",
+					"console.log('🚀 Exécution de la requête:', pm.info.requestName);"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Tests globaux pour toutes les requêtes",
+					"pm.test(\"Response time is less than 5000ms\", function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(5000);",
+					"});",
+					"",
+					"pm.test(\"Response has success property\", function () {",
+					"    var jsonData = pm.response.json();",
+					"    pm.expect(jsonData).to.have.property('success');",
+					"});",
+					"",
+					"pm.test(\"Response has message property\", function () {",
+					"    var jsonData = pm.response.json();",
+					"    pm.expect(jsonData).to.have.property('message');",
+					"});"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "api_key",
+			"value": "your_api_key_here",
+			"type": "string"
+		},
+		{
+			"key": "client_token",
+			"value": "your_client_jwt_token_here",
+			"type": "string"
+		},
+		{
+			"key": "technicien_token",
+			"value": "your_technicien_jwt_token_here",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "your_jwt_token_here",
+			"type": "string"
+		}
+	]
+}
+

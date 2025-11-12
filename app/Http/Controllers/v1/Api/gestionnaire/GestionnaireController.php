@@ -77,7 +77,7 @@ class GestionnaireController extends Controller
             $user = User::create([
                 'email' => $validated['email'],
                 'contact' => $validated['contact'] ?? null,
-                'adresse' => $validated['adresse'],
+                'adresse' => $validated['adresse'] ?? null,
                 'photo_url' => $photoUrl,
                 'mot_de_passe_a_changer' => true,
                 'est_actif' => false,
@@ -96,29 +96,31 @@ class GestionnaireController extends Controller
                 'prenoms' => $validated['prenoms'] ?? null,
                 'sexe' => $validated['sexe'] ?? null,
                 'date_naissance' => $validated['date_naissance'] ?? null,
-                'gestionnaire_id' => Auth::user()->id,
+                'gestionnaire_id' => Auth::user()->personnel->id,
             ];
 
             // Générer un code de parrainage pour les commerciaux
             if ($validated['role'] === RoleEnum::COMMERCIAL->value) {
-                $personnelData['code_parainage'] = Personnel::genererCodeParainage();
+                $userData['code_parrainage'] = Personnel::genererCodeParainage();
             }
 
             $personnel = Personnel::create($personnelData);
 
             // Envoyer les identifiants par email
             dispatch(new SendCredentialsJob($user, $password));
-            
+
             Log::info("Personnel créé - Email: {$user->email}, Mot de passe: {$password}");
 
             DB::commit();
 
-            return ApiResponse::success(null , RoleEnum::getLabel($validated['role']).' créé avec succès. Les identifiants ont été envoyés par email.', 201);
+            return ApiResponse::success([
+                'personnel' => new UserResource($user->load(['roles', 'personnel', 'personne']))
+            ], RoleEnum::getLabel($validated['role']).' créé avec succès. Les identifiants ont été envoyés par email.', 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Erreur lors de la création du personnel: ' . $e->getMessage());
-            return ApiResponse::error('Erreur lors de la création du personnel', 500);
+            return ApiResponse::error('Erreur lors de la création du personnel', 500, $e->getMessage());
         }
     }
 
@@ -139,7 +141,7 @@ class GestionnaireController extends Controller
         }
 
         return ApiResponse::success(
-            new UserResource($personnel->user), 
+            new UserResource($personnel->user),
             'Détails du personnel'
         );
     }
@@ -149,6 +151,7 @@ class GestionnaireController extends Controller
      */
     public function togglePersonnelStatus($id)
     {
+        Log::info("Suspendre/désactiver un personnel - ID: {$id}");
         $currentGestionnaire = Auth::user();
         $personnel = Personnel::with(['user', 'user.roles'])
         ->where('id', '!=', $currentGestionnaire->personnel->id)
@@ -190,7 +193,7 @@ class GestionnaireController extends Controller
         try {
             // Supprimer le personnel (cascade vers user)
             $personnel->delete();
-            
+
             Log::info("Personnel supprimé - ID: {$personnel->id}, Email: {$personnel->user->email}");
 
             DB::commit();
@@ -205,56 +208,236 @@ class GestionnaireController extends Controller
     }
 
     /**
-     * Statistiques des personnels gérés par le gestionnaire
+     * Statistiques complètes des personnels gérés par le gestionnaire
      */
     public function personnelStats()
     {
-        $currentGestionnaire = Auth::user();
+        try {
+            $currentGestionnaire = Auth::user();
 
-        $stats = [
-            'total' => Personnel::with(['user', 'user.roles'])
-            ->where('id', '!=', $currentGestionnaire->personnel->id)
-            ->whereNotNull('gestionnaire_id')
-            ->count(),
-            
-            'actifs' => Personnel::with(['user', 'user.roles'])
-            ->where('id', '!=', $currentGestionnaire->personnel->id)
-            ->whereNotNull('gestionnaire_id')
-            ->whereHas('user', function ($q) {
-                $q->where('est_actif', true);
-            })->count(),
-            
-            'inactifs' => Personnel::with(['user', 'user.roles'])
-            ->where('id', '!=', $currentGestionnaire->personnel->id)
-            ->whereNotNull('gestionnaire_id')
-            ->whereHas('user', function ($q) {
-                $q->where('est_actif', false);
-            })->count(),
-            
-            'repartition_par_role' => Personnel::with(['user', 'user.roles'])
+            // Vue d'ensemble
+            $vueEnsemble = $this->getVueEnsemblePersonnels($currentGestionnaire);
+
+            // Répartitions
+            $repartitions = $this->getRepartitionsPersonnels($currentGestionnaire);
+
+            // Évolution mensuelle
+            $evolutionMensuelle = $this->getEvolutionMensuellePersonnels($currentGestionnaire);
+
+            // Derniers personnels créés
+            $derniersPersonnels = $this->getDerniersPersonnels($currentGestionnaire);
+
+            // Top 5 par rôle
+            $topParRole = $this->getTopPersonnelsParRole($currentGestionnaire);
+
+            return ApiResponse::success([
+                'vue_ensemble' => $vueEnsemble,
+                'repartitions' => $repartitions,
+                'evolution_mensuelle' => $evolutionMensuelle,
+                'derniers_personnels' => $derniersPersonnels,
+                'top_par_role' => $topParRole
+            ], 'Statistiques des personnels récupérées avec succès');
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des statistiques: ' . $e->getMessage());
+            return ApiResponse::error('Erreur lors de la récupération des statistiques', 500, $e->getMessage());
+        }
+    }
+
+    /**
+     * Vue d'ensemble des statistiques clés
+     */
+    private function getVueEnsemblePersonnels($currentGestionnaire)
+    {
+        $baseQuery = Personnel::where('id', '!=', $currentGestionnaire->personnel->id)
+            ->whereNotNull('gestionnaire_id');
+
+        $total = $baseQuery->clone()->count();
+        $actifs = $baseQuery->clone()->whereHas('user', function ($q) {
+            $q->where('est_actif', true);
+        })->count();
+        $inactifs = $baseQuery->clone()->whereHas('user', function ($q) {
+            $q->where('est_actif', false);
+        })->count();
+
+        return [
+            'total' => $total,
+            'actifs' => $actifs,
+            'inactifs' => $inactifs,
+            'taux_activation' => $total > 0 ? round(($actifs / $total) * 100, 2) : 0,
+            'nouveaux_ce_mois' => $baseQuery->clone()
+                ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
+                ->count()
+        ];
+    }
+
+    /**
+     * Répartitions par rôle et sexe
+     */
+    private function getRepartitionsPersonnels($currentGestionnaire)
+    {
+        $personnels = Personnel::with(['user.roles', 'user.personne'])
             ->where('id', '!=', $currentGestionnaire->personnel->id)
             ->whereNotNull('gestionnaire_id')
             ->whereHas('user.roles')
-            ->get()
-                ->groupBy(function ($personnel) {
-                    return $personnel->user->roles->first()->name ?? 'Aucun rôle';
-                })
-                ->map(function ($group) {
-                    return $group->count();
-                }),
-            
-            'repartition_par_sexe' => Personnel::with(['user', 'user.roles'])
+            ->get();
+
+        $total = $personnels->count();
+
+        // Répartition par rôle
+        $parRole = $personnels->groupBy(function ($personnel) {
+            return $personnel->user->roles->first()->name ?? 'Aucun rôle';
+        })->map(function ($group) use ($total) {
+            $count = $group->count();
+            return [
+                'count' => $count,
+                'pourcentage' => $total > 0 ? round(($count / $total) * 100, 2) : 0,
+                'actifs' => $group->filter(function ($p) {
+                    return $p->user->est_actif;
+                })->count(),
+                'inactifs' => $group->filter(function ($p) {
+                    return !$p->user->est_actif;
+                })->count()
+            ];
+        });
+
+        // Répartition par sexe
+        $parSexe = $personnels->groupBy(function ($personnel) {
+            return optional($personnel->user->personne)->sexe ?? 'Non spécifié';
+        })->map(function ($group) use ($total) {
+            $count = $group->count();
+            return [
+                'count' => $count,
+                'pourcentage' => $total > 0 ? round(($count / $total) * 100, 2) : 0
+            ];
+        });
+
+        return [
+            'par_role' => $parRole,
+            'par_sexe' => $parSexe
+        ];
+    }
+
+    /**
+     * Évolution mensuelle des créations (12 derniers mois)
+     */
+    private function getEvolutionMensuellePersonnels($currentGestionnaire)
+    {
+        $evolution = [];
+        $maintenant = now();
+
+        for ($i = 11; $i >= 0; $i--) {
+            $date = $maintenant->copy()->subMonths($i);
+            $moisDebut = $date->copy()->startOfMonth();
+            $moisFin = $date->copy()->endOfMonth();
+
+            $personnelsCeMois = Personnel::where('id', '!=', $currentGestionnaire->personnel->id)
+                ->whereNotNull('gestionnaire_id')
+                ->whereBetween('created_at', [$moisDebut, $moisFin])
+                ->with(['user.roles'])
+                ->get();
+
+            $total = $personnelsCeMois->count();
+            $actifs = $personnelsCeMois->filter(function ($p) {
+                return $p->user->est_actif;
+            })->count();
+
+            // Répartition par rôle pour ce mois
+            $parRole = $personnelsCeMois->groupBy(function ($personnel) {
+                return $personnel->user->roles->first()->name ?? 'Aucun rôle';
+            })->map(function ($group) {
+                return $group->count();
+            });
+
+            $evolution[] = [
+                'mois' => $date->format('Y-m'),
+                'mois_nom' => $date->format('M Y'),
+                'mois_complet' => $date->format('F Y'),
+                'total' => $total,
+                'actifs' => $actifs,
+                'inactifs' => $total - $actifs,
+                'par_role' => $parRole
+            ];
+        }
+
+        return $evolution;
+    }
+
+    /**
+     * Derniers personnels créés (10 derniers)
+     */
+    private function getDerniersPersonnels($currentGestionnaire)
+    {
+        return Personnel::with(['user.roles', 'user.personne'])
             ->where('id', '!=', $currentGestionnaire->personnel->id)
             ->whereNotNull('gestionnaire_id')
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
             ->get()
-                ->groupBy(function ($personnel) {
-                    return optional($personnel->user->personne)->sexe ?? 'Non spécifié';
-                })
-                ->map(function ($group) {
-                    return $group->count();
-                }),
+            ->map(function ($personnel) {
+                return [
+                    'id' => $personnel->id,
+                    'nom_complet' => $personnel->nom . ' ' . ($personnel->prenoms ?? ''),
+                    'email' => $personnel->user->email,
+                    'role' => $personnel->user->roles->first()->name ?? 'Aucun rôle',
+                    'role_label' => RoleEnum::getLabel($personnel->user->roles->first()->name ?? ''),
+                    'sexe' => optional($personnel->user->personne)->sexe,
+                    'est_actif' => $personnel->user->est_actif,
+                    'date_creation' => $personnel->created_at->format('Y-m-d H:i:s'),
+                    'date_creation_formatee' => $personnel->created_at->format('d/m/Y à H:i'),
+                    'anciennete_jours' => now()->diffInDays($personnel->created_at)
+                ];
+            });
+    }
+
+    /**
+     * Top 5 personnels par rôle (les plus anciens et actifs)
+     */
+    private function getTopPersonnelsParRole($currentGestionnaire)
+    {
+        $roles = [
+            RoleEnum::COMMERCIAL->value,
+            RoleEnum::TECHNICIEN->value,
+            RoleEnum::MEDECIN_CONTROLEUR->value,
+            RoleEnum::COMPTABLE->value
         ];
 
-        return ApiResponse::success($stats, 'Statistiques des personnels récupérées avec succès');
+        $topParRole = [];
+
+        foreach ($roles as $role) {
+            $personnels = Personnel::with(['user.roles', 'user.personne'])
+                ->where('id', '!=', $currentGestionnaire->personnel->id)
+                ->whereNotNull('gestionnaire_id')
+                ->whereHas('user', function ($q) {
+                    $q->where('est_actif', true);
+                })
+                ->whereHas('user.roles', function ($q) use ($role) {
+                    $q->where('name', $role);
+                })
+                ->orderBy('created_at', 'asc')
+                ->limit(5)
+                ->get()
+                ->map(function ($personnel, $index) {
+                    return [
+                        'position' => $index + 1,
+                        'id' => $personnel->id,
+                        'nom_complet' => $personnel->nom . ' ' . ($personnel->prenoms ?? ''),
+                        'email' => $personnel->user->email,
+                        'sexe' => optional($personnel->user->personne)->sexe,
+                        'date_creation' => $personnel->created_at->format('Y-m-d H:i:s'),
+                        'date_creation_formatee' => $personnel->created_at->format('d/m/Y à H:i'),
+                        'anciennete_jours' => now()->diffInDays($personnel->created_at),
+                        'anciennete_formatee' => now()->diffForHumans($personnel->created_at)
+                    ];
+                });
+
+            if ($personnels->isNotEmpty()) {
+                $topParRole[$role] = [
+                    'role_label' => RoleEnum::getLabel($role),
+                    'personnels' => $personnels
+                ];
+            }
+        }
+
+        return $topParRole;
     }
 }
