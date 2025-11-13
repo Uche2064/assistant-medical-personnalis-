@@ -247,6 +247,7 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::get('/dashboard', [PrestataireController::class, 'dashboard']);
 
         Route::get('/assures', [PrestataireController::class, 'getAssure']);
+        Route::get('/assures/search', [PrestataireController::class, 'searchAssure']);
 
         // Routes pour la gestion des sinistres
         Route::prefix('sinistres')->group(function () {

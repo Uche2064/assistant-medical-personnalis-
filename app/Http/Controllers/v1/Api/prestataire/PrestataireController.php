@@ -113,8 +113,8 @@ class PrestataireController extends Controller
             $end = now()->endOfMonth();
             $sinistresParMois = Sinistre::where('prestataire_id', $prestataire->id)
                 ->whereBetween('created_at', [$start, $end])
-                ->select(DB::raw("DATE_FORMAT(created_at, '%Y-%m') as mois"), DB::raw('COUNT(*) as total'))
-                ->groupBy('mois')
+                ->select(DB::raw("TO_CHAR(created_at, 'YYYY-MM') as mois"), DB::raw('COUNT(*) as total'))
+                ->groupBy(DB::raw("TO_CHAR(created_at, 'YYYY-MM')"))
                 ->orderBy('mois')
                 ->pluck('total', 'mois');
 
@@ -396,5 +396,102 @@ class PrestataireController extends Controller
         }
 
         return ApiResponse::success(AssureResource::collection($assures), "Liste des assurés récupérée avec succès");
+    }
+
+    /**
+     * Rechercher un assuré assigné au prestataire
+     */
+    public function searchAssure(Request $request)
+    {
+        try {
+            $user = Auth::user()->load('prestataire');
+            $prestataire = $user->prestataire;
+
+            if (!$prestataire) {
+                return ApiResponse::error('Prestataire non trouvé', 404);
+            }
+
+            // Validation du paramètre de recherche
+            $request->validate([
+                'search' => 'required|string|min:2',
+            ]);
+
+            $searchTerm = $request->input('search');
+
+            // 1. Récupérer les client_contrats assignés à ce prestataire
+            $clientContratsAssignes = ClientPrestataire::where('prestataire_id', $prestataire->id)
+                ->where('statut', 'actif')
+                ->with(['clientContrat' => function ($query) {
+                    $query->where('statut', 'actif')
+                        ->where('date_debut', '<=', now())
+                        ->where('date_fin', '>=', now());
+                }])
+                ->get()
+                ->pluck('clientContrat')
+                ->filter()
+                ->pluck('id')
+                ->toArray();
+
+            // 2. Récupérer les IDs des clients et contrats
+            $clientContrats = ClientContrat::whereIn('id', $clientContratsAssignes)->get();
+            $clientIds = $clientContrats->pluck('user_id')->toArray();
+
+            // 3. Construire la requête de base pour les assurés avec recherche
+            $query = Assure::with([
+                'assurePrincipal.user',
+                'client.user',
+                'beneficiaires',
+                'user'
+            ]);
+
+            // 4. Filtrer par demande d'adhésion acceptée et contrat actif
+            $query->where(function ($q) use ($clientIds) {
+                // Cas 1: Assurés principaux (physiques ou entreprises)
+                $q->where(function ($subQ) use ($clientIds) {
+                    $subQ->whereIn('user_id', $clientIds)
+                        ->where('est_principal', true)
+                        ->whereHas('user.demandesAdhesions', function ($demandeQ) {
+                            $demandeQ->whereIn('statut', ['validee', 'acceptee']);
+                        });
+                })
+                    // Cas 2: Bénéficiaires des assurés principaux
+                    ->orWhereHas('assurePrincipal', function ($principalQ) use ($clientIds) {
+                        $principalQ->whereIn('user_id', $clientIds)
+                            ->where('est_principal', true)
+                            ->whereHas('user.demandesAdhesions', function ($demandeQ) {
+                                $demandeQ->whereIn('statut', ['validee', 'acceptee']);
+                            });
+                    })
+                    // Cas 3: Employés d'entreprises assignées
+                    ->orWhereHas('client', function ($clientQ) use ($clientIds) {
+                        $clientQ->whereIn('user_id', $clientIds)
+                            ->whereHas('user.demandesAdhesions', function ($demandeQ) {
+                                $demandeQ->whereIn('statut', ['validee', 'acceptee']);
+                            });
+                    });
+            });
+
+            // 5. Appliquer la recherche
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('nom', 'ilike', "%{$searchTerm}%")
+                    ->orWhere('prenoms', 'ilike', "%{$searchTerm}%")
+                    ->orWhere('numero_assure', 'ilike', "%{$searchTerm}%")
+                    ->orWhere('telephone', 'ilike', "%{$searchTerm}%")
+                    ->orWhere('email', 'ilike', "%{$searchTerm}%");
+            });
+
+            // 6. Récupérer les résultats
+            $assures = $query->orderByDesc('created_at')->get();
+
+            return ApiResponse::success(AssureResource::collection($assures), "Résultats de recherche récupérés avec succès");
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la recherche d\'assuré', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'search' => $request->input('search'),
+            ]);
+
+            return ApiResponse::error('Erreur lors de la recherche: ' . $e->getMessage(), 500);
+        }
     }
 }
