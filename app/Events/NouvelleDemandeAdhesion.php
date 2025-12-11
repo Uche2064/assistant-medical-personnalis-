@@ -10,6 +10,8 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Broadcasting\BroadcastException;
+use Illuminate\Support\Facades\Log;
 
 class NouvelleDemandeAdhesion implements ShouldBroadcast
 {
@@ -26,10 +28,10 @@ class NouvelleDemandeAdhesion implements ShouldBroadcast
 
     public function broadcastOn()
     {
-        $channelName = $this->demande->type_demandeur === 'entreprise' || $this->demande->type_demandeur === 'client' 
-            ? 'techniciens' 
+        $channelName = $this->demande->type_demandeur === 'entreprise' || $this->demande->type_demandeur === 'client'
+            ? 'techniciens'
             : 'medecins_controleurs';
-            
+
         return new PrivateChannel($channelName);
     }
 
@@ -50,5 +52,14 @@ class NouvelleDemandeAdhesion implements ShouldBroadcast
             ],
             'notification' => $this->notification
         ];
+    }
+
+    /**
+     * Gérer les erreurs de broadcasting
+     */
+    public function broadcastFailed(\Exception $exception): void
+    {
+        // Logger l'erreur mais ne pas interrompre l'application
+        Log::warning('Erreur de broadcasting pour NouvelleDemandeAdhesion (non bloquante): ' . $exception->getMessage());
     }
 }

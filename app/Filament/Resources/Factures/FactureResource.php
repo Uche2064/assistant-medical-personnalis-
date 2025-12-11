@@ -37,6 +37,33 @@ class FactureResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
+    public static function getNavigationBadge(): ?string
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return null;
+        }
+
+        // Compter les notifications non lues liées aux factures
+        // Le champ data est casté en array, donc on peut utiliser where avec un callback
+        $unreadCount = \App\Models\Notification::where('user_id', $user->id)
+            ->where('est_lu', false)
+            ->get()
+            ->filter(function ($notification) {
+                $data = $notification->data ?? [];
+                $typeNotification = $data['type_notification'] ?? null;
+                return $typeNotification && str_contains($typeNotification, 'facture');
+            })
+            ->count();
+
+        return $unreadCount > 0 ? (string) $unreadCount : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'danger';
+    }
+
     public static function shouldRegisterNavigation(): bool
     {
         $user = Auth::user();

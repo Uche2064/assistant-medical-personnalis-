@@ -150,16 +150,15 @@ class CommercialController extends Controller
             // Créer l'entité selon le type de client
             $client = null;
             if ($validated['type_client'] === ClientTypeEnum::PHYSIQUE->value) {
-                $client = $this->authService->createClientPhysique($user, $validated);
+                $client = $this->authService->createClientPhysique($user, $validated, $currentParrainageCode->code_parrainage);
             } else {
-                $client = $this->authService->createClientMoral($user, $validated);
+                $client = $this->authService->createClientMoral($user, $validated, $currentParrainageCode->code_parrainage);
             }
 
-            // Mettre à jour le client avec commercial_id et code_parrainage
+            // Mettre à jour le client avec commercial_id
             if ($client) {
                 $client->update([
                     'commercial_id' => $commercial->id,
-                    'code_parrainage' => $currentParrainageCode->code_parrainage,
                 ]);
             }
 
@@ -180,6 +179,11 @@ class CommercialController extends Controller
 
             // Notifier les techniciens d'un nouveau compte créé par commercial
             $this->notificationService->notifyTechniciensNouveauCompte($user, 'client');
+
+            // Notifier le commercial qu'un nouveau client s'est inscrit avec son code de parrainage
+            if ($client && $client->commercial_id) {
+                $this->notificationService->notifyCommercialNouveauClient($client, $commercial);
+            }
 
             DB::commit();
 

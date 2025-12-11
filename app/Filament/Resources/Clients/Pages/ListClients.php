@@ -21,6 +21,27 @@ class ListClients extends ListRecords
         ];
     }
 
+    public function mount(): void
+    {
+        parent::mount();
+
+        // Marquer les notifications liées aux nouveaux clients comme lues quand on accède à la page
+        $user = Filament::auth()->user() ?? Auth::user();
+        if ($user && $user->hasRole(RoleEnum::COMMERCIAL->value)) {
+            \App\Models\Notification::where('user_id', $user->id)
+                ->where('est_lu', false)
+                ->get()
+                ->filter(function ($notification) {
+                    $data = $notification->data ?? [];
+                    $typeNotification = $data['type_notification'] ?? null;
+                    return $typeNotification === 'nouveau_client_parraine';
+                })
+                ->each(function ($notification) {
+                    $notification->markAsRead();
+                });
+        }
+    }
+
     protected function getTableQuery(): Builder
     {
         $query = parent::getTableQuery();

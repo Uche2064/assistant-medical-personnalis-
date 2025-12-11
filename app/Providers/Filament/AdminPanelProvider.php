@@ -31,6 +31,7 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
  */
 class AdminPanelProvider extends PanelProvider
 {
+
     /**
      * Configure le panel d'administration
      *
@@ -61,6 +62,7 @@ class AdminPanelProvider extends PanelProvider
                 ');
             }
         );
+
 
         return $panel
             // Configuration de base du panel

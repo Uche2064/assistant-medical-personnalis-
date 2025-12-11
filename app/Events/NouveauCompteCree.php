@@ -10,6 +10,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class NouveauCompteCree implements ShouldBroadcast
 {
@@ -47,5 +48,14 @@ class NouveauCompteCree implements ShouldBroadcast
             ],
             'notification' => $this->notification
         ];
+    }
+
+    /**
+     * Gérer les erreurs de broadcasting
+     */
+    public function broadcastFailed(\Exception $exception): void
+    {
+        // Logger l'erreur mais ne pas interrompre l'application
+        \Illuminate\Support\Facades\Log::warning('Erreur de broadcasting pour NouveauCompteCree (non bloquante): ' . $exception->getMessage());
     }
 }

@@ -46,18 +46,19 @@ class AuthService
     /**
      * Crée un client physique.
      */
-    public function createClientPhysique(User $user, array $validated): Client
+    public function createClientPhysique(User $user, array $validated, ?string $codeParrainage = null): Client
     {
         // Créer d'abord le client
         $client = Client::create([
             'user_id' => $user->id,
             'type_client' => $validated['type_client'],
+            'code_parrainage' => $codeParrainage ?? '',
         ]);
 
         // Puis créer l'assuré lié au client
         Assure::create([
             'user_id' => $user->id,
-            'client_id' => $client->id, 
+            'client_id' => $client->id,
             'est_principal' => true,
             'lien_parente' => LienParenteEnum::PRINCIPAL,
             'assure_principal_id' => null
@@ -66,12 +67,13 @@ class AuthService
         return $client;
     }
 
-    public function createClientMoral(User $user, array $validated): Client
+    public function createClientMoral(User $user, array $validated, ?string $codeParrainage = null): Client
     {
         // Créer d'abord le client
         $client = Client::create([
             'user_id' => $user->id,
             'type_client' => $validated['type_client'],
+            'code_parrainage' => $codeParrainage ?? '',
         ]);
 
         LienInvitation::create([

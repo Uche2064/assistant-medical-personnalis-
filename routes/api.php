@@ -51,112 +51,116 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
 
+    // ==================== ROUTES ADMINISTRATION INTERNE - DÉSACTIVÉES (Gérées par Filament) ====================
     // ---------------------- gestion des gestionnaires par l'admin global -------------------
-    Route::middleware(['auth:api', 'checkRole:admin_global'])->prefix('admin')->group(function () {
-        // Dashboard global
-        Route::get('/stats', [AdminController::class, 'dashboardGlobal']);
+    // Route::middleware(['auth:api', 'checkRole:admin_global'])->prefix('admin')->group(function () {
+    //     // Dashboard global
+    //     Route::get('/stats', [AdminController::class, 'dashboardGlobal']);
 
-        // Gestion des gestionnaires
-        Route::prefix('gestionnaires')->group(function () {
-            Route::get('/', [AdminController::class, 'indexGestionnaires']);
-            Route::post('/', [AdminController::class, 'storeGestionnaire']);
-            Route::get('/{id}', [AdminController::class, 'showGestionnaire']);
-            Route::patch('/{id}/change-status', [AdminController::class, 'toggleGestionnaireStatus']);
-            Route::delete('/{id}', [AdminController::class, 'destroyGestionnaire']);
-        });
-    });
+    //     // Gestion des gestionnaires
+    //     Route::prefix('gestionnaires')->group(function () {
+    //         Route::get('/', [AdminController::class, 'indexGestionnaires']);
+    //         Route::post('/', [AdminController::class, 'storeGestionnaire']);
+    //         Route::get('/{id}', [AdminController::class, 'showGestionnaire']);
+    //         Route::patch('/{id}/change-status', [AdminController::class, 'toggleGestionnaireStatus']);
+    //         Route::delete('/{id}', [AdminController::class, 'destroyGestionnaire']);
+    //     });
+    // });
 
     // ---------------------- gestion des personnels par le gestionnaire --------------------
-    // Lecture : admin + gestionnaire
-    Route::middleware(['auth:api'])->prefix('gestionnaire/personnels')->group(function () {
-        Route::get('/', [GestionnaireController::class, 'indexPersonnels'])->middleware('checkRole:gestionnaire,admin_global');
-        Route::get('/stats', [GestionnaireController::class, 'personnelStats'])->middleware('checkRole:gestionnaire,admin_global');
-        Route::get('/{id}', [GestionnaireController::class, 'showPersonnel'])->middleware('checkRole:gestionnaire,admin_global');
-        Route::post('/', [GestionnaireController::class, 'storePersonnel'])->middleware('checkRole:gestionnaire');
-        Route::patch('/{id}/change-status', [GestionnaireController::class, 'togglePersonnelStatus'])->middleware('checkRole:gestionnaire');
-        Route::delete('/{id}', [GestionnaireController::class, 'destroyPersonnel'])->middleware('checkRole:gestionnaire');
-    });
+    // Route::middleware(['auth:api'])->prefix('gestionnaire/personnels')->group(function () {
+    //     Route::get('/', [GestionnaireController::class, 'indexPersonnels'])->middleware('checkRole:gestionnaire,admin_global');
+    //     Route::get('/stats', [GestionnaireController::class, 'personnelStats'])->middleware('checkRole:gestionnaire,admin_global');
+    //     Route::get('/{id}', [GestionnaireController::class, 'showPersonnel'])->middleware('checkRole:gestionnaire,admin_global');
+    //     Route::post('/', [GestionnaireController::class, 'storePersonnel'])->middleware('checkRole:gestionnaire');
+    //     Route::patch('/{id}/change-status', [GestionnaireController::class, 'togglePersonnelStatus'])->middleware('checkRole:gestionnaire');
+    //     Route::delete('/{id}', [GestionnaireController::class, 'destroyPersonnel'])->middleware('checkRole:gestionnaire');
+    // });
 
     // --------------------- gestion des questions pour les prospects et prestataire par le médecin contrôleur --------------------
+    // Lecture publique conservée pour les clients et prestataires
     Route::prefix('questions')->group(function () {
-        Route::get('/', [QuestionController::class, 'indexQuestions']); // 👌
-        Route::get('/stats', [QuestionController::class, 'questionStats'])->middleware(['auth:api', 'checkRole:medecin_controleur']); // 👌
-        Route::get('/{id}', [QuestionController::class, 'showQuestion'])->middleware(['auth:api', 'checkRole:medecin_controleur']);; // 👌
-        Route::post('/', [QuestionController::class, 'bulkInsertQuestions'])->middleware(['auth:api', 'checkRole:medecin_controleur']);; // 👌
-        Route::put('/{id}', [QuestionController::class, 'updateQuestion'])->middleware(['auth:api', 'checkRole:medecin_controleur']);; // 👌
-        Route::delete('/{id}', [QuestionController::class, 'destroyQuestion'])->middleware(['auth:api', 'checkRole:medecin_controleur']);; // 👌
-        Route::delete('/', [QuestionController::class, 'bulkDestroyQuestions']); // suppression en masse
-
-        // Route::patch('/{id}/toggle', [QuestionController::class, 'toggleQuestionStatus'])->middleware(['auth:api', 'checkRole:medecin_controleur']);;
+        Route::get('/', [QuestionController::class, 'indexQuestions']); // 👌 Lecture publique pour clients/prestataires
+        // Routes d'administration commentées (gérées par Filament)
+        // Route::get('/stats', [QuestionController::class, 'questionStats'])->middleware(['auth:api', 'checkRole:medecin_controleur']);
+        // Route::get('/{id}', [QuestionController::class, 'showQuestion'])->middleware(['auth:api', 'checkRole:medecin_controleur']);
+        // Route::post('/', [QuestionController::class, 'bulkInsertQuestions'])->middleware(['auth:api', 'checkRole:medecin_controleur']);
+        // Route::put('/{id}', [QuestionController::class, 'updateQuestion'])->middleware(['auth:api', 'checkRole:medecin_controleur']);
+        // Route::delete('/{id}', [QuestionController::class, 'destroyQuestion'])->middleware(['auth:api', 'checkRole:medecin_controleur']);
+        // Route::delete('/', [QuestionController::class, 'bulkDestroyQuestions']);
     });
 
     // --------------------- Statistiques complètes du médecin contrôleur --------------------
-    Route::middleware(['auth:api', 'checkRole:medecin_controleur'])->prefix('medecin-controleur')->group(function () {
-        Route::get('/stats', [QuestionController::class, 'medecinControleurStats']);
-    });
+    // Route::middleware(['auth:api', 'checkRole:medecin_controleur'])->prefix('medecin-controleur')->group(function () {
+    //     Route::get('/stats', [QuestionController::class, 'medecinControleurStats']);
+    // });
 
     // --------------- Gestion des garanties par le médecin contrôleur ------------------
-    // ############# Accès lecture : médecin + technicien ##############
+    // Lecture publique conservée pour les clients et prestataires
     Route::middleware(["auth:api"])->prefix('garanties')->group(function () {
-        Route::get('/', [GarantieController::class, 'indexGaranties']); //👌
-        Route::get('/{id}', [GarantieController::class, 'showGarantie']);  //👌
-        Route::post('/', [GarantieController::class, 'storeGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]); //👌
-        Route::put('/{id}', [GarantieController::class, 'updateGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]); //👌
-        Route::delete('/{id}', [GarantieController::class, 'destroyGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]);  //👌
-        Route::patch('/{id}', [GarantieController::class, 'toggleGarantieStatus'])->middleware(["checkRole:medecin_controleur,technicien"]);  //👌
-        Route::delete('/', [GarantieController::class, 'bulkDelete']);
+        Route::get('/', [GarantieController::class, 'indexGaranties']); //👌 Lecture publique
+        Route::get('/{id}', [GarantieController::class, 'showGarantie']);  //👌 Lecture publique
+        // Routes d'administration commentées (gérées par Filament)
+        // Route::post('/', [GarantieController::class, 'storeGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]);
+        // Route::put('/{id}', [GarantieController::class, 'updateGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]);
+        // Route::delete('/{id}', [GarantieController::class, 'destroyGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]);
+        // Route::patch('/{id}', [GarantieController::class, 'toggleGarantieStatus'])->middleware(["checkRole:medecin_controleur,technicien"]);
+        // Route::delete('/', [GarantieController::class, 'bulkDelete']);
     });
 
     // --------------- Gestion des catégories de garanties ------------------
-    // ############# Accès lecture : médecin + technicien ##############
+    // Lecture publique conservée pour les clients et prestataires
     Route::middleware(['auth:api'])->prefix('categories-garanties')->group(function () {
-        Route::get('/', [CategorieGarantieController::class, 'indexCategorieGarantie']); //👌
-        Route::get('/{id}', [CategorieGarantieController::class, 'showCategorieGarantie']); //👌
-        Route::post('/', [CategorieGarantieController::class, 'storeCategorieGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]); //👌
-        Route::put('/{id}', [CategorieGarantieController::class, 'updateCategorieGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]); //👌
-        Route::delete('/{id}', [CategorieGarantieController::class, 'destroyCategorieGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]); //👌
-        Route::patch('/{categorieGarantie}/garanties/{garantie}/toggle', [CategorieGarantieController::class, 'toggleCategorieGarantieStatus'])->middleware(["checkRole:medecin_controleur,technicien"]);
+        Route::get('/', [CategorieGarantieController::class, 'indexCategorieGarantie']); //👌 Lecture publique
+        Route::get('/{id}', [CategorieGarantieController::class, 'showCategorieGarantie']); //👌 Lecture publique
+        // Routes d'administration commentées (gérées par Filament)
+        // Route::post('/', [CategorieGarantieController::class, 'storeCategorieGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]);
+        // Route::put('/{id}', [CategorieGarantieController::class, 'updateCategorieGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]);
+        // Route::delete('/{id}', [CategorieGarantieController::class, 'destroyCategorieGarantie'])->middleware(["checkRole:medecin_controleur,technicien"]);
+        // Route::patch('/{categorieGarantie}/garanties/{garantie}/toggle', [CategorieGarantieController::class, 'toggleCategorieGarantieStatus'])->middleware(["checkRole:medecin_controleur,technicien"]);
     });
     // --------------------- Routes pour le Technicien ---------------------
-    Route::middleware(['auth:api', 'checkRole:technicien'])->prefix('technicien')->group(function () {
-        Route::get('/dashboard', [TechnicienController::class, 'technicienStats']);
-        Route::get('/demandes-adhesion/{id}', [TechnicienController::class, 'showDemande']);
-        Route::get('/demandes-adhesion', [TechnicienController::class, 'demandesAdhesion']);
+    // Route::middleware(['auth:api', 'checkRole:technicien'])->prefix('technicien')->group(function () {
+    //     Route::get('/dashboard', [TechnicienController::class, 'technicienStats']);
+    //     Route::get('/demandes-adhesion/{id}', [TechnicienController::class, 'showDemande']);
+    //     Route::get('/demandes-adhesion', [TechnicienController::class, 'demandesAdhesion']);
 
-        Route::post('/demandes-adhesion/{id}/proposer-contrat', [TechnicienController::class, 'proposerContrat']);
-        Route::get('/factures', [TechnicienController::class, 'factures']);
-        Route::post('/factures/{id}/valider', [TechnicienController::class, 'validerFacture']);
-        Route::post('/factures/{id}/rejeter', [TechnicienController::class, 'rejeterFacture']);
-        Route::get('/factures/{id}', [TechnicienController::class, 'showFacture']);
-        Route::get('/clients/{id}', [TechnicienController::class, 'showClientDetails']);
-        Route::get('/clients', [TechnicienController::class, 'getClientsTechnicien']);
-        Route::get('/clients/stats', [TechnicienController::class, 'getStatistiquesClients']);
+    //     Route::post('/demandes-adhesion/{id}/proposer-contrat', [TechnicienController::class, 'proposerContrat']);
+    //     Route::get('/factures', [TechnicienController::class, 'factures']);
+    //     Route::post('/factures/{id}/valider', [TechnicienController::class, 'validerFacture']);
+    //     Route::post('/factures/{id}/rejeter', [TechnicienController::class, 'rejeterFacture']);
+    //     Route::get('/factures/{id}', [TechnicienController::class, 'showFacture']);
+    //     Route::get('/clients/{id}', [TechnicienController::class, 'showClientDetails']);
+    //     Route::get('/clients', [TechnicienController::class, 'getClientsTechnicien']);
+    //     Route::get('/clients/stats', [TechnicienController::class, 'getStatistiquesClients']);
 
-        // Routes pour les sinistres (consultation seulement)
-        Route::get('/sinistres', [TechnicienController::class, 'sinistres']);
-        Route::get('/sinistres/{id}', [TechnicienController::class, 'showSinistre']);
+    //     // Routes pour les sinistres (consultation seulement)
+    //     Route::get('/sinistres', [TechnicienController::class, 'sinistres']);
+    //     Route::get('/sinistres/{id}', [TechnicienController::class, 'showSinistre']);
 
-        // Routes pour le réseautage de prestataires
-        Route::get('/clients-avec-contrats-acceptes', [TechnicienController::class, 'getClientsAvecContratsAcceptes']);
-        Route::get('/prestataires-pour-assignation', [TechnicienController::class, 'getPrestatairesPourAssignation']);
-        Route::get('/clients/{id}/assignations', [TechnicienController::class, 'getAssignationsClient']);
-        Route::post('/clients/{id}/assignations', [TechnicienController::class, 'assignerReseauPrestataires']);
-        // Route::delete('/clients/{id}/assignations/{id}', [TechnicienController::class, 'desassignerPrestataire']);
-    });
+    //     // Routes pour le réseautage de prestataires
+    //     Route::get('/clients-avec-contrats-acceptes', [TechnicienController::class, 'getClientsAvecContratsAcceptes']);
+    //     Route::get('/prestataires-pour-assignation', [TechnicienController::class, 'getPrestatairesPourAssignation']);
+    //     Route::get('/clients/{id}/assignations', [TechnicienController::class, 'getAssignationsClient']);
+    //     Route::post('/clients/{id}/assignations', [TechnicienController::class, 'assignerReseauPrestataires']);
+    // });
     // --------------------- Routes pour les demandes d'adhésion ---------------------
     Route::get('/has-demande', [DemandeAdhesionController::class, 'hasDemande']); //👌
 
     Route::middleware(['auth:api'])->prefix('demandes-adhesions')->group(function () {
-        Route::get('/', [DemandeAdhesionController::class, 'index'])->middleware('checkRole:medecin_controleur,technicien,admin_global,gestionnaire,commercial'); //👌
-        Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware('checkRole:medecin_controleur,technicien'); //👌
+        // Routes d'administration commentées (gérées par Filament)
+        // Route::get('/', [DemandeAdhesionController::class, 'index'])->middleware('checkRole:medecin_controleur,technicien,admin_global,gestionnaire,commercial');
+        // Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware('checkRole:medecin_controleur,technicien');
+
+        // Routes conservées pour clients et prestataires
         Route::post('/client', [DemandeAdhesionController::class, 'storeClientPhysiqueDemande'])->middleware('checkRole:client'); //👌
         Route::post('/prestataire', [DemandeAdhesionController::class, 'storePrestataireDemande'])->middleware('checkRole:prestataire'); //👌
-        Route::post('/{id}/valider-client', [TechnicienController::class, 'validerDemande']);
-        // Actions sur les demandes (proposer contrat, valider, rejeter)
-        Route::put('/{demande_id}/valider-prestataire', [PrestataireController::class, 'validerPrestataire'])->middleware('checkRole:medecin_controleur');
-        Route::put('/{demande_id}/rejeter', [DemandeAdhesionController::class, 'rejeter'])->middleware('checkRole:technicien,medecin_controleur');
-        Route::put('/{id}/proposer-contrat', [TechnicienController::class, 'proposerContrat'])->middleware('checkRole:technicien');
-        // Route::get('/stats', [DemandeAdhesionController::class, 'stats'])->middleware('checkRole:admin_global,medecin_controleur,technicien,gestionnaire,commercial');
+
+        // Routes d'administration commentées (gérées par Filament)
+        // Route::post('/{id}/valider-client', [TechnicienController::class, 'validerDemande']);
+        // Route::put('/{demande_id}/valider-prestataire', [PrestataireController::class, 'validerPrestataire'])->middleware('checkRole:medecin_controleur');
+        // Route::put('/{demande_id}/rejeter', [DemandeAdhesionController::class, 'rejeter'])->middleware('checkRole:technicien,medecin_controleur');
+        // Route::put('/{id}/proposer-contrat', [TechnicienController::class, 'proposerContrat'])->middleware('checkRole:technicien');
     });
 
 
@@ -229,17 +233,17 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
     // --------------------- Routes pour la gestion des assignations clients-prestataires ---------------------
-    Route::middleware(['auth:api', 'checkRole:admin_global,technicien,medecin_controleur'])->prefix('client-prestataires')->group(function () {
-        Route::get('/', [ClientPrestataireController::class, 'index']);
-        Route::get('/statistiques', [ClientPrestataireController::class, 'statistiques']);
-        Route::get('/{id}', [ClientPrestataireController::class, 'show']);
+    // Route::middleware(['auth:api', 'checkRole:admin_global,technicien,medecin_controleur'])->prefix('client-prestataires')->group(function () {
+    //     Route::get('/', [ClientPrestataireController::class, 'index']);
+    //     Route::get('/statistiques', [ClientPrestataireController::class, 'statistiques']);
+    //     Route::get('/{id}', [ClientPrestataireController::class, 'show']);
 
-        // Routes pour modification/suppression (admin et technicien uniquement)
-        Route::middleware(['checkRole:admin_global,technicien'])->group(function () {
-            Route::put('/{id}', [ClientPrestataireController::class, 'update']);
-            Route::delete('/{id}', [ClientPrestataireController::class, 'destroy']);
-        });
-    });
+    //     // Routes pour modification/suppression (admin et technicien uniquement)
+    //     Route::middleware(['checkRole:admin_global,technicien'])->group(function () {
+    //         Route::put('/{id}', [ClientPrestataireController::class, 'update']);
+    //         Route::delete('/{id}', [ClientPrestataireController::class, 'destroy']);
+    //     });
+    // });
 
     // Anciennes routes spécifiques supprimées ou commentées pour éviter toute confusion.
     // --------------------- Routes pour les prestataires de soins ---------------------
@@ -261,16 +265,18 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
     Route::middleware(['auth:api'])->prefix('contrats')->group(function () {
+        // Routes de lecture conservées pour clients et prestataires
         Route::get('/', [ContratController::class, 'index']);
         Route::get('/categories-garanties', [ContratController::class, 'getCategoriesGaranties']);
+        Route::get('/{id}', [ContratController::class, 'show']);
 
-        Route::middleware(['checkRole:technicien,medecin_controleur'])->group(function () {
-            Route::get('/stats', [ContratController::class, 'stats']);
-            Route::post('/', [ContratController::class, 'store']);
-            Route::get('/{id}', [ContratController::class, 'show']);
-            Route::put('/{id}', [ContratController::class, 'update']);
-            Route::delete('/{id}', [ContratController::class, 'destroy']);
-        });
+        // Routes d'administration commentées (gérées par Filament)
+        // Route::middleware(['checkRole:technicien,medecin_controleur'])->group(function () {
+        //     Route::get('/stats', [ContratController::class, 'stats']);
+        //     Route::post('/', [ContratController::class, 'store']);
+        //     Route::put('/{id}', [ContratController::class, 'update']);
+        //     Route::delete('/{id}', [ContratController::class, 'destroy']);
+        // });
     });
 
     // --- Demande d'adhésion personne client ---
@@ -326,45 +332,45 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         Route::post('/accepter/{token}', [DemandeAdhesionController::class, 'accepterContrat']);
     });
     // Statistiques des assurés
-    Route::middleware(['auth:api', 'checkRole:admin_global,medecin_controleur,technicien,comptable'])->prefix('assures')->group(function () {
-        Route::get('/stats', [StatsController::class, 'getAssureStats']);
-    });
+    // Route::middleware(['auth:api', 'checkRole:admin_global,medecin_controleur,technicien,comptable'])->prefix('assures')->group(function () {
+    //     Route::get('/stats', [StatsController::class, 'getAssureStats']);
+    // });
 
-    // Statistiques du dashboard adaptées au rôle
+    // Statistiques du dashboard adaptées au rôle (conservées pour clients et prestataires)
     Route::middleware(['auth:api'])->prefix('dashboard')->group(function () {
         Route::get('/stats', [StatsController::class, 'dashboardStats']);
     });
 
     // --------------------- Routes pour le Commercial ---------------------
-    Route::middleware(['auth:api', 'checkRole:commercial'])->prefix('commercial')->group(function () {
-        Route::get('/dashboard', [CommercialController::class, 'dashboard']);
-        Route::get('/prospects', [CommercialController::class, 'prospects']);
-        Route::get('/statistiques', [CommercialController::class, 'statistiques']);
-        Route::get('/commissions', [CommercialController::class, 'commissions']);
-        Route::get('/prospects/{id}', [CommercialController::class, 'showProspect']);
-        Route::put('/prospects/{id}', [CommercialController::class, 'updateProspect']);
+    // Route::middleware(['auth:api', 'checkRole:commercial'])->prefix('commercial')->group(function () {
+    //     Route::get('/dashboard', [CommercialController::class, 'dashboard']);
+    //     Route::get('/prospects', [CommercialController::class, 'prospects']);
+    //     Route::get('/statistiques', [CommercialController::class, 'statistiques']);
+    //     Route::get('/commissions', [CommercialController::class, 'commissions']);
+    //     Route::get('/prospects/{id}', [CommercialController::class, 'showProspect']);
+    //     Route::put('/prospects/{id}', [CommercialController::class, 'updateProspect']);
 
-        // Routes pour le système de parrainage
-        Route::post('/generer-code-parrainage', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'genererCodeParrainage']);
-        Route::get('/mon-code-parrainage', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'monCodeParrainage']);
-        Route::get('/historique-codes-parrainage', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'historiqueCodesParrainage']);
-        Route::post('/renouveler-code-parrainage', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'renouvelerCodeParrainage']);
-        Route::post('/creer-compte-client', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'creerCompteClient']);
-        Route::get('/mes-clients-parraines', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'mesClientsParraines']);
-        Route::get('/mes-statistiques', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'mesStatistiques']);
-    });
+    //     // Routes pour le système de parrainage
+    //     Route::post('/generer-code-parrainage', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'genererCodeParrainage']);
+    //     Route::get('/mon-code-parrainage', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'monCodeParrainage']);
+    //     Route::get('/historique-codes-parrainage', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'historiqueCodesParrainage']);
+    //     Route::post('/renouveler-code-parrainage', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'renouvelerCodeParrainage']);
+    //     Route::post('/creer-compte-client', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'creerCompteClient']);
+    //     Route::get('/mes-clients-parraines', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'mesClientsParraines']);
+    //     Route::get('/mes-statistiques', [\App\Http\Controllers\v1\Api\commercial\CommercialController::class, 'mesStatistiques']);
+    // });
 
     // --------------------- Routes pour le Comptable ---------------------
-    Route::middleware(['auth:api', 'checkRole:comptable'])->prefix('comptable')->group(function () {
-        Route::get('/dashboard', [ComptableController::class, 'dashboard']);
-        Route::get('/factures', [ComptableController::class, 'factures']);
-        Route::post('/factures/{id}/valider-remboursement', [ComptableController::class, 'validerRemboursement']);
-        Route::post('/factures/{id}/effectuer-remboursement', [ComptableController::class, 'effectuerRemboursement']);
-        Route::post('/factures/{id}/rejeter', [ComptableController::class, 'rejeterFacture']);
-        Route::get('/rapports', [ComptableController::class, 'rapports']);
-        Route::get('/factures/{id}', [ComptableController::class, 'showFacture']);
-        Route::get('/statistiques-prestataires', [ComptableController::class, 'statistiquesPrestataires']);
-    });
+    // Route::middleware(['auth:api', 'checkRole:comptable'])->prefix('comptable')->group(function () {
+    //     Route::get('/dashboard', [ComptableController::class, 'dashboard']);
+    //     Route::get('/factures', [ComptableController::class, 'factures']);
+    //     Route::post('/factures/{id}/valider-remboursement', [ComptableController::class, 'validerRemboursement']);
+    //     Route::post('/factures/{id}/effectuer-remboursement', [ComptableController::class, 'effectuerRemboursement']);
+    //     Route::post('/factures/{id}/rejeter', [ComptableController::class, 'rejeterFacture']);
+    //     Route::get('/rapports', [ComptableController::class, 'rapports']);
+    //     Route::get('/factures/{id}', [ComptableController::class, 'showFacture']);
+    //     Route::get('/statistiques-prestataires', [ComptableController::class, 'statistiquesPrestataires']);
+    // });
 
 
 
@@ -380,38 +386,17 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
     });
 
     // --------------------- Routes pour récupérer tous les assurés ---------------------
-    Route::middleware(['auth:api', 'checkRole:technicien,medecin_controleur,comptable,admin_global,gestionnaire'])->prefix('personnel')->group(function () {
-        Route::get('/assures', [TechnicienController::class, 'getAllAssures']);
-    });
+    // Route::middleware(['auth:api', 'checkRole:technicien,medecin_controleur,comptable,admin_global,gestionnaire'])->prefix('personnel')->group(function () {
+    //     Route::get('/assures', [TechnicienController::class, 'getAllAssures']);
+    // });
 
     // --------------------- Routes pour les factures ---------------------
-    Route::middleware(['auth:api', 'checkRole:prestataire,technicien,comptable,medecin_controleur,entreprise,client,admin_global,gestionnaire'])->prefix('factures')->group(function () {
-        // Routes de consultation
+    // Routes conservées pour prestataires, clients et entreprises
+    Route::middleware(['auth:api', 'checkRole:prestataire,entreprise,client'])->prefix('factures')->group(function () {
+        // Routes de consultation pour prestataires, clients et entreprises
         Route::get('/', [FactureController::class, 'factures']);
         Route::get('/stats', [FactureController::class, 'stats']);
         Route::get('/{id}', [FactureController::class, 'showFacture']);
-
-        // --------------------- Routes pour la validation des factures ---------------------
-
-        // Validation par technicien
-        Route::post('/{factureId}/validate-technicien', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'validateByTechnicien'])
-            ->middleware('checkRole:technicien');
-        Route::post('/{factureId}/reject-technicien', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'rejectByTechnicien'])
-            ->middleware('checkRole:technicien');
-
-        // Validation par médecin contrôleur
-        Route::post('/{factureId}/validate-medecin', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'validateByMedecin'])
-            ->middleware('checkRole:medecin_controleur');
-        Route::post('/{factureId}/reject-medecin', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'rejectByMedecin'])
-            ->middleware('checkRole:medecin_controleur');
-
-        // Autorisation par comptable
-        Route::post('/{factureId}/authorize-comptable', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'authorizeByComptable'])
-            ->middleware('checkRole:comptable');
-        Route::post('/{factureId}/reject-comptable', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'rejectByComptable'])
-            ->middleware('checkRole:comptable');
-        Route::post('/{factureId}/mark-reimbursed', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'markAsReimbursed'])
-            ->middleware('checkRole:comptable');
 
         // Modification de facture rejetée (prestataire)
         Route::put('/{factureId}/update-rejected', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'updateRejectedFacture'])
@@ -420,6 +405,29 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         // Historique de validation (accessible à tous les rôles autorisés)
         Route::get('/{factureId}/validation-history', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'getValidationHistory']);
     });
+
+    // Routes d'administration pour factures commentées (gérées par Filament)
+    // Route::middleware(['auth:api', 'checkRole:technicien,comptable,medecin_controleur,admin_global,gestionnaire'])->prefix('factures')->group(function () {
+    //     // Validation par technicien
+    //     Route::post('/{factureId}/validate-technicien', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'validateByTechnicien'])
+    //         ->middleware('checkRole:technicien');
+    //     Route::post('/{factureId}/reject-technicien', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'rejectByTechnicien'])
+    //         ->middleware('checkRole:technicien');
+
+    //     // Validation par médecin contrôleur
+    //     Route::post('/{factureId}/validate-medecin', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'validateByMedecin'])
+    //         ->middleware('checkRole:medecin_controleur');
+    //     Route::post('/{factureId}/reject-medecin', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'rejectByMedecin'])
+    //         ->middleware('checkRole:medecin_controleur');
+
+    //     // Autorisation par comptable
+    //     Route::post('/{factureId}/authorize-comptable', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'authorizeByComptable'])
+    //         ->middleware('checkRole:comptable');
+    //     Route::post('/{factureId}/reject-comptable', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'rejectByComptable'])
+    //         ->middleware('checkRole:comptable');
+    //     Route::post('/{factureId}/mark-reimbursed', [\App\Http\Controllers\v1\Api\facture\FactureValidationController::class, 'markAsReimbursed'])
+    //         ->middleware('checkRole:comptable');
+    // });
 
     // Routes de broadcasting - en dehors du groupe middleware verifyApiKey
     Route::post('/v1/broadcasting/auth', function (Request $request) {

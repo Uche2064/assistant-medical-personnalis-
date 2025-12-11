@@ -16,6 +16,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
+use Filament\Facades\Filament;
 
 class ClientResource extends Resource
 {
@@ -38,9 +39,39 @@ class ClientResource extends Resource
         return 'Clients et Prestataires';
     }
 
+    public static function getNavigationBadge(): ?string
+    {
+        $user = Filament::auth()->user() ?? Auth::user();
+        if (!$user) {
+            return null;
+        }
+
+        // Pour les commerciaux, afficher le nombre de notifications non lues liées aux nouveaux clients parrainés
+        if ($user->hasRole(\App\Enums\RoleEnum::COMMERCIAL->value)) {
+            $unreadCount = \App\Models\Notification::where('user_id', $user->id)
+                ->where('est_lu', false)
+                ->get()
+                ->filter(function ($notification) {
+                    $data = $notification->data ?? [];
+                    $typeNotification = $data['type_notification'] ?? null;
+                    return $typeNotification === 'nouveau_client_parraine';
+                })
+                ->count();
+
+            return $unreadCount > 0 ? (string) $unreadCount : null;
+        }
+
+        return null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'success';
+    }
+
     public static function shouldRegisterNavigation(): bool
     {
-        $user = Auth::user();
+        $user = Filament::auth()->user() ?? Auth::user();
         if (!$user) {
             return false;
         }

@@ -14,6 +14,7 @@ use App\Models\CommercialParrainageCode;
 use App\Models\LienInvitation;
 use App\Models\Personne;
 use App\Models\User;
+use App\Services\NotificationService;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
@@ -149,6 +150,10 @@ class CreateClient extends CreateRecord
                     'type_client' => $data['type_client'],
                 ]
             ));
+
+            // Notifier le commercial qu'un nouveau client s'est inscrit avec son code de parrainage
+            $notificationService = app(NotificationService::class);
+            $notificationService->notifyCommercialNouveauClient($client, $commercial);
 
             Notification::make()
                 ->title('Client créé avec succès')

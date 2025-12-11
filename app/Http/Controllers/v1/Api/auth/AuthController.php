@@ -26,6 +26,7 @@ use App\Http\Resources\UserResource;
 use App\Jobs\SendEmailJob;
 use App\Jobs\SendLoginNotificationJob;
 use App\Models\Client;
+use App\Models\CommercialParrainageCode;
 use App\Models\Entreprise;
 use App\Models\Otp;
 use App\Models\Prestataire;
@@ -58,6 +59,7 @@ class AuthController extends Controller
      */
     public function register(RegisterRequest $request)
     {
+        Log::info('Register request: ' . json_encode($request->all()));
         $validated = $request->validated();
         $otp_expired_at = (int) env('OTP_EXPIRED_AT', 10);
         $photoUrl = null;
@@ -77,17 +79,25 @@ class AuthController extends Controller
 
             // Gestion du code parrainage (optionnel pour l'inscription client)
             $commercialId = null;
+            $commercial = null;
+            $codeParrainage = null;
             if (isset($validated['code_parrainage']) && !empty($validated['code_parrainage'])) {
-                $commercial = User::where('code_parrainage_commercial', $validated['code_parrainage'])
-                    ->whereHas('roles', function($query) {
-                        $query->where('name', RoleEnum::COMMERCIAL->value);
-                    })
+                // Chercher le code de parrainage dans la table commercial_parrainage_codes
+                $parrainageCode = CommercialParrainageCode::where('code_parrainage', $validated['code_parrainage'])
+                    ->where('est_actif', true)
+                    ->where('date_expiration', '>=', now())
                     ->first();
 
-                if ($commercial) {
-                    $commercialId = $commercial->id;
+                if ($parrainageCode) {
+                    $commercial = User::find($parrainageCode->commercial_id);
+                    if ($commercial && $commercial->hasRole(RoleEnum::COMMERCIAL->value)) {
+                        $commercialId = $commercial->id;
+                        $codeParrainage = $validated['code_parrainage'];
+                    } else {
+                        return ApiResponse::error('Code parrainage invalide', 400);
+                    }
                 } else {
-                    return ApiResponse::error('Code parrainage invalide', 400);
+                    return ApiResponse::error('Code parrainage invalide ou expiré', 400);
                 }
             }
             // Créer d'abord la personne
@@ -108,18 +118,27 @@ class AuthController extends Controller
                 'adresse' => $validated['adresse'],
                 'mot_de_passe_a_changer' => false,
                 'personne_id' => $personne->id,
-                'commercial_id' => $commercialId,
-                'compte_cree_par_commercial' => false,
-                'code_parrainage' => $validated['code_parrainage'] ?? null
             ]);
             // Créer l'entité selon le type de demandeur
             switch ($validated['type_demandeur']) {
                 case TypeDemandeurEnum::CLIENT->value:
+                    $client = null;
                     if($validated['type_client'] === ClientTypeEnum::PHYSIQUE) {
-                        $this->authService->createClientPhysique($user, $validated);
+                        $client = $this->authService->createClientPhysique($user, $validated, $codeParrainage);
                     } else {
-                        $this->authService->createClientMoral($user, $validated);
+                        $client = $this->authService->createClientMoral($user, $validated, $codeParrainage);
                     }
+
+                    // Mettre à jour le client avec commercial_id si un code a été fourni
+                    if ($client && $commercialId && $codeParrainage) {
+                        $client->update([
+                            'commercial_id' => $commercialId,
+                        ]);
+
+                        // Notifier le commercial qu'un nouveau client s'est inscrit avec son code de parrainage
+                        $this->notificationService->notifyCommercialNouveauClient($client, $commercial);
+                    }
+
                     $user->assignRole(RoleEnum::CLIENT->value);
                     // Notifier les techniciens d'un nouveau compte physique
                     $this->notificationService->notifyTechniciensNouveauCompte($user, 'client');
@@ -153,7 +172,7 @@ class AuthController extends Controller
             Log::error('Erreur lors de l\'inscription: ' . $e->getMessage());
             return ApiResponse::error('Erreur lors de l\'inscription', 500, $e->getMessage());
         }
-    }   
+    }
 
     /**
      * Vérifier l'OTP et activer le compte

@@ -26,7 +26,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        
+
         // DemandeAdhesion::observe(DemandeAdhesionObserver::class);
         ResetPassword::createUrlUsing(function ($notifiable, string $token) {
             Log::info(env('FRONTEND_URL') . "/reset-password?token=$token&email=" . urlencode($notifiable->email));

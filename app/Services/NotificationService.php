@@ -70,7 +70,7 @@ class NotificationService
             'titre' => $titre,
             'message' => $message,
             'data' => $data,
-            'lu' => false,
+            'est_lu' => false,
         ]);
     }
 
@@ -125,7 +125,13 @@ class NotificationService
         }
 
         // Dispatcher l'événement pour le temps réel
-        broadcast(new NouveauCompteCree($user, $userType, $notificationData));
+        // Dispatcher l'événement pour le temps réel (gérer les erreurs silencieusement)
+        try {
+            broadcast(new NouveauCompteCree($user, $userType, $notificationData));
+        } catch (\Exception $e) {
+            // Logger l'erreur mais ne pas interrompre le processus
+            \Illuminate\Support\Facades\Log::warning('Erreur de broadcasting (non bloquante): ' . $e->getMessage());
+        }
     }
 
     public function notifyAllPersonnelNouveauCompte(User $user, string $userType): void
@@ -139,7 +145,7 @@ class NotificationService
             $notificationData = [
                 'user_id' => $user->id,
                 'user_email' => $user->email,
-                'user_type' => $userType,   
+                'user_type' => $userType,
                 'date_creation' => now()->format('d/m/Y à H:i'),
                 'type_notification' => 'nouveau_compte'
             ];
@@ -155,7 +161,13 @@ class NotificationService
         Log::info("Notification envoyée à tous les personnel");
 
         // Dispatcher l'événement pour le temps réel
-        broadcast(new NouveauCompteCree($user, $userType, $notificationData));
+        // Dispatcher l'événement pour le temps réel (gérer les erreurs silencieusement)
+        try {
+            broadcast(new NouveauCompteCree($user, $userType, $notificationData));
+        } catch (\Exception $e) {
+            // Logger l'erreur mais ne pas interrompre le processus
+            \Illuminate\Support\Facades\Log::warning('Erreur de broadcasting (non bloquante): ' . $e->getMessage());
+        }
     }
 
     /**
@@ -211,14 +223,34 @@ class NotificationService
             $query->where('name', 'technicien');
         })->get();
 
+        if ($techniciens->isEmpty()) {
+            Log::warning('Aucun technicien trouvé pour notifier la nouvelle demande d\'adhésion', [
+                'demande_id' => $demande->id
+            ]);
+            return;
+        }
+
         $userType = $demande->type_demandeur->value;
         $userEmail = $demande->user->email;
+
+        // Déterminer si c'est un client physique ou une entreprise
+        $client = $demande->user->client;
+        $isEntreprise = $client && $client->isMoral();
+        $typeLabel = $isEntreprise ? 'entreprise' : 'client physique';
+
+        // Récupérer le nom du demandeur
+        $nomDemandeur = $isEntreprise
+            ? ($demande->user->entreprise->raison_sociale ?? $userEmail)
+            : ($demande->user->personne ? ($demande->user->personne->nom . ' ' . $demande->user->personne->prenoms) : $userEmail);
 
         $notificationData = [
             'demande_id' => $demande->id,
             'user_id' => $demande->user->id,
             'user_email' => $userEmail,
             'type_demandeur' => $userType,
+            'type_label' => $typeLabel,
+            'nom_demandeur' => $nomDemandeur,
+            'is_entreprise' => $isEntreprise,
             'date_soumission' => $demande->created_at->format('d/m/Y à H:i'),
             'type_notification' => 'nouvelle_demande_adhésion'
         ];
@@ -226,15 +258,21 @@ class NotificationService
         foreach ($techniciens as $technicien) {
             $this->createNotification(
                 $technicien->id,
-                'Nouvelle demande d\'adhésion',
-                "Une nouvelle demande d'adhésion {$userType} a été soumise : {$userEmail}",
+                'Nouvelle demande d\'adhésion ' . $typeLabel,
+                "Une nouvelle demande d'adhésion de {$typeLabel} a été soumise par {$nomDemandeur} ({$userEmail})",
                 'info',
                 $notificationData
             );
         }
 
         // Dispatcher l'événement pour le temps réel
-        event(new NouvelleDemandeAdhesion($demande, $notificationData));
+        // Dispatcher l'événement pour le temps réel (gérer les erreurs silencieusement)
+        try {
+            event(new NouvelleDemandeAdhesion($demande, $notificationData));
+        } catch (\Exception $e) {
+            // Logger l'erreur mais ne pas interrompre le processus
+            \Illuminate\Support\Facades\Log::warning('Erreur de broadcasting (non bloquante): ' . $e->getMessage());
+        }
     }
 
     /**
@@ -250,22 +288,51 @@ class NotificationService
             $query->where('name', 'medecin_controleur');
         })->get();
 
+        if ($medecinsControleurs->isEmpty()) {
+            Log::warning('Aucun médecin contrôleur trouvé pour notifier la nouvelle demande d\'adhésion prestataire', [
+                'demande_id' => $demande->id
+            ]);
+            return;
+        }
+
         $userEmail = $demande->user->email;
+
+        // Récupérer les informations du prestataire
+        $prestataire = $demande->user->prestataire;
+        $typePrestataire = $demande->type_demandeur->value ?? 'prestataire';
+        $nomPrestataire = $prestataire
+            ? ($prestataire->raison_sociale ?? $userEmail)
+            : $userEmail;
+
+        // Récupérer le label du type de prestataire
+        $typeLabel = match($typePrestataire) {
+            'centre_de_soins' => 'Centre de Soins',
+            'laboratoire_centre_diagnostic' => 'Laboratoire/Centre de Diagnostic',
+            'medecin_liberal' => 'Médecin Libéral',
+            'pharmacie' => 'Pharmacie',
+            'optique' => 'Optique',
+            default => 'Prestataire'
+        };
+
+        $notificationData = [
+            'demande_id' => $demande->id,
+            'user_id' => $demande->user->id,
+            'user_email' => $userEmail,
+            'prestataire_id' => $prestataire->id ?? null,
+            'type_prestataire' => $typePrestataire,
+            'type_label' => $typeLabel,
+            'nom_prestataire' => $nomPrestataire,
+            'date_soumission' => $demande->created_at->format('d/m/Y à H:i'),
+            'type_notification' => 'nouvelle_demande_prestataire'
+        ];
 
         foreach ($medecinsControleurs as $medecin) {
             $this->createNotification(
                 $medecin->id,
-                'Nouvelle demande prestataire',
-                "Une nouvelle demande d'adhésion prestataire a été soumise : {$userEmail}",
+                'Nouvelle demande prestataire - ' . $typeLabel,
+                "Une nouvelle demande d'adhésion de {$typeLabel} a été soumise par {$nomPrestataire} ({$userEmail})",
                 'info',
-                [
-                    'demande_id' => $demande->id,
-                    'user_id' => $demande->user->id,
-                    'user_email' => $userEmail,
-                    'prestataire_id' => $demande->user->prestataire->id ?? null,
-                    'date_soumission' => $demande->created_at->format('d/m/Y à H:i'),
-                    'type_notification' => 'nouvelle_demande_prestataire'
-                ]
+                $notificationData
             );
         }
     }
@@ -870,6 +937,58 @@ class NotificationService
                 'type_notification' => 'facture_remboursee'
             ]
         );
+    }
+
+    /**
+     * Notifier un commercial lorsqu'un nouveau client s'inscrit avec son code de parrainage
+     *
+     * @param \App\Models\Client $client Le client créé
+     * @param \App\Models\User $commercial Le commercial qui a généré le code de parrainage
+     * @return void
+     */
+    public function notifyCommercialNouveauClient(\App\Models\Client $client, \App\Models\User $commercial): void
+    {
+        if (!$commercial || !$commercial->hasRole('commercial')) {
+            Log::warning('Tentative de notification à un utilisateur qui n\'est pas un commercial', [
+                'client_id' => $client->id,
+                'commercial_id' => $commercial->id ?? null
+            ]);
+            return;
+        }
+
+        $user = $client->user;
+        $nomClient = $user->personne
+            ? ($user->personne->nom . ' ' . $user->personne->prenoms)
+            : $user->email;
+
+        $typeClient = $client->type_client === \App\Enums\ClientTypeEnum::PHYSIQUE
+            ? 'client physique'
+            : 'entreprise';
+
+        $notificationData = [
+            'client_id' => $client->id,
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'nom_client' => $nomClient,
+            'type_client' => $typeClient,
+            'code_parrainage' => $client->code_parrainage,
+            'date_inscription' => $client->created_at->format('d/m/Y à H:i'),
+            'type_notification' => 'nouveau_client_parraine'
+        ];
+
+        $this->createNotification(
+            $commercial->id,
+            'Nouveau client parrainé',
+            "Un nouveau {$typeClient} ({$nomClient}) s'est inscrit avec votre code de parrainage : {$client->code_parrainage}",
+            'success',
+            $notificationData
+        );
+
+        Log::info('Notification envoyée au commercial pour nouveau client parrainé', [
+            'commercial_id' => $commercial->id,
+            'client_id' => $client->id,
+            'code_parrainage' => $client->code_parrainage
+        ]);
     }
 
     /**

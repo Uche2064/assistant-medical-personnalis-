@@ -16,6 +16,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
+use Filament\Facades\Filament;
 
 class DemandeAdhesionResource extends Resource
 {
@@ -29,7 +30,7 @@ class DemandeAdhesionResource extends Resource
 
     public static function getNavigationLabel(): string
     {
-        $user = Auth::user();
+        $user = Filament::auth()->user() ?? Auth::user();
         if ($user && $user->hasRole(\App\Enums\RoleEnum::MEDECIN_CONTROLEUR->value)) {
             return 'Demandes Prestataires';
         }
@@ -46,6 +47,33 @@ class DemandeAdhesionResource extends Resource
     }
 
     protected static ?int $navigationSort = 1;
+
+    public static function getNavigationBadge(): ?string
+    {
+        $user = Filament::auth()->user() ?? Auth::user();
+        if (!$user) {
+            return null;
+        }
+
+        // Compter les notifications non lues liées aux demandes d'adhésion
+        // Le champ data est casté en array, donc on peut utiliser where avec un callback
+        $unreadCount = \App\Models\Notification::where('user_id', $user->id)
+            ->where('est_lu', false)
+            ->get()
+            ->filter(function ($notification) {
+                $data = $notification->data ?? [];
+                $typeNotification = $data['type_notification'] ?? null;
+                return in_array($typeNotification, ['nouvelle_demande_adhésion', 'nouvelle_demande_prestataire']);
+            })
+            ->count();
+
+        return $unreadCount > 0 ? (string) $unreadCount : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'danger';
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -74,13 +102,14 @@ class DemandeAdhesionResource extends Resource
         return [
             'index' => ListDemandeAdhesions::route('/'),
             'view' => ViewDemandeAdhesion::route('/{record}'),
+            'edit' => EditDemandeAdhesion::route('/{record}/edit'),
             // La page create sera masquée dans ListDemandeAdhesions si l'utilisateur n'a pas le droit
         ];
     }
 
     public static function shouldRegisterNavigation(): bool
     {
-        $user = Auth::user();
+        $user = Filament::auth()->user() ?? Auth::user();
         if (!$user) {
             return false;
         }
@@ -93,7 +122,7 @@ class DemandeAdhesionResource extends Resource
 
     public static function canCreate(): bool
     {
-        $user = Auth::user();
+        $user = Filament::auth()->user() ?? Auth::user();
 
         if (!$user) {
             return false;
@@ -106,6 +135,23 @@ class DemandeAdhesionResource extends Resource
             \App\Enums\RoleEnum::MEDECIN_CONTROLEUR->value,
             \App\Enums\RoleEnum::TECHNICIEN->value,
             \App\Enums\RoleEnum::COMPTABLE->value,
+        ];
+
+        return !$user->hasAnyRole($rolesBloques);
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = Filament::auth()->user() ?? Auth::user();
+
+        if (!$user) {
+            return false;
+        }
+
+        // Les techniciens et médecins contrôleurs ne peuvent pas modifier les demandes d'adhésion
+        $rolesBloques = [
+            \App\Enums\RoleEnum::TECHNICIEN->value,
+            \App\Enums\RoleEnum::MEDECIN_CONTROLEUR->value,
         ];
 
         return !$user->hasAnyRole($rolesBloques);

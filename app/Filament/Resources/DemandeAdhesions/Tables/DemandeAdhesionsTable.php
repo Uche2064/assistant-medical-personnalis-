@@ -2,15 +2,18 @@
 
 namespace App\Filament\Resources\DemandeAdhesions\Tables;
 
+use App\Enums\RoleEnum;
 use App\Enums\StatutDemandeAdhesionEnum;
 use App\Enums\TypeDemandeurEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Facades\Filament;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class DemandeAdhesionsTable
 {
@@ -81,7 +84,18 @@ class DemandeAdhesionsTable
             ])
             ->recordActions([
                 ViewAction::make(),
-                EditAction::make(),
+                EditAction::make()
+                    ->visible(function ($record) {
+                        $user = Filament::auth()->user() ?? Auth::user();
+                        if (!$user) {
+                            return false;
+                        }
+                        // Les techniciens et médecins contrôleurs ne peuvent pas modifier
+                        return !$user->hasAnyRole([
+                            RoleEnum::TECHNICIEN->value,
+                            RoleEnum::MEDECIN_CONTROLEUR->value,
+                        ]);
+                    }),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
