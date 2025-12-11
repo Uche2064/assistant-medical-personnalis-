@@ -170,13 +170,22 @@ class PdfUploadHelper
      * @param \Illuminate\Http\UploadedFile $file
      * @param string $folder
      * @param string|null $customFilename
+     * @param string|null $userEmail Email de l'utilisateur pour organiser les fichiers
      * @return string|null
      */
-    public static function uploadFile($file, $folder = 'uploads', $customFilename = null)
+    public static function uploadFile($file, $folder = 'uploads', $customFilename = null, $userEmail = null)
     {
         try {
             // Générer un nom unique pour le fichier
             $filename = $customFilename ?? (Str::uuid() . '.' . $file->getClientOriginalExtension());
+            
+            // Organiser par email utilisateur si fourni
+            if ($userEmail) {
+                // Nettoyer l'email pour le chemin (remplacer @ et caractères spéciaux)
+                $emailFolder = str_replace(['@', '.'], ['_at_', '_'], $userEmail);
+                // Structure: user/email_utilisateur/nom_fichier
+                $folder = 'user/' . $emailFolder;
+            }
             
             // Chemin de stockage
             $path = $folder . '/' . $filename;

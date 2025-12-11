@@ -15,11 +15,12 @@ return new class extends Migration
         Schema::create('clients', function (Blueprint $table) {
             $table->id();
            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+           $table->string('code_parrainage');
            $table->enum('type_client', ClientTypeEnum::values());
             $table->timestamps();
         });
 
-      
+
     }
 
     /**

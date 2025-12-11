@@ -175,7 +175,8 @@ class DemandeValidatorService
             $emailFolder = $beneficiaireData['email'] ?? $demande->user->email;
             $photoUrl = ImageUploadHelper::uploadImage(
                 $beneficiaireData['photo_url'],
-                'users/' . $emailFolder . '/beneficiaires'
+                'uploads',
+                $emailFolder
             );
 
             if (!$photoUrl) {

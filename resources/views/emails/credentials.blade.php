@@ -35,7 +35,7 @@
         </div>
         
         <h1>🔑 Vos identifiants de connexion</h1>
-        <p>Bienvenue {{ $user->personnel->prenoms }} {{ $user->personnel->nom }} ! Votre compte a été créé avec succès.</p>
+        <p>Bienvenue @if($user->personne){{ $user->personne->prenoms }} {{ $user->personne->nom }}@else{{ $user->email }}@endif ! Votre compte a été créé avec succès.</p>
         
         <div class="credentials">
             <p><strong>Email :</strong> {{ $user->email }}</p>

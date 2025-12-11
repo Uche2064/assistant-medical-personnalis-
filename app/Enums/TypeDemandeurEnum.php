@@ -23,7 +23,8 @@ enum TypeDemandeurEnum: string
     public function getLabel(): string
     {
         return match($this) {
-            self::CLIENT => 'Client Physique',
+            self::CLIENT => 'Client',
+            self::PRESTATAIRE => 'Prestataire',
         };
     }
 } 

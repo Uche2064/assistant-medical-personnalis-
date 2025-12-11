@@ -254,7 +254,8 @@ class BeneficiaireController extends Controller
             if ($request->hasFile('photo')) {
                 $photoPath = ImageUploadHelper::uploadImage(
                     $request->file('photo'),
-                    'users/' . $user->email . '/beneficiaires'
+                    'uploads',
+                    $user->email
                 );
             }
 
@@ -386,7 +387,8 @@ class BeneficiaireController extends Controller
 
                 $photoPath = ImageUploadHelper::uploadImage(
                     $request->file('photo'),
-                    'users/' . $user->email . '/beneficiaires'
+                    'uploads',
+                    $user->email
                 );
                 $beneficiaire->photo = $photoPath;
             }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Filament\Models\Contracts\HasName;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -12,7 +13,7 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
-class User extends Authenticatable implements JWTSubject
+class User extends Authenticatable implements JWTSubject, HasName
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
@@ -36,10 +37,6 @@ class User extends Authenticatable implements JWTSubject
         'permanently_blocked',
         'failed_attempts',
         'phase',
-        'code_parrainage',
-        'commercial_id',
-        'compte_cree_par_commercial',
-        'code_parrainage_commercial'
     ];
 
     /**
@@ -199,11 +196,28 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
+     * Get the name for Filament
+     */
+    public function getFilamentName(): string
+    {
+        // Essayer d'obtenir le nom depuis la relation personne
+        if ($this->personne) {
+            $nom = trim(($this->personne->nom ?? '') . ' ' . ($this->personne->prenoms ?? ''));
+            if (!empty($nom)) {
+                return $nom;
+            }
+        }
+
+        // Fallback sur l'email
+        return $this->email ?? 'Utilisateur';
+    }
+
+    /**
      * Get the commercial who created this user account
      */
     public function commercial()
     {
-        return $this->belongsTo(User::class, 'commercial_id');
+        return $this->belongsTo(User::class, 'personne_id');
     }
 
     /**
@@ -211,7 +225,7 @@ class User extends Authenticatable implements JWTSubject
      */
     public function clientsParraines()
     {
-        return $this->hasMany(User::class, 'commercial_id');
+        return $this->hasMany(User::class, 'personne_id');
     }
 
     /**

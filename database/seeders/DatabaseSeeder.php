@@ -19,7 +19,6 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             // Ensure personnes exist before users
             AdminSeeder::class,
-            AdminSeeder::class,
             GestionnaireSeeder::class,
             PersonnelSeeder::class,
             ProspectPhysiqueMedicalQuestionSeeder::class,
@@ -27,6 +26,7 @@ class DatabaseSeeder extends Seeder
             CategorieGarantieSeeder::class,
             GarantieSeeder::class,
             ContratSeeder::class,
-        ]); 
+            MigrateExistingParrainageCodesSeeder::class,
+        ]);
     }
 }

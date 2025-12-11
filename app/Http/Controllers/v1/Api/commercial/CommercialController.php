@@ -99,7 +99,7 @@ class CommercialController extends Controller
             $photoUrl = null;
             // Gestion de l'upload de la photo
             if (isset($validated['photo'])) {
-                $photoUrl = ImageUploadHelper::uploadImage($validated['photo'], 'uploads/users/' . $validated['email']);
+                $photoUrl = ImageUploadHelper::uploadImage($validated['photo'], 'uploads', $validated['email']);
                 if (!$photoUrl) {
                     return ApiResponse::error('Erreur lors de l\'upload de la photo', 422);
                 }

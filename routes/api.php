@@ -144,8 +144,9 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         // Route::delete('/clients/{id}/assignations/{id}', [TechnicienController::class, 'desassignerPrestataire']);
     });
     // --------------------- Routes pour les demandes d'adhésion ---------------------
+    Route::get('/has-demande', [DemandeAdhesionController::class, 'hasDemande']); //👌
+
     Route::middleware(['auth:api'])->prefix('demandes-adhesions')->group(function () {
-        Route::get('/has-demande', [DemandeAdhesionController::class, 'hasDemande'])->middleware('checkRole:client'); //👌
         Route::get('/', [DemandeAdhesionController::class, 'index'])->middleware('checkRole:medecin_controleur,technicien,admin_global,gestionnaire,commercial'); //👌
         Route::get('/{id}', [DemandeAdhesionController::class, 'show'])->middleware('checkRole:medecin_controleur,technicien'); //👌
         Route::post('/client', [DemandeAdhesionController::class, 'storeClientPhysiqueDemande'])->middleware('checkRole:client'); //👌
