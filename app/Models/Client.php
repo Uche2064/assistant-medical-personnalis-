@@ -13,6 +13,8 @@ class Client extends Model
     protected $fillable = [
         'user_id',
         'type_client',
+        'code_parrainage',
+        'commercial_id',
     ];
 
     protected $casts = [
@@ -44,6 +46,14 @@ class Client extends Model
 
     public function lienInvitations() {
         return $this->hasMany(LienInvitation::class);
+    }
+
+    /**
+     * Get the commercial who created this client
+     */
+    public function commercial()
+    {
+        return $this->belongsTo(User::class, 'commercial_id');
     }
 }
 

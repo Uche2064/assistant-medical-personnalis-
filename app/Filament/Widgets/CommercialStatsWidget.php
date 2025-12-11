@@ -14,7 +14,7 @@ class CommercialStatsWidget extends StatsOverviewWidget
     protected function getStats(): array
     {
         // Utiliser le guard Filament pour obtenir l'utilisateur
-        $commercial = Auth::guard('web')->user();
+        $commercial = Filament::auth()->user() ?? Auth::guard('web')->user();
 
         if (!$commercial) {
             return [
@@ -27,9 +27,9 @@ class CommercialStatsWidget extends StatsOverviewWidget
             ];
         }
 
-        // Nombre de clients
-        $totalClients = $commercial->clientsParraines()
-            ->whereHas('roles', fn($q) => $q->where('name', RoleEnum::CLIENT->value))
+        // Nombre de clients - utiliser directement commercial_id sans whereHas pour éviter les problèmes
+        $totalClients = \App\Models\Client::where('commercial_id', $commercial->id)
+            ->whereHas('user.roles', fn($q) => $q->where('name', RoleEnum::CLIENT->value))
             ->count();
 
         // Code parrainage actuel - utiliser la relation parrainageCodes du modèle User

@@ -53,7 +53,7 @@ class CommercialController extends Controller
 
             // Vérifier s'il y a déjà un code actif
             $currentCode = CommercialParrainageCode::getCurrentCode($commercial->id);
-            
+
             if ($currentCode) {
                 return ApiResponse::error(
                     'Vous avez déjà un code de parrainage actif. Il expire le ' . $currentCode->date_expiration->format('d/m/Y à H:i'),
@@ -130,7 +130,7 @@ class CommercialController extends Controller
 
             // Obtenir le code parrainage actuel du commercial
             $currentParrainageCode = CommercialParrainageCode::getCurrentCode($commercial->id);
-            
+
             if (!$currentParrainageCode) {
                 return ApiResponse::error('Vous n\'avez pas de code de parrainage actif. Veuillez en générer un d\'abord.', 422);
             }
@@ -145,16 +145,22 @@ class CommercialController extends Controller
                 'est_actif' => false,
                 'mot_de_passe_a_changer' => true, // Le client devra changer son mot de passe
                 'personne_id' => $personne->id,
-                'commercial_id' => $commercial->id,
-                'compte_cree_par_commercial' => true,
-                'code_parrainage' => $currentParrainageCode->code_parrainage
             ]);
 
             // Créer l'entité selon le type de client
+            $client = null;
             if ($validated['type_client'] === ClientTypeEnum::PHYSIQUE->value) {
-                $this->authService->createClientPhysique($user, $validated);
+                $client = $this->authService->createClientPhysique($user, $validated);
             } else {
-                $this->authService->createClientMoral($user, $validated);
+                $client = $this->authService->createClientMoral($user, $validated);
+            }
+
+            // Mettre à jour le client avec commercial_id et code_parrainage
+            if ($client) {
+                $client->update([
+                    'commercial_id' => $commercial->id,
+                    'code_parrainage' => $currentParrainageCode->code_parrainage,
+                ]);
             }
 
             $user->assignRole(RoleEnum::CLIENT->value);
@@ -201,11 +207,9 @@ class CommercialController extends Controller
             }
 
             $clients = $commercial->clientsParraines()
-                ->with(['client', 'assure', 'personne'])
-                ->whereHas('roles', function ($query) {
-                    $query->where('name', RoleEnum::CLIENT->value);
-                })
-                ->get();
+                ->with(['user.roles', 'user.assure', 'user.personne'])
+                ->get()
+                ->pluck('user');
 
             return ApiResponse::success([
                 'clients' => UserResource::collection($clients),
@@ -232,26 +236,26 @@ class CommercialController extends Controller
 
             // Base query pour tous les clients parrainés
             $clientsQuery = $commercial->clientsParraines()
-                ->whereHas('roles', function ($query) {
+                ->whereHas('user.roles', function ($query) {
                     $query->where('name', RoleEnum::CLIENT->value);
                 });
 
             // Statistiques générales
             $totalClients = $clientsQuery->count();
-            $clientsActifs = $clientsQuery->clone()->where('est_actif', true)->count();
-            $clientsInactifs = $clientsQuery->clone()->where('est_actif', false)->count();
+            $clientsActifs = $clientsQuery->clone()->whereHas('user', function ($query) {
+                $query->where('est_actif', true);
+            })->count();
+            $clientsInactifs = $clientsQuery->clone()->whereHas('user', function ($query) {
+                $query->where('est_actif', false);
+            })->count();
 
             // Répartition par type
             $clientsPhysiques = $clientsQuery->clone()
-                ->whereHas('client', function ($query) {
-                    $query->where('type_client', ClientTypeEnum::PHYSIQUE->value);
-                })
+                ->where('type_client', ClientTypeEnum::PHYSIQUE->value)
                 ->count();
 
             $clientsMoraux = $clientsQuery->clone()
-                ->whereHas('client', function ($query) {
-                    $query->where('type_client', ClientTypeEnum::MORAL->value);
-                })
+                ->where('type_client', ClientTypeEnum::MORAL->value)
                 ->count();
 
             // Répartition par mois (12 derniers mois)
@@ -260,12 +264,12 @@ class CommercialController extends Controller
             // Statistiques du code parrainage actuel
             $currentParrainageCode = CommercialParrainageCode::getCurrentCode($commercial->id);
             $codeParrainageStats = null;
-            
+
             if ($currentParrainageCode) {
                 $clientsAvecCodeActuel = $clientsQuery->clone()
                     ->where('code_parrainage', $currentParrainageCode->code_parrainage)
                     ->count();
-                
+
                 $codeParrainageStats = [
                     'code_actuel' => $currentParrainageCode->code_parrainage,
                     'date_debut' => $currentParrainageCode->date_debut->format('Y-m-d'),
@@ -282,7 +286,7 @@ class CommercialController extends Controller
                     'clients_actifs' => $clientsActifs,
                     'clients_inactifs' => $clientsInactifs,
                     'taux_activation' => $totalClients > 0 ? round(($clientsActifs / $totalClients) * 100, 2) : 0,
-                    
+
                     // Répartition par type
                     'repartition_par_type' => [
                         'physiques' => $clientsPhysiques,
@@ -290,10 +294,10 @@ class CommercialController extends Controller
                         'pourcentage_physiques' => $totalClients > 0 ? round(($clientsPhysiques / $totalClients) * 100, 2) : 0,
                         'pourcentage_moraux' => $totalClients > 0 ? round(($clientsMoraux / $totalClients) * 100, 2) : 0
                     ],
-                    
+
                     // Répartition par mois (pour graphiques)
                     'repartition_par_mois' => $repartitionParMois,
-                    
+
                     // Statistiques du code parrainage
                     'code_parrainage_stats' => $codeParrainageStats
                 ],
@@ -312,22 +316,22 @@ class CommercialController extends Controller
     {
         $repartition = [];
         $maintenant = now();
-        
+
         // Générer les 12 derniers mois
         for ($i = 11; $i >= 0; $i--) {
             $date = $maintenant->copy()->subMonths($i);
             $moisDebut = $date->copy()->startOfMonth();
             $moisFin = $date->copy()->endOfMonth();
-            
+
             $clientsCeMois = $clientsQuery->clone()
                 ->whereBetween('created_at', [$moisDebut, $moisFin])
                 ->count();
-            
+
             $clientsActifsCeMois = $clientsQuery->clone()
                 ->whereBetween('created_at', [$moisDebut, $moisFin])
                 ->where('est_actif', true)
                 ->count();
-            
+
             $repartition[] = [
                 'mois' => $date->format('Y-m'),
                 'mois_nom' => $date->format('M Y'),
@@ -337,7 +341,7 @@ class CommercialController extends Controller
                 'clients_inactifs' => $clientsCeMois - $clientsActifsCeMois
             ];
         }
-        
+
         return $repartition;
     }
 

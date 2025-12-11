@@ -3,7 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Enums\RoleEnum;
-use App\Models\User;
+use App\Models\Client;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
@@ -18,38 +18,38 @@ class DerniersClientsWidget extends TableWidget
 
     public function table(Table $table): Table
     {
-        $commercial = Auth::user();
+        $commercial = \Filament\Facades\Filament::auth()->user() ?? Auth::user();
 
         if (!$commercial) {
             return $table
-                ->query(fn (): Builder => User::query()->whereRaw('1 = 0'))
+                ->query(fn (): Builder => Client::query()->whereRaw('1 = 0'))
                 ->columns([]);
         }
 
         return $table
             ->query(
-                fn (): Builder => User::query()
-                    ->where('personne_id', $commercial->id)
-                    ->whereHas('roles', fn($q) => $q->where('name', RoleEnum::CLIENT->value))
-                    ->with(['personne', 'client'])
+                fn (): Builder => Client::query()
+                    ->where('commercial_id', $commercial->id)
+                    ->whereHas('user.roles', fn($q) => $q->where('name', RoleEnum::CLIENT->value))
+                    ->with(['user.personne', 'user.roles'])
                     ->orderBy('created_at', 'desc')
                     ->limit(5)
             )
             ->columns([
-                TextColumn::make('email')
+                TextColumn::make('user.email')
                     ->label('Email')
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('personne.nom')
+                TextColumn::make('user.personne.nom')
                     ->label('Nom')
                     ->searchable(),
 
-                TextColumn::make('personne.prenoms')
+                TextColumn::make('user.personne.prenoms')
                     ->label('Prénoms')
                     ->searchable(),
 
-                TextColumn::make('client.type_client')
+                TextColumn::make('type_client')
                     ->label('Type')
                     ->badge()
                     ->formatStateUsing(fn ($state) => $state?->getLabel() ?? 'N/A')
@@ -64,7 +64,7 @@ class DerniersClientsWidget extends TableWidget
                     ->dateTime('d/m/Y H:i')
                     ->sortable(),
 
-                TextColumn::make('est_actif')
+                TextColumn::make('user.est_actif')
                     ->label('Statut')
                     ->badge()
                     ->formatStateUsing(fn ($state) => $state ? 'Actif' : 'Inactif')

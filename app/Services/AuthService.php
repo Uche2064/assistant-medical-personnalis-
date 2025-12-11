@@ -46,7 +46,7 @@ class AuthService
     /**
      * Crée un client physique.
      */
-    public function createClientPhysique(User $user, array $validated): void
+    public function createClientPhysique(User $user, array $validated): Client
     {
         // Créer d'abord le client
         $client = Client::create([
@@ -62,9 +62,11 @@ class AuthService
             'lien_parente' => LienParenteEnum::PRINCIPAL,
             'assure_principal_id' => null
         ]);
+
+        return $client;
     }
 
-    public function createClientMoral(User $user, array $validated): void
+    public function createClientMoral(User $user, array $validated): Client
     {
         // Créer d'abord le client
         $client = Client::create([
@@ -77,6 +79,8 @@ class AuthService
             'jeton' => LienInvitation::genererToken(),
             'expire_a' => now()->addDays((int) env('TOKEN_LINK_EXPIRE_TIME_DAYS')),
         ]);
+
+        return $client;
     }
 
 

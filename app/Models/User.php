@@ -213,11 +213,18 @@ class User extends Authenticatable implements JWTSubject, HasName
     }
 
     /**
-     * Get the commercial who created this user account
+     * Get the commercial who created this client account (via client relationship)
      */
     public function commercial()
     {
-        return $this->belongsTo(User::class, 'personne_id');
+        return $this->hasOneThrough(
+            User::class,
+            Client::class,
+            'user_id', // Foreign key on clients table
+            'id', // Foreign key on users table (commercial)
+            'id', // Local key on users table
+            'commercial_id' // Local key on clients table
+        );
     }
 
     /**
@@ -225,7 +232,7 @@ class User extends Authenticatable implements JWTSubject, HasName
      */
     public function clientsParraines()
     {
-        return $this->hasMany(User::class, 'personne_id');
+        return $this->hasMany(Client::class, 'commercial_id');
     }
 
     /**
