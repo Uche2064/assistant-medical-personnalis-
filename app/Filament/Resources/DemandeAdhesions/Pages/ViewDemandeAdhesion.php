@@ -46,57 +46,15 @@ class ViewDemandeAdhesion extends ViewRecord
     {
         $user = Filament::auth()->user() ?? Auth::user();
         $demande = $this->record;
-        $canValidate = $user && (
+        $canReject = $user && (
             $user->hasRole(RoleEnum::TECHNICIEN->value) ||
             $user->hasRole(RoleEnum::MEDECIN_CONTROLEUR->value)
         ) && $demande->statut === StatutDemandeAdhesionEnum::EN_ATTENTE;
 
-        $canReject = $canValidate;
         $canPropose = $user && $user->hasRole(RoleEnum::TECHNICIEN->value) &&
                      $demande->statut === StatutDemandeAdhesionEnum::EN_ATTENTE;
 
         return [
-            Action::make('valider')
-                ->label('Valider la demande')
-                ->icon('heroicon-o-check-circle')
-                ->color('success')
-                ->visible($canValidate)
-                ->form([
-                    Textarea::make('motif_validation')
-                        ->label('Motif de validation')
-                        ->placeholder('Optionnel'),
-                    Textarea::make('notes_techniques')
-                        ->label('Notes techniques')
-                        ->placeholder('Optionnel'),
-                ])
-                ->action(function (array $data) use ($user, $demande) {
-                    try {
-                        DB::beginTransaction();
-                        $this->demandeAdhesionService->validerDemande(
-                            $demande,
-                            $user->personnel ?? $user,
-                            $data['motif_validation'] ?? null,
-                            $data['notes_techniques'] ?? null
-                        );
-                        DB::commit();
-
-                        Notification::make()
-                            ->success()
-                            ->title('Demande validée')
-                            ->body('La demande d\'adhésion a été validée avec succès.')
-                            ->send();
-
-                        $this->redirect($this->getResource()::getUrl('view', ['record' => $demande]));
-                    } catch (\Exception $e) {
-                        DB::rollBack();
-                        Notification::make()
-                            ->danger()
-                            ->title('Erreur')
-                            ->body('Une erreur est survenue lors de la validation : ' . $e->getMessage())
-                            ->send();
-                    }
-                }),
-
             Action::make('rejeter')
                 ->label('Rejeter la demande')
                 ->icon('heroicon-o-x-circle')
@@ -254,14 +212,31 @@ class ViewDemandeAdhesion extends ViewRecord
                             'statut' => \App\Enums\StatutPropositionContratEnum::PROPOSEE->value,
                         ]);
 
-                        // Mettre à jour le statut de la demande
+                        // Valider automatiquement la demande et remplir les champs de validation
                         $demande->update([
-                            'statut' => \App\Enums\StatutDemandeAdhesionEnum::PROPOSEE->value,
+                            'statut' => \App\Enums\StatutDemandeAdhesionEnum::VALIDEE->value,
+                            'valide_par_id' => $technicien->id,
+                            'valider_a' => now(),
                         ]);
 
-                        // Notifier le client
+                        // Notifier le client de la validation et de la proposition
                         $notificationService = app(\App\Services\NotificationService::class);
 
+                        // Notification de validation
+                        $notificationService->createNotification(
+                            $demande->user->id,
+                            'Demande d\'adhésion validée',
+                            "Votre demande d'adhésion a été validée et un contrat vous a été proposé.",
+                            'demande_validee',
+                            [
+                                'demande_id' => $demande->id,
+                                'valide_par' => $technicien->nom . ' ' . ($technicien->prenoms ?? ''),
+                                'date_validation' => now()->format('d/m/Y à H:i'),
+                                'type_notification' => 'demande_validee'
+                            ]
+                        );
+
+                        // Notification de proposition de contrat
                         $notificationService->createNotification(
                             $demande->user->id,
                             'Proposition de contrat reçue',
@@ -302,8 +277,8 @@ class ViewDemandeAdhesion extends ViewRecord
 
                         Notification::make()
                             ->success()
-                            ->title('Contrat proposé')
-                            ->body('Le contrat a été proposé avec succès. Le client a été notifié par email et notification.')
+                            ->title('Contrat proposé et demande validée')
+                            ->body('La demande a été validée et le contrat a été proposé avec succès. Le client a été notifié par email et notification.')
                             ->send();
 
                         $this->redirect($this->getResource()::getUrl('view', ['record' => $demande]));

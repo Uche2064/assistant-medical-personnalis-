@@ -13,7 +13,7 @@ class ListAssures extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            // Pas de création manuelle d'assurés
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Clients;
 
+use App\Enums\RoleEnum;
 use App\Filament\Resources\Clients\Pages\CreateClient;
 use App\Filament\Resources\Clients\Pages\EditClient;
 use App\Filament\Resources\Clients\Pages\ListClients;
@@ -36,7 +37,7 @@ class ClientResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Clients et Prestataires';
+        return 'Clients';
     }
 
     public static function getNavigationBadge(): ?string
@@ -47,7 +48,7 @@ class ClientResource extends Resource
         }
 
         // Pour les commerciaux, afficher le nombre de notifications non lues liées aux nouveaux clients parrainés
-        if ($user->hasRole(\App\Enums\RoleEnum::COMMERCIAL->value)) {
+        if ($user->hasRole(RoleEnum::COMMERCIAL->value)) {
             $unreadCount = \App\Models\Notification::where('user_id', $user->id)
                 ->where('est_lu', false)
                 ->get()
@@ -77,9 +78,9 @@ class ClientResource extends Resource
         }
 
         // Visible pour commercial, admin_global et technicien
-        return $user->hasRole(\App\Enums\RoleEnum::COMMERCIAL->value) ||
-               $user->hasRole(\App\Enums\RoleEnum::ADMIN_GLOBAL->value) ||
-               $user->hasRole(\App\Enums\RoleEnum::TECHNICIEN->value);
+        return $user->hasRole(RoleEnum::COMMERCIAL->value) ||
+               $user->hasRole(RoleEnum::ADMIN_GLOBAL->value) ||
+               $user->hasRole(RoleEnum::TECHNICIEN->value);
     }
 
     public static function form(Schema $schema): Schema

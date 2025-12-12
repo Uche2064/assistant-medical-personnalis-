@@ -32,7 +32,7 @@ class ClientPrestataireResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Clients et Prestataires';
+        return 'Clients';
     }
 
     protected static ?int $navigationSort = 5;

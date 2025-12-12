@@ -87,7 +87,9 @@ class Notifications extends Page implements HasTable
                     ->searchable()
                     ->sortable()
                     ->weight('bold')
-                    ->color(fn ($record) => $record->est_lu ? null : 'primary'),
+                    ->color(fn ($record) => $record->est_lu ? null : 'primary')
+                    ->wrap()
+                    ->limit(100),
                 TextColumn::make('message')
                     ->label('Message')
                     ->limit(50)
@@ -135,8 +137,18 @@ class Notifications extends Page implements HasTable
                     }),
             ])
             ->actions([
+                PageAction::make('viewFullMessage')
+                    ->label('')
+                    ->tooltip('Voir le message complet')
+                    ->icon('heroicon-o-eye')
+                    ->color('info')
+                    ->modalHeading(fn ($record) => $record->titre)
+                    ->modalContent(fn ($record) => view('filament.pages.notification-full-message', ['notification' => $record]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fermer'),
                 PageAction::make('markAsRead')
-                    ->label('Marquer comme lue')
+                    ->label('')
+                    ->tooltip('Marquer comme lue')
                     ->icon('heroicon-o-check')
                     ->color('success')
                     ->visible(fn ($record) => !$record->est_lu)
@@ -145,7 +157,8 @@ class Notifications extends Page implements HasTable
                         $this->dispatch('notification-updated');
                     }),
                 PageAction::make('markAsUnread')
-                    ->label('Marquer comme non lue')
+                    ->label('')
+                    ->tooltip('Marquer comme non lue')
                     ->icon('heroicon-o-bell')
                     ->color('warning')
                     ->visible(fn ($record) => $record->est_lu)
@@ -154,7 +167,8 @@ class Notifications extends Page implements HasTable
                         $this->dispatch('notification-updated');
                     }),
                 PageAction::make('delete')
-                    ->label('Supprimer')
+                    ->label('')
+                    ->tooltip('Supprimer')
                     ->icon('heroicon-o-trash')
                     ->color('danger')
                     ->requiresConfirmation()
