@@ -10,6 +10,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
+use Filament\Facades\Filament;
 
 class PersonnelForm
 {
@@ -65,7 +66,7 @@ class PersonnelForm
                     ->label('Rôle')
                     ->required()
                     ->options(function () {
-                        $user = Auth::user();
+                        $user = Auth::user() ?? Filament::auth()->user() ;
                         $options = [];
 
                         if ($user && $user->hasRole(RoleEnum::ADMIN_GLOBAL->value)) {
@@ -86,17 +87,6 @@ class PersonnelForm
                         }
 
                         return $options;
-                    })
-                    ->default(function () {
-                        $user = Auth::user();
-
-                        if ($user && $user->hasRole(RoleEnum::ADMIN_GLOBAL->value)) {
-                            return RoleEnum::GESTIONNAIRE->value;
-                        } elseif ($user && $user->hasRole(RoleEnum::GESTIONNAIRE->value)) {
-                            return RoleEnum::TECHNICIEN->value; // Par défaut technicien pour gestionnaire
-                        }
-
-                        return null;
                     })
                     ->searchable(),
             ]);

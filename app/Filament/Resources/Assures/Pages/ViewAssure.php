@@ -16,11 +16,8 @@ class ViewAssure extends ViewRecord
         // Charger les relations nécessaires
         $this->record->load([
             'user.personne',
-            'client.user.personne',
             'assurePrincipal.user.personne',
-            'assurePrincipal.user.contact',
             'beneficiaires.user.personne',
-            'beneficiaires.user.contact',
         ]);
     }
 }

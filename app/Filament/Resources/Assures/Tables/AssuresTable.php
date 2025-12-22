@@ -41,21 +41,21 @@ class AssuresTable
                 TextColumn::make('lien_parente')
                     ->label('Lien parenté')
                     ->badge()
-                    ->formatStateUsing(fn ($state) => $state?->getLabel() ?? 'N/A')
-                    ->visible(fn ($record) => !$record->est_principal),
+                    ->formatStateUsing(fn ($state) => $state ? $state?->getLabel() : 'N/A')
+                    ,
 
                 TextColumn::make('assurePrincipal.user.personne.nom')
                     ->label('Assuré Principal')
                     ->searchable()
                     ->formatStateUsing(fn ($state, $record) => $state ? $state . ' ' . ($record->assurePrincipal->user->personne->prenoms ?? '') : '-')
-                    ->visible(fn ($record) => !$record->est_principal),
+                    ,
 
                 TextColumn::make('beneficiaires_count')
                     ->label('Nb Bénéficiaires')
                     ->counts('beneficiaires')
                     ->badge()
                     ->color('warning')
-                    ->visible(fn ($record) => $record->est_principal),
+                    ,
 
                 TextColumn::make('user.contact')
                     ->label('Contact')

@@ -11,6 +11,7 @@ use App\Filament\Resources\Personnels\Schemas\PersonnelInfolist;
 use App\Filament\Resources\Personnels\Tables\PersonnelsTable;
 use App\Models\Personnel;
 use BackedEnum;
+use Filament\Facades\Filament;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -41,7 +42,7 @@ class PersonnelResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        $user = Auth::user();
+        $user = Auth::user() ?? Filament::auth()->user();
         return $user && (
             $user->hasRole(RoleEnum::ADMIN_GLOBAL->value) ||
             $user->hasRole(RoleEnum::GESTIONNAIRE->value)
@@ -50,7 +51,7 @@ class PersonnelResource extends Resource
 
     public static function canCreate(): bool
     {
-        $user = Auth::user();
+        $user = Auth::user() ?? Filament::auth()->user();
         return $user && (
             $user->hasRole(RoleEnum::ADMIN_GLOBAL->value) ||
             $user->hasRole(RoleEnum::GESTIONNAIRE->value)

@@ -114,4 +114,45 @@ class ClientResource extends Resource
             'edit' => EditClient::route('/{record}/edit'),
         ];
     }
+
+    public static function canCreate(): bool
+    {
+        $user = Filament::auth()->user() ?? Auth::user();
+
+        if (!$user) {
+            return false;
+        }
+
+        // Rôles qui ne peuvent pas créer de demandes d'adhésion
+        $rolesBloques = [
+           RoleEnum::ADMIN_GLOBAL->value,
+           RoleEnum::GESTIONNAIRE->value,
+           RoleEnum::MEDECIN_CONTROLEUR->value,
+           RoleEnum::TECHNICIEN->value,
+           RoleEnum::COMPTABLE->value,
+        ];
+
+        return !$user->hasAnyRole($rolesBloques);
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = Filament::auth()->user() ?? Auth::user();
+
+        if (!$user) {
+            return false;
+        }
+
+        // Les rôles qui ne peuvent pas modifier les demandes d'adhésion
+        $rolesBloques = [
+           RoleEnum::TECHNICIEN->value,
+           RoleEnum::MEDECIN_CONTROLEUR->value,
+           RoleEnum::ADMIN_GLOBAL->value,
+           RoleEnum::COMPTABLE->value,
+           RoleEnum::GESTIONNAIRE->value,
+           RoleEnum::COMMERCIAL->value,
+        ];
+
+        return !$user->hasAnyRole($rolesBloques);
+    }
 }

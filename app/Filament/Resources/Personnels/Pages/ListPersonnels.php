@@ -8,6 +8,7 @@ use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Filament\Facades\Filament;
 
 class ListPersonnels extends ListRecords
 {
@@ -23,7 +24,7 @@ class ListPersonnels extends ListRecords
     protected function getTableQuery(): Builder
     {
         $query = parent::getTableQuery();
-        $user = Auth::user();
+        $user = Auth::user() ?? Filament::auth()->user();
 
         // Charger les relations nécessaires pour l'affichage
         $query->with(['user.personne', 'user.roles', 'gestionnaire.user']);

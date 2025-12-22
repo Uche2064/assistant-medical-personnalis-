@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Role;
+use Filament\Facades\Filament;
 
 class CreatePersonnel extends CreateRecord
 {
@@ -41,7 +42,7 @@ class CreatePersonnel extends CreateRecord
                 // Le chemin retourné est relatif au disque 'public' (ex: "uploads/filename.jpg")
                 // On stocke ce chemin tel quel pour que ImageEntry puisse l'afficher
                 $photoUrl = $photoPath;
-
+                dd($photoPath);
                 // Log pour débogage
                 Log::info("Photo path from Filament: " . $photoPath);
             }
@@ -85,9 +86,9 @@ class CreatePersonnel extends CreateRecord
             ];
 
             // Si c'est un gestionnaire qui crée, définir le gestionnaire_id
-            $currentUser = Auth::user();
+            $currentUser = Auth::user() ?? Filament::auth()->user();
             if ($currentUser && $currentUser->hasRole(RoleEnum::GESTIONNAIRE->value) && $currentUser->personnel) {
-                $personnelData['gestionnaire_id'] = $currentUser->personnel->id;
+                $personnelData['gestionnaire_id'] = $currentUser->id;
             }
 
             $personnel = Personnel::create($personnelData);

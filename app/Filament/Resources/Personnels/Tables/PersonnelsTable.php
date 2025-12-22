@@ -32,16 +32,11 @@ class PersonnelsTable
                     ->badge()
                     ->separator(','),
 
-                TextColumn::make('gestionnaire.user.email')
-                    ->label('Gestionnaire')
-                    ->searchable()
-                    ->sortable(),
-
                 TextColumn::make('user.personne.sexe')
                     ->label('Sexe')
                     ->formatStateUsing(fn ($state) => $state ? ($state === 'M' ? 'Masculin' : 'Féminin') : '-')
                     ->badge()
-                    ->color(fn ($state) => $state === 'M' ? 'info' : 'pink'),
+                    ->color(fn ($state) => $state === 'M' ? 'info' : 'primary'),
 
                 TextColumn::make('user.personne.date_naissance')
                     ->label('Date de naissance')

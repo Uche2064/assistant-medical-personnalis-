@@ -2,10 +2,8 @@
 
 namespace App\Filament\Pages;
 
-use App\Enums\OtpTypeEnum;
-use App\Jobs\SendEmailJob;
-use App\Models\Otp;
 use App\Models\User;
+use App\Services\OtpService;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -68,44 +66,26 @@ class ForgotPassword extends Page implements HasForms
             ->statePath('data');
     }
 
-
     public function sendOtp(): void
     {
         $data = $this->form->getState();
         $email = $data['email'];
 
-        // Vérifier que l'utilisateur existe
         $user = User::where('email', $email)->first();
 
-        if (!$user) {
+        if (! $user) {
             Notification::make()
                 ->title('Erreur')
                 ->body('Aucun compte trouvé avec cet email')
                 ->danger()
                 ->send();
+
             return;
         }
 
         try {
-            // Générer et envoyer l'OTP
-            $otpExpiredAt = (int) env('OTP_EXPIRED_AT', 10);
-            $otp = Otp::generateOtp($email, $otpExpiredAt, OtpTypeEnum::FORGOT_PASSWORD->value);
+            OtpService::sendForgotPasswordOtp($email);
 
-            Log::info("OTP généré pour mot de passe oublié - Email: {$email}, OTP: {$otp}");
-
-            // Envoyer l'OTP par email
-            dispatch(new SendEmailJob(
-                $user->email,
-                'Réinitialisation de votre mot de passe - SUNU Santé',
-                'emails.otp_verification',
-                [
-                    'user' => $user,
-                    'otp' => $otp,
-                    'expire_at' => now()->addMinutes($otpExpiredAt),
-                ]
-            ));
-
-            // Stocker l'email en session pour la page de vérification OTP
             session(['forgot_password_email' => $email]);
 
             Notification::make()
@@ -114,21 +94,22 @@ class ForgotPassword extends Page implements HasForms
                 ->success()
                 ->send();
 
-            // Rediriger vers la page de vérification OTP
             $this->redirect(route('filament.admin.pages.verify-otp'));
 
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de l\'envoi de l\'OTP', [
-                'error' => $e->getMessage(),
+        } catch (\Throwable $e) {
+
+            Log::error('Erreur OTP', [
                 'email' => $email,
+                'error' => $e->getMessage(),
             ]);
 
             Notification::make()
                 ->title('Erreur')
-                ->body('Une erreur est survenue lors de l\'envoi du code. Veuillez réessayer.')
+                ->body('Une erreur est survenue lors de l\'envoi du code')
                 ->danger()
                 ->send();
         }
     }
-}
 
+    
+}

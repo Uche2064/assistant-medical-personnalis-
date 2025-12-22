@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Enums\OtpTypeEnum;
 use App\Models\Otp;
+use App\Services\OtpService;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -24,6 +25,8 @@ class VerifyOtp extends Page implements HasForms
 
     public ?array $data = [];
 
+    public int $resendTimer = 60;
+
     /**
      * Permettre l'accès à cette page sans authentification
      */
@@ -35,7 +38,7 @@ class VerifyOtp extends Page implements HasForms
     public function mount(): void
     {
         // Vérifier que l'email est en session (venant de ForgotPassword)
-        if (!session()->has('forgot_password_email')) {
+        if (! session()->has('forgot_password_email')) {
             // Rediriger vers la page mot de passe oublié
             $this->redirect(route('filament.admin.pages.forgot-password'));
         }
@@ -44,6 +47,9 @@ class VerifyOtp extends Page implements HasForms
         if (Auth::check()) {
             $this->redirect(route('filament.admin.auth.login'));
         }
+
+        // Initialiser le timer
+        $this->resendTimer = 60;
     }
 
     protected function getForms(): array
@@ -72,7 +78,7 @@ class VerifyOtp extends Page implements HasForms
         $otp = $data['otp'];
         $email = session('forgot_password_email');
 
-        if (!$email) {
+        if (! $email) {
             Notification::make()
                 ->title('Erreur')
                 ->body('Session expirée. Veuillez recommencer.')
@@ -80,6 +86,7 @@ class VerifyOtp extends Page implements HasForms
                 ->send();
 
             $this->redirect(route('filament.admin.pages.forgot-password'));
+
             return;
         }
         // Vérifier l'OTP
@@ -89,12 +96,13 @@ class VerifyOtp extends Page implements HasForms
             ->where('expire_a', '>', now())
             ->first();
 
-        if (!$otpRecord || $otpRecord->isExpired()) {
+        if (! $otpRecord || $otpRecord->isExpired()) {
             Notification::make()
                 ->title('Code invalide')
                 ->body('Le code de vérification est invalide ou a expiré. Veuillez réessayer.')
                 ->danger()
                 ->send();
+
             return;
         }
 
@@ -116,5 +124,34 @@ class VerifyOtp extends Page implements HasForms
         // Rediriger vers la page de changement de mot de passe
         $this->redirect(route('filament.admin.pages.reset-password'));
     }
-}
 
+
+    public function resendOtp(): void
+    {
+        $email = session('forgot_password_email');
+
+        if (! $email) {
+            Notification::make()
+                ->title('Session expirée')
+                ->body('Veuillez recommencer la procédure.')
+                ->danger()
+                ->send();
+
+            $this->redirect(route('filament.admin.pages.forgot-password'));
+            return;
+        }
+
+        // Envoi OTP (réutilise ta logique existante)
+        OtpService::sendForgotPasswordOtp($email);
+
+        Notification::make()
+            ->title('Code renvoyé')
+            ->body('Un nouveau code a été envoyé.')
+            ->success()
+            ->send();
+
+        // Reset du timer (clé 🔑)
+        $this->resendTimer = 60;
+    }
+
+}
