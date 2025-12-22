@@ -94,6 +94,10 @@ class DemandeAdhesionsTable
                         return !$user->hasAnyRole([
                             RoleEnum::TECHNICIEN->value,
                             RoleEnum::MEDECIN_CONTROLEUR->value,
+                            RoleEnum::ADMIN_GLOBAL->value,
+                            RoleEnum::GESTIONNAIRE->value,
+                            RoleEnum::COMPTABLE->value,
+                            RoleEnum::COMMERCIAL->value,
                         ]);
                     }),
             ])

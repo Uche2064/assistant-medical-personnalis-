@@ -17,6 +17,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Filament\Facades\Filament;
+use App\Enums\RoleEnum;
 
 class DemandeAdhesionResource extends Resource
 {
@@ -130,11 +131,11 @@ class DemandeAdhesionResource extends Resource
 
         // Rôles qui ne peuvent pas créer de demandes d'adhésion
         $rolesBloques = [
-            \App\Enums\RoleEnum::ADMIN_GLOBAL->value,
-            \App\Enums\RoleEnum::GESTIONNAIRE->value,
-            \App\Enums\RoleEnum::MEDECIN_CONTROLEUR->value,
-            \App\Enums\RoleEnum::TECHNICIEN->value,
-            \App\Enums\RoleEnum::COMPTABLE->value,
+           RoleEnum::ADMIN_GLOBAL->value,
+           RoleEnum::GESTIONNAIRE->value,
+           RoleEnum::MEDECIN_CONTROLEUR->value,
+           RoleEnum::TECHNICIEN->value,
+           RoleEnum::COMPTABLE->value,
         ];
 
         return !$user->hasAnyRole($rolesBloques);
@@ -148,10 +149,14 @@ class DemandeAdhesionResource extends Resource
             return false;
         }
 
-        // Les techniciens et médecins contrôleurs ne peuvent pas modifier les demandes d'adhésion
+        // Les rôles qui ne peuvent pas modifier les demandes d'adhésion
         $rolesBloques = [
-            \App\Enums\RoleEnum::TECHNICIEN->value,
-            \App\Enums\RoleEnum::MEDECIN_CONTROLEUR->value,
+           RoleEnum::TECHNICIEN->value,
+           RoleEnum::MEDECIN_CONTROLEUR->value,
+           RoleEnum::ADMIN_GLOBAL->value,
+           RoleEnum::COMPTABLE->value,
+           RoleEnum::GESTIONNAIRE->value,
+           RoleEnum::COMMERCIAL->value,
         ];
 
         return !$user->hasAnyRole($rolesBloques);
