@@ -206,7 +206,14 @@ class NotificationService
                 ]
             );
         }
-        broadcast(new NouveauCompteCree($user, 'prestataire', $notificationData));
+
+        // Dispatcher l'événement pour le temps réel (gérer les erreurs silencieusement)
+        try {
+            broadcast(new NouveauCompteCree($user, 'prestataire', $notificationData));
+        } catch (\Exception $e) {
+            // Logger l'erreur mais ne pas interrompre le processus
+            \Illuminate\Support\Facades\Log::warning('Erreur de broadcasting (non bloquante): ' . $e->getMessage());
+        }
 
     }
 

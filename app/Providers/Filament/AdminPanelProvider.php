@@ -80,7 +80,7 @@ class AdminPanelProvider extends PanelProvider
             ->darkModeBrandLogo(asset('sunu-logo.png'))
             // Découverte automatique des ressources, pages et widgets
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
-                    ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
+            ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
                     // Dashboard par défaut désactivé - chaque rôle a son propre dashboard
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([

@@ -134,12 +134,15 @@ class DemandeAdhesionService
             'notes_techniques' => $notesTechniques,
         ]);
 
+        // Si c'est un prestataire, mettre à jour son statut
+        if ($demande->type_demandeur === TypeDemandeurEnum::PRESTATAIRE && $demande->user->prestataire) {
         $demande->user->prestataire->update([
             'statut' => StatutPrestataireEnum::ACTIF->value,
             'medecin_controleur_id' => $validateur->id
         ]);
+        }
 
-        // Notifier le client
+        // Notifier le client/prestataire
         $this->notificationService->createNotification(
             $demande->user->id,
             'Demande d\'adhésion validée',

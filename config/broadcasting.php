@@ -15,7 +15,9 @@ return [
     |
     */
 
-    'default' => env('BROADCAST_CONNECTION', 'reverb'),
+    // Par défaut, utiliser 'log' pour éviter les erreurs si Pusher/Reverb n'est pas configuré
+    // Changez à 'reverb' ou 'pusher' dans votre fichier .env si vous avez configuré le broadcasting
+    'default' => env('BROADCAST_CONNECTION', 'log'),
 
     /*
     |--------------------------------------------------------------------------

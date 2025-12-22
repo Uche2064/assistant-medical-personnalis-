@@ -7,12 +7,14 @@ use App\Models\Personnel;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Facades\Auth;
+use Filament\Facades\Filament;
+
 
 class PersonnelStatsWidget extends BaseWidget
 {
     protected function getStats(): array
     {
-        $user = Auth::user();
+        $user = Auth::user() ?? Filament::auth()->user();
         $isAdminGlobal = $user->hasRole(RoleEnum::ADMIN_GLOBAL->value);
         $isGestionnaire = $user->hasRole(RoleEnum::GESTIONNAIRE->value);
 

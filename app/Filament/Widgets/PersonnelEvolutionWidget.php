@@ -7,6 +7,7 @@ use App\Models\Personnel;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Filament\Facades\Filament;
 
 class PersonnelEvolutionWidget extends ChartWidget
 {
@@ -14,7 +15,7 @@ class PersonnelEvolutionWidget extends ChartWidget
 
     protected function getData(): array
     {
-        $user = Auth::user();
+        $user = Auth::user() ?? Filament::auth()->user();
         $isGestionnaire = $user->hasRole(RoleEnum::GESTIONNAIRE->value);
 
         // Récupérer les personnels selon le rôle

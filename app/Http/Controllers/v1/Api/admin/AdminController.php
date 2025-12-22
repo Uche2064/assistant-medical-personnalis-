@@ -61,7 +61,7 @@ class AdminController extends Controller
 
         // Gestion de l'upload de la photo
         if (isset($validated['photo'])) {
-            $photoUrl = ImageUploadHelper::uploadImage($validated['photo'], 'uploads', $validated['email']);
+            $photoUrl = ImageUploadHelper::uploadImage($validated['photo'], 'uploads', $validated['email'], 'user_photo');
             if (!$photoUrl) {
                 return ApiResponse::error('Erreur lors de l\'upload de la photo', 422);
             }
@@ -260,19 +260,19 @@ class AdminController extends Controller
         try {
             // 1. Vue d'ensemble des statistiques clés
             $vueEnsemble = $this->getVueEnsemble();
-            
+
             // 2. Graphiques et analyses
             $graphiques = $this->getGraphiquesAnalyses();
-            
+
             // 3. Activités récentes
             $activitesRecentes = $this->getActivitesRecentes();
-            
+
             // 4. Top 5 commerciaux
             $topCommerciaux = $this->getTopCommerciaux();
-            
+
             // 5. Top 5 gestionnaires
             $topGestionnaires = $this->getTopGestionnaires();
-            
+
             // 6. Top 5 clients
             $topClients = $this->getTopClients();
 
@@ -299,7 +299,7 @@ class AdminController extends Controller
         $gestionnairesQuery = User::whereHas('roles', function ($q) {
             $q->where('name', RoleEnum::GESTIONNAIRE->value);
         });
-        
+
         $totalGestionnaires = $gestionnairesQuery->count();
         $gestionnairesActifs = $gestionnairesQuery->clone()->where('est_actif', true)->count();
         $gestionnairesInactifs = $gestionnairesQuery->clone()->where('est_actif', false)->count();
@@ -308,7 +308,7 @@ class AdminController extends Controller
         $commerciauxQuery = User::whereHas('roles', function ($q) {
             $q->where('name', RoleEnum::COMMERCIAL->value);
         });
-        
+
         $totalCommerciaux = $commerciauxQuery->count();
         $commerciauxActifs = $commerciauxQuery->clone()->where('est_actif', true)->count();
         $commerciauxInactifs = $commerciauxQuery->clone()->where('est_actif', false)->count();
@@ -317,7 +317,7 @@ class AdminController extends Controller
         $clientsQuery = User::whereHas('roles', function ($q) {
             $q->where('name', RoleEnum::CLIENT->value);
         });
-        
+
         $totalClients = $clientsQuery->count();
         $clientsActifs = $clientsQuery->clone()->where('est_actif', true)->count();
         $clientsInactifs = $clientsQuery->clone()->where('est_actif', false)->count();
@@ -359,13 +359,13 @@ class AdminController extends Controller
     {
         // Évolution mensuelle (12 derniers mois)
         $evolutionMensuelle = $this->getEvolutionMensuelle();
-        
+
         // Répartition par sexe des gestionnaires
         $repartitionSexeGestionnaires = $this->getRepartitionSexeGestionnaires();
-        
+
         // Répartition des clients par type
         $repartitionClientsParType = $this->getRepartitionClientsParType();
-        
+
         // Taux d'activation par rôle
         $tauxActivation = $this->getTauxActivationParRole();
 
@@ -384,27 +384,27 @@ class AdminController extends Controller
     {
         $evolution = [];
         $maintenant = now();
-        
+
         for ($i = 11; $i >= 0; $i--) {
             $date = $maintenant->copy()->subMonths($i);
             $moisDebut = $date->copy()->startOfMonth();
             $moisFin = $date->copy()->endOfMonth();
-            
+
             // Gestionnaires
             $gestionnaires = User::whereHas('roles', function ($q) {
                 $q->where('name', RoleEnum::GESTIONNAIRE->value);
             })->whereBetween('created_at', [$moisDebut, $moisFin])->count();
-            
+
             // Commerciaux
             $commerciaux = User::whereHas('roles', function ($q) {
                 $q->where('name', RoleEnum::COMMERCIAL->value);
             })->whereBetween('created_at', [$moisDebut, $moisFin])->count();
-            
+
             // Clients
             $clients = User::whereHas('roles', function ($q) {
                 $q->where('name', RoleEnum::CLIENT->value);
             })->whereBetween('created_at', [$moisDebut, $moisFin])->count();
-            
+
             $evolution[] = [
                 'mois' => $date->format('Y-m'),
                 'mois_nom' => $date->format('M Y'),
@@ -415,7 +415,7 @@ class AdminController extends Controller
                 'total' => $gestionnaires + $commerciaux + $clients
             ];
         }
-        
+
         return $evolution;
     }
 
@@ -482,11 +482,11 @@ class AdminController extends Controller
             $total = User::whereHas('roles', function ($q) use ($role) {
                 $q->where('name', $role);
             })->count();
-            
+
             $actifs = User::whereHas('roles', function ($q) use ($role) {
                 $q->where('name', $role);
             })->where('est_actif', true)->count();
-            
+
             $taux[$key] = [
                 'total' => $total,
                 'actifs' => $actifs,
@@ -603,8 +603,8 @@ class AdminController extends Controller
                 'total_clients' => $commercial->clients_parraines_count,
                 'clients_actifs' => $clientsActifs,
                 'clients_inactifs' => $commercial->clients_parraines_count - $clientsActifs,
-                'taux_activation' => $commercial->clients_parraines_count > 0 
-                    ? round(($clientsActifs / $commercial->clients_parraines_count) * 100, 2) 
+                'taux_activation' => $commercial->clients_parraines_count > 0
+                    ? round(($clientsActifs / $commercial->clients_parraines_count) * 100, 2)
                     : 0,
                 'code_parrainage_actuel' => $codeParrainage ? $codeParrainage->code_parrainage : null,
                 'date_expiration_code' => $codeParrainage ? $codeParrainage->date_expiration->format('Y-m-d') : null
@@ -665,7 +665,7 @@ class AdminController extends Controller
                     ->where('client_id', $user->client->id)
                     ->count();
             }
-            
+
             $user->nombre_contrats = $nombreContrats;
             return $user;
         })
@@ -675,7 +675,7 @@ class AdminController extends Controller
         ->map(function ($client, $index) {
             $typeClient = optional($client->client)->type_client;
             $commercial = $client->commercial;
-            
+
             return [
                 'position' => $index + 1,
                 'id' => $client->id,

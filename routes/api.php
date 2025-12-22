@@ -28,6 +28,117 @@ use App\Http\Controllers\v1\Api\ClientPrestataireController;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Broadcast;
 
+// Route publique pour servir les fichiers (accessible sans clé API pour Filament)
+// Cette route est accessible avec ou sans clé API grâce à l'exclusion dans VerifyApiKey middleware
+// IMPORTANT: Cette route doit être AVANT le groupe middleware verifyApiKey
+// Route::get('/v1/files/{path}', function ($path) {
+//     \Illuminate\Support\Facades\Log::info('API route /v1/files called', [
+//         'path' => $path,
+//         'full_url' => request()->fullUrl(),
+//     ]);
+
+//     try {
+//         // Décoder le chemin
+//         $path = rawurldecode($path);
+
+//         // Sécuriser le chemin (empêcher les attaques de traversal)
+//         $path = str_replace('..', '', $path);
+//         $path = ltrim($path, '/');
+//         $path = str_replace('\\', '/', $path);
+
+//         // Construire le chemin complet : storage/app/public/{path}
+//         // Exemple: demandes_adhesions/momozi_at_gmail_com/358942d4-cabc-467f-9504-0eb7d3c23878.pdf
+//         $fullPath = storage_path('app/public/' . $path);
+
+//         \Illuminate\Support\Facades\Log::info('File request', [
+//             'path' => $path,
+//             'fullPath' => $fullPath,
+//             'exists' => file_exists($fullPath),
+//         ]);
+
+//         // Vérifier que le fichier existe
+//         if (!file_exists($fullPath)) {
+//             // Si le fichier n'existe pas, chercher dans les sous-dossiers demandes_adhesions/
+//             $filename = basename($path);
+//             $demandeDirs = glob(storage_path('app/public/demandes_adhesions/*'), GLOB_ONLYDIR);
+
+//             if ($demandeDirs) {
+//                 foreach ($demandeDirs as $demandeDir) {
+//                     $possiblePath = $demandeDir . '/' . $filename;
+//                     if (file_exists($possiblePath)) {
+//                         $fullPath = $possiblePath;
+//                         break;
+//                     }
+//                 }
+//             }
+
+//             // Si toujours pas trouvé, retourner 404
+//             if (!file_exists($fullPath)) {
+//                 \Illuminate\Support\Facades\Log::warning('File not found', [
+//                     'requested_path' => $path,
+//                     'fullPath' => $fullPath,
+//                 ]);
+//                 abort(404, 'Fichier non trouvé: ' . $path);
+//             }
+//         }
+
+//         // Vérification de sécurité simple : s'assurer que le fichier est dans storage/app/public
+//         $publicDir = storage_path('app/public');
+//         $normalizedFullPath = str_replace('\\', '/', $fullPath);
+//         $normalizedPublicDir = str_replace('\\', '/', $publicDir);
+
+//         if (!str_starts_with($normalizedFullPath, $normalizedPublicDir)) {
+//             \Illuminate\Support\Facades\Log::warning('Access denied - outside public dir', [
+//                 'fullPath' => $normalizedFullPath,
+//                 'publicDir' => $normalizedPublicDir,
+//             ]);
+//             abort(403, 'Accès interdit');
+//         }
+
+//         $mimeType = mime_content_type($fullPath) ?: 'application/octet-stream';
+//         $filename = basename($fullPath);
+
+//         \Illuminate\Support\Facades\Log::info('Serving file', [
+//             'file' => $fullPath,
+//             'mimeType' => $mimeType,
+//             'download' => request()->has('download'),
+//         ]);
+
+//         // Vérifier si c'est un téléchargement
+//         if (request()->has('download')) {
+//             return response()->download($fullPath, $filename, [
+//                 'Content-Type' => $mimeType,
+//             ]);
+//         }
+
+//         // Sinon, afficher le fichier
+//         return response()->file($fullPath, [
+//             'Content-Type' => $mimeType,
+//         ]);
+//     } catch (\Exception $e) {
+//         \Illuminate\Support\Facades\Log::error('Error serving file', [
+//             'path' => $path ?? 'unknown',
+//             'error' => $e->getMessage(),
+//             'trace' => $e->getTraceAsString(),
+//         ]);
+//         abort(500, 'Erreur lors du chargement du fichier: ' . $e->getMessage());
+//     }
+// })->where('path', '.*');
+
+Route::get('/download/{filename}', function ($filename) {
+    $path = storage_path("app/public/uploads/$filename");
+
+    if (!file_exists($path)) {
+        abort(404);
+    }
+
+    return response()->file($path, [
+        'Content-Type' => mime_content_type($path),
+        'Content-Disposition' => 'inline; filename="'.$filename.'"'
+    ]);
+});
+
+
 Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
 
     // ----------------------- Authentification et gestion des mots de passe ---------------------
@@ -279,41 +390,99 @@ Route::middleware('verifyApiKey')->prefix('v1')->group(function () {
         // });
     });
 
-    // --- Demande d'adhésion personne client ---
-    // Route pour servir les fichiers uploadés (publique)
-    Route::get('/files/{filename}', function ($filename) {
-        // Sécuriser le nom de fichier
-        $filename = basename($filename);
 
-        $path = storage_path('app/public/uploads/' . $filename);
+    // // Route pour télécharger les fichiers de manière sécurisée
+    // Route::middleware(['auth:api'])->prefix('download')->group(function () {
+    //     Route::get('/file/{path}', function ($path) {
+    //         // Décoder le chemin (rawurldecode pour gérer correctement les caractères spéciaux)
+    //         $path = rawurldecode($path);
 
-        if (!file_exists($path)) {
-            abort(404, 'Fichier non trouvé');
-        }
 
-        // Vérifier que c'est bien dans le dossier uploads
-        $realPath = realpath($path);
-        $uploadsDir = realpath(storage_path('app/public/uploads'));
+    //         // Sécuriser le chemin (empêcher les attaques de traversal)
+    //         $path = str_replace('..', '', $path);
+    //         $path = ltrim($path, '/');
 
-        if (!$realPath || strpos($realPath, $uploadsDir) !== 0) {
-            abort(403, 'Accès interdit');
-        }
+    //         // Normaliser les slashes
+    //         $path = str_replace('\\', '/', $path);
 
-        return response()->file($path);
-    })->where('filename', '.*');
+    //         // Construire le chemin complet dans storage/app/public
+    //         $fullPath = storage_path('app/public/' . $path);
 
-    // Route pour télécharger les fichiers de manière sécurisée
-    Route::middleware(['auth:api'])->prefix('download')->group(function () {
-        Route::get('/file/{filename}', function ($filename) {
-            $path = storage_path('app/public/uploads/' . $filename);
+    //         // Vérifier que le fichier existe
+    //         if (!file_exists($fullPath)) {
+    //             // Si le chemin complet ne fonctionne pas, essayer avec juste le nom du fichier
+    //             $filename = basename($path);
+    //             $possiblePaths = [
+    //                 storage_path('app/public/uploads/' . $filename),
+    //                 storage_path('app/public/user/' . $filename),
+    //                 storage_path('app/public/demandes_adhesions/' . $filename),
+    //                 storage_path('app/public/users/' . $filename),
+    //             ];
 
-            if (!file_exists($path)) {
-                return ApiResponse::error('Fichier non trouvé', 404);
-            }
+    //             // Chercher dans les sous-dossiers user/ (ancien format)
+    //             $userDirs = glob(storage_path('app/public/user/*'), GLOB_ONLYDIR);
+    //             if ($userDirs) {
+    //                 foreach ($userDirs as $userDir) {
+    //                     $possiblePaths[] = $userDir . '/' . $filename;
+    //                 }
+    //             }
 
-            return response()->download($path);
-        })->where('filename', '.*');
-    });
+    //             // Chercher dans les sous-dossiers users/ (nouveau format pour photos)
+    //             $usersDirs = glob(storage_path('app/public/users/*'), GLOB_ONLYDIR);
+    //             if ($usersDirs) {
+    //                 foreach ($usersDirs as $usersDir) {
+    //                     $possiblePaths[] = $usersDir . '/' . $filename;
+    //                 }
+    //             }
+
+    //             // Chercher dans les sous-dossiers demandes_adhesions/ (et ses sous-dossiers par email)
+    //             $demandeDirs = glob(storage_path('app/public/demandes_adhesions/*'), GLOB_ONLYDIR);
+    //             if ($demandeDirs) {
+    //                 foreach ($demandeDirs as $demandeDir) {
+    //                     $possiblePaths[] = $demandeDir . '/' . $filename;
+    //                 }
+    //             }
+
+    //             // Chercher aussi directement dans demandes_adhesions/ (pour les anciens fichiers)
+    //             $possiblePaths[] = storage_path('app/public/demandes_adhesions/' . $filename);
+
+    //             $found = false;
+    //             foreach ($possiblePaths as $possiblePath) {
+    //                 if (file_exists($possiblePath)) {
+    //                     $fullPath = $possiblePath;
+    //                     $found = true;
+    //                     break;
+    //                 }
+    //             }
+
+    //             if (!$found) {
+    //                 return ApiResponse::error('Fichier non trouvé: ' . $path, 404);
+    //             }
+    //         }
+
+    //         // Vérifier que le chemin est sécurisé (dans storage/app/public)
+    //         $realPath = realpath($fullPath);
+    //         $publicDir = realpath(storage_path('app/public'));
+
+    //         if (!$realPath || strpos($realPath, $publicDir) !== 0) {
+    //             return ApiResponse::error('Accès interdit', 403);
+    //         }
+
+    //         // Extraire le nom du fichier original avec son extension
+    //         $originalFilename = basename($realPath);
+
+    //         // Déterminer le type MIME
+    //         $mimeType = mime_content_type($realPath);
+    //         if (!$mimeType) {
+    //             $mimeType = 'application/octet-stream';
+    //         }
+
+    //         // Télécharger avec le bon nom de fichier et type MIME
+    //         return response()->download($realPath, $originalFilename, [
+    //             'Content-Type' => $mimeType,
+    //         ]);
+    //     })->where('path', '.*');
+    // });
 
     // --------------------- Routes pour les notifications ---------------------
     Route::middleware(['auth:api'])->prefix('notifications')->group(function () {

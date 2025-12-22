@@ -18,14 +18,15 @@ class ImageUploadHelper
 
 
      /**
-      * Upload une image avec organisation par email utilisateur
+      * Upload une image avec organisation par type de fichier
       *
       * @param \Illuminate\Http\UploadedFile $file
-      * @param string $folder
+      * @param string $folder Dossier de base (par défaut 'uploads')
       * @param string|null $userEmail Email de l'utilisateur pour organiser les fichiers
+      * @param string|null $fileType Type de fichier: 'demande_adhesion' ou 'user_photo' (par défaut null = ancien comportement)
       * @return string|null
       */
-     public static function uploadImage($file, $folder = 'uploads', $userEmail = null)
+     public static function uploadImage($file, $folder = 'uploads', $userEmail = null, $fileType = null)
      {
          try {
              // Vérifier si le fichier est valide
@@ -33,30 +34,22 @@ class ImageUploadHelper
                  throw new \Exception('File is not valid.');
              }
 
-             // Vérifier si le type MIME est une image autorisée
+             // Vérifier si le type MIME est autorisé (images + pdf)
              $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
              if (!in_array($file->getMimeType(), $allowedMimeTypes)) {
-                 throw new \Exception('Invalid file type. Only JPEG, PNG, GIF, and WEBP are allowed.');
+                 throw new \Exception('Invalid file type. Only JPEG, PNG, GIF, WEBP and PDF are allowed.');
              }
 
-             // Générer un nom unique pour le fichier
+             // Générer un nom unique pour le fichier (UUID)
              $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
 
-             // Organiser par email utilisateur si fourni
-             if ($userEmail) {
-                 // Nettoyer l'email pour le chemin (remplacer @ et caractères spéciaux)
-                 $emailFolder = str_replace(['@', '.'], ['_at_', '_'], $userEmail);
-                 // Structure: user/email_utilisateur/nom_fichier
-                 $folder = 'user/' . $emailFolder;
-             }
-
-             // Stocker l'image dans le dossier spécifié
-             $path = $file->storeAs($folder, $filename, 'public');
+             // Stocker dans un dossier plat "uploads" (plus de sous-dossiers)
+             $path = $file->storeAs('uploads', $filename, 'public');
 
              // Ajouter un log pour débogage
              Log::info('Image uploaded successfully: ' . $path);
 
-             // Retourner une URL publique
+             // Retourner l'URL publique (symbole storage) ou la route de téléchargement
              return asset('storage/' . $path);
          } catch (\Exception $e) {
              // Logger l'erreur
@@ -114,8 +107,8 @@ class ImageUploadHelper
 
             // Vérifier si le fichier existe
             if (Storage::disk('public')->exists($cleanPath)) {
-                // Utiliser l'URL de l'API pour les fichiers
-                return url('/api/v1/files/' . basename($cleanPath));
+                // Utiliser la route de téléchargement par filename (uuid.ext)
+                return url('/api/download/' . basename($cleanPath));
             }
 
             return null;

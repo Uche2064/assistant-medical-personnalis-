@@ -148,8 +148,45 @@ class DemandeValidatorService
 
         // Ajouter la valeur selon le type de question
         if (isset($reponseData['reponse'])) {
-            $reponse['reponse'] = $reponseData['reponse'];
+            $reponseValue = $reponseData['reponse'];
+
+            // Si c'est un fichier uploadé, l'uploader et sauvegarder l'URL
+            if ($this->isUploadedFile($reponseValue)) {
+                // Vérifier que le fichier est valide
+                if (!$reponseValue->isValid()) {
+                    $errorCode = $reponseValue->getError();
+                    $errorMessages = [
+                        UPLOAD_ERR_INI_SIZE => 'Le fichier dépasse la taille maximale autorisée par le serveur.',
+                        UPLOAD_ERR_FORM_SIZE => 'Le fichier dépasse la taille maximale autorisée par le formulaire.',
+                        UPLOAD_ERR_PARTIAL => 'Le fichier n\'a été que partiellement téléchargé.',
+                        UPLOAD_ERR_NO_FILE => 'Aucun fichier n\'a été téléchargé.',
+                        UPLOAD_ERR_NO_TMP_DIR => 'Le dossier temporaire est manquant.',
+                        UPLOAD_ERR_CANT_WRITE => 'Échec de l\'écriture du fichier sur le disque.',
+                        UPLOAD_ERR_EXTENSION => 'Une extension PHP a arrêté le téléchargement du fichier.',
+                    ];
+                    $message = $errorMessages[$errorCode] ?? 'Erreur lors du téléchargement du fichier.';
+                    throw new \Exception($message);
+                }
+
+                // Uploader le fichier dans le dossier demandes_adhesions
+                $fileUrl = ImageUploadHelper::uploadImage(
+                    $reponseValue,
+                    'uploads',
+                    $user->email,
+                    'demande_adhesion'
+                );
+
+                if (!$fileUrl) {
+                    throw new \Exception('Erreur lors de l\'upload du fichier de réponse.');
+                }
+
+                $reponse['reponse'] = $fileUrl;
+            } else {
+                // Pour les autres types de réponses (texte, nombre, date, etc.)
+                $reponse['reponse'] = $reponseValue;
+            }
         }
+
         ReponseQuestionnaire::create($reponse);
     }
 
@@ -176,7 +213,8 @@ class DemandeValidatorService
             $photoUrl = ImageUploadHelper::uploadImage(
                 $beneficiaireData['photo_url'],
                 'uploads',
-                $emailFolder
+                $emailFolder,
+                'user_photo'
             );
 
             if (!$photoUrl) {

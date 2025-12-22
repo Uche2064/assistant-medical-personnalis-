@@ -7,12 +7,14 @@ use App\Models\PropositionContrat;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Facades\Auth;
+use Filament\Facades\Filament;
+
 
 class TechnicienClientsWidget extends BaseWidget
 {
     protected function getStats(): array
     {
-        $user = Auth::user();
+        $user = Auth::user() ?? Filament::auth()->user();
         
         if (!$user || !$user->personnel) {
             return [

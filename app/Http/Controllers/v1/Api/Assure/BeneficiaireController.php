@@ -230,7 +230,7 @@ class BeneficiaireController extends Controller
                 'email' => 'nullable|email|max:255',
                 'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             ]);
-            
+
             if ($validator->fails()) {
                 return ApiResponse::error($validator->errors(), 422);
             }
@@ -255,7 +255,8 @@ class BeneficiaireController extends Controller
                 $photoPath = ImageUploadHelper::uploadImage(
                     $request->file('photo'),
                     'uploads',
-                    $user->email
+                    $user->email,
+                    'user_photo'
                 );
             }
 
@@ -356,7 +357,7 @@ class BeneficiaireController extends Controller
                 'email' => 'nullable|email|max:255',
                 'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             ]);
-            
+
             if ($validator->fails()) {
                 return ApiResponse::error($validator->errors(), 422);
             }
@@ -388,7 +389,8 @@ class BeneficiaireController extends Controller
                 $photoPath = ImageUploadHelper::uploadImage(
                     $request->file('photo'),
                     'uploads',
-                    $user->email
+                    $user->email,
+                    'user_photo'
                 );
                 $beneficiaire->photo = $photoPath;
             }

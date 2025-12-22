@@ -36,5 +36,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Gérer les erreurs de broadcasting de manière silencieuse
+        $exceptions->render(function (\Illuminate\Broadcasting\BroadcastException $e, $request) {
+            // Logger l'erreur mais ne pas la propager
+            \Illuminate\Support\Facades\Log::warning('Erreur de broadcasting (non bloquante): ' . $e->getMessage());
+            return null; // Ne pas propager l'exception
+        });
     })->create();

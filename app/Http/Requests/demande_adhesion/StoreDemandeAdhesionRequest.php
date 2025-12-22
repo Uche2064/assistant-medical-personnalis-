@@ -13,6 +13,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class StoreDemandeAdhesionRequest extends FormRequest
@@ -38,19 +39,19 @@ class StoreDemandeAdhesionRequest extends FormRequest
         ];
 
         $typeDemandeur = $this->input('type_demandeur');
-        
+
         // If the applicant is a 'prestataire', we must validate their specific type first.
         // We return these rules early to prevent the database query from failing if 'type_prestataire' is missing.
         if ($typeDemandeur === TypeDemandeurEnum::PRESTATAIRE->value) {
             $rules['type_prestataire'] = 'required|in:' . implode(',', TypePrestataireEnum::values());
-            
+
             // If the request data does not contain a valid 'type_prestataire', stop here.
             // This is the key fix to prevent the "null given" error.
             if (!$this->has('type_prestataire') || !in_array($this->input('type_prestataire'), TypePrestataireEnum::values())) {
                 return $rules;
             }
         }
-        
+
         // Determine the recipient for dynamic questions.
         // If it's a 'prestataire', the recipient is their specific type, otherwise it's the 'demandeur' type.
         $destinataire = ($typeDemandeur === TypeDemandeurEnum::PRESTATAIRE->value)
@@ -60,7 +61,7 @@ class StoreDemandeAdhesionRequest extends FormRequest
         // Get the questions from the database based on the determined recipient.
         $questions = Question::forDestinataire($destinataire)->get()->keyBy('id');
         $questionIds = $questions->pluck('id')->toArray();
-        
+
         // Add dynamic rules for both "client" and "prestataire" applications.
         $rules = array_merge($rules, [
             'reponses' => ['required', 'array'],
@@ -77,7 +78,7 @@ class StoreDemandeAdhesionRequest extends FormRequest
             'beneficiaires.*.lien_parente' => ['required', 'in:' . implode(',', LienParenteEnum::values())],
             'beneficiaires.*.reponses' => ['required', 'array'],
         ]);
-        
+
         // Dynamically add validation for each question's response
         foreach ($this->input('reponses', []) as $index => $reponse) {
             $questionId = $reponse['question_id'] ?? null;
@@ -104,10 +105,38 @@ class StoreDemandeAdhesionRequest extends FormRequest
                     $rules[$ruleKey . '.reponse'] = [$required, 'date'];
                     break;
                 case TypeDonneeEnum::FILE:
-                    $rules[$ruleKey . '.reponse'] = [$required, 'file', 'mimes:jpeg,png,pdf,jpg', 'max:2048'];
+                    $rules[$ruleKey . '.reponse'] = [
+                        $required,
+                        'file',
+                        'mimes:jpeg,png,pdf,jpg',
+                        'max:5120',
+                        function ($attribute, $value, $fail) {
+                            if ($value && is_object($value) && method_exists($value, 'isValid')) {
+                                if (!$value->isValid()) {
+                                    $errorCode = $value->getError();
+                                    $uploadMaxSize = ini_get('upload_max_filesize');
+                                    $postMaxSize = ini_get('post_max_size');
+
+                                    $errorMessages = [
+                                        UPLOAD_ERR_INI_SIZE => "Le fichier dépasse la taille maximale autorisée par le serveur PHP (limite: {$uploadMaxSize}). Veuillez réduire la taille du fichier ou contacter l'administrateur.",
+                                        UPLOAD_ERR_FORM_SIZE => "Le fichier dépasse la taille maximale autorisée par le formulaire (limite: {$postMaxSize}). Veuillez réduire la taille du fichier.",
+                                        UPLOAD_ERR_PARTIAL => 'Le fichier n\'a été que partiellement téléchargé. Veuillez réessayer.',
+                                        UPLOAD_ERR_NO_FILE => 'Aucun fichier n\'a été téléchargé.',
+                                        UPLOAD_ERR_NO_TMP_DIR => 'Le dossier temporaire est manquant. Veuillez contacter l\'administrateur.',
+                                        UPLOAD_ERR_CANT_WRITE => 'Échec de l\'écriture du fichier sur le disque. Veuillez contacter l\'administrateur.',
+                                        UPLOAD_ERR_EXTENSION => 'Une extension PHP a arrêté le téléchargement du fichier. Veuillez contacter l\'administrateur.',
+                                    ];
+                                    $message = $errorMessages[$errorCode] ?? 'Erreur lors du téléchargement du fichier.';
+                                    $fail($message);
+                                }
+                            }
+                        }
+                    ];
                     break;
             }
         }
+        Log::info($rules);
+        Log::info($this->all());
 
         return $rules;
     }
@@ -148,7 +177,7 @@ class StoreDemandeAdhesionRequest extends FormRequest
             'reponses.*.reponse.date' => 'Cette réponse doit être une date valide.',
             'reponses.*.reponse.file' => 'Cette réponse doit être un fichier.',
             'reponses.*.reponse.mimes' => 'Le fichier doit être de type :values.',
-            'reponses.*.reponse.max' => 'La taille du fichier ne doit pas dépasser 2048 Ko.',
+            'reponses.*.reponse.max' => 'La taille du fichier ne doit pas dépasser 5120 Ko (5 Mo).',
             'beneficiaires.array' => 'Les bénéficiaires doivent être un tableau.',
             'beneficiaires.*.nom.required' => 'Le nom du bénéficiaire est requis.',
             'beneficiaires.*.date_naissance.required' => 'La date de naissance du bénéficiaire est requise.',

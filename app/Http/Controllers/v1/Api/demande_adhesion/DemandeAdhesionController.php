@@ -582,13 +582,41 @@ class DemandeAdhesionController extends Controller
                     'solde' => $proposition->prime_totale
                 ]);
 
-                // 2. Mettre à jour la proposition
+                // 2. Calculer et ajouter la commission au commercial si le client a utilisé un code de parrainage
+                $client = $proposition->demandeAdhesion->user->client;
+                if ($client && $client->commercial_id) {
+                    $primeStandard = $proposition->prime; // Prime standard sans frais de gestion
+                    $fraisGestion = $primeStandard * 0.20; // 20% de frais de gestion
+                    $commission = $fraisGestion * 0.05; // 5% des frais de gestion = 1% de la prime standard
+
+                    // Ajouter la commission au solde du commercial
+                    $commercial = \App\Models\User::find($client->commercial_id);
+                    if ($commercial) {
+                        $commercial->increment('solde', $commission);
+
+                        // Notifier le commercial de la commission
+                        $this->notificationService->createNotification(
+                            $commercial->id,
+                            'Commission reçue',
+                            "Vous avez reçu une commission de " . number_format($commission, 0, ',', ' ') . " FCFA pour le contrat accepté par " . ($proposition->demandeAdhesion->user->personne->nom ?? $proposition->demandeAdhesion->user->email) . ".",
+                            'commission_reçue',
+                            [
+                                'montant' => $commission,
+                                'client_id' => $client->id,
+                                'contrat_id' => $clientContrat->id,
+                                'type_notification' => 'commission_reçue'
+                            ]
+                        );
+                    }
+                }
+
+                // 3. Mettre à jour la proposition
                 $proposition->update([
                     'statut' => StatutPropositionContratEnum::ACCEPTEE->value,
                     'date_acceptation' => now()
                 ]);
 
-                // 3. Mettre à jour la demande d'adhésion
+                // 4. Mettre à jour la demande d'adhésion
                 $proposition->demandeAdhesion->update([
                     'statut' => StatutDemandeAdhesionEnum::ACCEPTEE->value,
                     'contrat_id' => $clientContrat->id

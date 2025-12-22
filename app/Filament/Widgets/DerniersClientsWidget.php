@@ -9,6 +9,7 @@ use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Filament\Facades\Filament;
 
 class DerniersClientsWidget extends TableWidget
 {
@@ -18,7 +19,7 @@ class DerniersClientsWidget extends TableWidget
 
     public function table(Table $table): Table
     {
-        $commercial = \Filament\Facades\Filament::auth()->user() ?? Auth::user();
+        $commercial = Filament::auth()->user() ?? Auth::user();
 
         if (!$commercial) {
             return $table

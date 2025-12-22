@@ -85,7 +85,7 @@ class CreateClient extends CreateRecord
             // Gestion de l'upload de la photo (uniquement pour physique)
             $photoUrl = null;
             if (isset($data['photo']) && $data['type_client'] === ClientTypeEnum::PHYSIQUE->value) {
-                $photoUrl = ImageUploadHelper::uploadImage($data['photo'], 'uploads', $data['email']);
+                $photoUrl = ImageUploadHelper::uploadImage($data['photo'], 'uploads', $data['email'], 'user_photo');
             }
 
             // Créer la personne

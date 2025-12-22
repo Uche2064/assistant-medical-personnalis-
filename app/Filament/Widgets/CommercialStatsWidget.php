@@ -50,6 +50,9 @@ class CommercialStatsWidget extends StatsOverviewWidget
         $codeParrainage = $currentCode ? $currentCode->code_parrainage : 'Aucun code';
         $joursRestants = $currentCode ? (int) round(now()->diffInDays($currentCode->date_expiration, false)) : 0;
 
+        // Solde du commercial
+        $solde = $commercial->solde ?? 0;
+
         return [
             Stat::make('Total Clients', $totalClients)
                 ->description('Clients ajoutés par vous')
@@ -62,6 +65,11 @@ class CommercialStatsWidget extends StatsOverviewWidget
                     : "Aucun code actif")
                 ->descriptionIcon('heroicon-m-ticket')
                 ->color($currentCode && $joursRestants > 0 ? 'success' : 'warning'),
+
+            Stat::make('Solde', number_format($solde, 0, ',', ' ') . ' FCFA')
+                ->description('Votre solde de commissions')
+                ->descriptionIcon('heroicon-m-banknotes')
+                ->color('info'),
         ];
     }
 }

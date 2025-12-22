@@ -7,6 +7,8 @@ use App\Models\PropositionContrat;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Filament\Facades\Filament;
+
 
 class TechnicienClientsEvolutionWidget extends ChartWidget
 {
@@ -14,7 +16,7 @@ class TechnicienClientsEvolutionWidget extends ChartWidget
 
     protected function getData(): array
     {
-        $user = Auth::user();
+        $user = Auth::user() ?? Filament::auth()->user();
         
         if (!$user || !$user->personnel) {
             return [

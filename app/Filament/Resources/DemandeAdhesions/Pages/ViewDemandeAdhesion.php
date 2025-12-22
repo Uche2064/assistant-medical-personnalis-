@@ -40,6 +40,26 @@ class ViewDemandeAdhesion extends ViewRecord
             'reponsesQuestions.question',
             'validePar',
         ]);
+
+        // Marquer les notifications non lues liées à cette demande comme lues
+        $user = Filament::auth()->user() ?? Auth::user();
+        if ($user) {
+            \App\Models\Notification::where('user_id', $user->id)
+                ->where('est_lu', false)
+                ->get()
+                ->filter(function ($notification) {
+                    $data = $notification->data ?? [];
+                    $typeNotification = $data['type_notification'] ?? null;
+                    $demandeId = $data['demande_id'] ?? null;
+
+                    // Marquer comme lue si c'est une notification de nouvelle demande pour cette demande spécifique
+                    return in_array($typeNotification, ['nouvelle_demande_adhésion', 'nouvelle_demande_prestataire']) &&
+                           $demandeId == $this->record->id;
+                })
+                ->each(function ($notification) {
+                    $notification->markAsRead();
+                });
+        }
     }
 
     protected function getHeaderActions(): array
@@ -52,9 +72,77 @@ class ViewDemandeAdhesion extends ViewRecord
         ) && $demande->statut === StatutDemandeAdhesionEnum::EN_ATTENTE;
 
         $canPropose = $user && $user->hasRole(RoleEnum::TECHNICIEN->value) &&
-                     $demande->statut === StatutDemandeAdhesionEnum::EN_ATTENTE;
+                     $demande->statut === StatutDemandeAdhesionEnum::EN_ATTENTE &&
+                     $demande->type_demandeur === \App\Enums\TypeDemandeurEnum::CLIENT;
+
+        // Pour les prestataires : le médecin contrôleur peut valider
+        $canValidatePrestataire = $user &&
+                                  $user->hasRole(RoleEnum::MEDECIN_CONTROLEUR->value) &&
+                                  $demande->statut === StatutDemandeAdhesionEnum::EN_ATTENTE &&
+                                  $demande->type_demandeur === \App\Enums\TypeDemandeurEnum::PRESTATAIRE;
 
         return [
+            Action::make('valider_prestataire')
+                ->label('Valider la demande')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->visible($canValidatePrestataire)
+                ->form([
+                    Textarea::make('motif_validation')
+                        ->label('Motif de validation')
+                        ->placeholder('Optionnel'),
+                    Textarea::make('notes_techniques')
+                        ->label('Notes techniques')
+                        ->placeholder('Optionnel'),
+                ])
+                ->action(function (array $data) use ($user, $demande) {
+                    try {
+                        DB::beginTransaction();
+
+                        $medecinControleur = $user->personnel ?? $user;
+
+                        // Valider la demande via le service
+                        $this->demandeAdhesionService->validerDemande(
+                            $demande,
+                            $medecinControleur,
+                            $data['motif_validation'] ?? null,
+                            $data['notes_techniques'] ?? null
+                        );
+
+                        // Envoyer un email au prestataire
+                        try {
+                            \App\Jobs\SendEmailJob::dispatch(
+                                $demande->user->email,
+                                'Demande d\'adhésion prestataire validée',
+                                \App\Enums\EmailType::ACCEPTED->value,
+                                [
+                                    'demande' => $demande,
+                                    'medecin_controleur' => $medecinControleur,
+                                ]
+                            );
+                        } catch (\Exception $e) {
+                            \Illuminate\Support\Facades\Log::warning('Erreur envoi email validation prestataire: ' . $e->getMessage());
+                        }
+
+                        DB::commit();
+
+                        Notification::make()
+                            ->success()
+                            ->title('Demande validée')
+                            ->body('La demande d\'adhésion prestataire a été validée avec succès.')
+                            ->send();
+
+                        $this->redirect($this->getResource()::getUrl('view', ['record' => $demande]));
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        Notification::make()
+                            ->danger()
+                            ->title('Erreur')
+                            ->body('Une erreur est survenue lors de la validation : ' . $e->getMessage())
+                            ->send();
+                    }
+                }),
+
             Action::make('rejeter')
                 ->label('Rejeter la demande')
                 ->icon('heroicon-o-x-circle')
@@ -296,9 +384,14 @@ class ViewDemandeAdhesion extends ViewRecord
 
     protected function getHeaderWidgets(): array
     {
-        return [
-            \App\Filament\Widgets\DemandeAdhesionStatsWidget::class,
-        ];
+        // Les stats ne s'affichent que pour les clients (physiques et moraux), pas pour les prestataires
+        if ($this->record->type_demandeur === \App\Enums\TypeDemandeurEnum::CLIENT) {
+            return [
+                \App\Filament\Widgets\DemandeAdhesionStatsWidget::class,
+            ];
+        }
+
+        return [];
     }
 
     public function getWidgetData(): array

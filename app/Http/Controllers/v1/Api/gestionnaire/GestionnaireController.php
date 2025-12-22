@@ -55,7 +55,7 @@ class GestionnaireController extends Controller
 
         // Gestion de l'upload de la photo
         if (isset($validated['photo'])) {
-            $photoUrl = ImageUploadHelper::uploadImage($validated['photo'], 'uploads', $validated['email']);
+            $photoUrl = ImageUploadHelper::uploadImage($validated['photo'], 'uploads', $validated['email'], 'user_photo');
             if (!$photoUrl) {
                 return ApiResponse::error('Erreur lors de l\'upload de la photo', 422);
             }

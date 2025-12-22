@@ -9,6 +9,7 @@ use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Filament\Facades\Filament;
 
 class DerniersPersonnelsWidget extends BaseWidget
 {
@@ -18,12 +19,12 @@ class DerniersPersonnelsWidget extends BaseWidget
 
     public function table(Table $table): Table
     {
-        $user = Auth::user();
+        $user = Auth::user() ?? Filament::auth()->user();
         $isAdminGlobal = $user->hasRole(RoleEnum::ADMIN_GLOBAL->value);
 
         return $table
             ->query(function (): Builder {
-                $user = Auth::user();
+                $user = Auth::user() ?? Filament::auth()->user();
                 $isGestionnaire = $user->hasRole(RoleEnum::GESTIONNAIRE->value);
 
                 $query = Personnel::query()

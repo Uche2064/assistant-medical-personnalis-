@@ -8,6 +8,8 @@ use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Filament\Facades\Filament;
+
 
 class MedecinControleurTopGarantiesWidget extends TableWidget
 {
@@ -17,7 +19,7 @@ class MedecinControleurTopGarantiesWidget extends TableWidget
 
     public function table(Table $table): Table
     {
-        $user = Auth::guard('web')->user();
+        $user = Auth::user() ?? Filament::auth()->user();
         
         if (!$user || !$user->personnel) {
             return $table
